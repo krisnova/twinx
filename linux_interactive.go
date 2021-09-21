@@ -170,8 +170,9 @@ func Exists(path string) bool {
 
 // ExecResult is the response from executing a command
 type ExecResult struct {
-	Stdout *bytes.Buffer
-	Stderr *bytes.Buffer
+	Command *exec.Cmd
+	Stdout  *bytes.Buffer
+	Stderr  *bytes.Buffer
 }
 
 // ExecCommand is a wrapper for exec.Command but with a dedicated
@@ -187,8 +188,9 @@ func ExecCommand(cmd string, args []string) (*ExecResult, error) {
 		return nil, fmt.Errorf("unable to execute command: %v", err)
 	}
 	return &ExecResult{
-		Stdout: stdout,
-		Stderr: stderr,
+		Command: c,
+		Stdout:  stdout,
+		Stderr:  stderr,
 	}, nil
 }
 

@@ -37,6 +37,7 @@ import (
 )
 
 func main() {
+	twinx.PrintBanner()
 	err := RunWithOptions(instanceOptions)
 	if err != nil {
 		logger.Critical("%v", err)
@@ -91,7 +92,6 @@ func RunWithOptions(opt *RuntimeOptions) error {
 		UsageText: ``,
 		Version:   twinx.Version,
 		Action: func(context *cli.Context) error {
-			twinx.PrintBanner()
 			cli.ShowSubcommandHelp(context)
 			return nil
 		},
@@ -103,40 +103,89 @@ func RunWithOptions(opt *RuntimeOptions) error {
 			// ********************************************************
 
 			{
-				Name:    "stream",
-				Aliases: []string{"s"},
-				Usage:   "Start a new stream!",
-				UsageText: `
-twinx stream <title> <description>
-twinx stream "Working on Twinx" "A command line tool for live streaming"`,
-				CustomHelpTemplate: fmt.Sprintf("%s%s", twinx.Banner(), DefaultSubCommandHelpTemplate),
-				Flags: allFlags([]cli.Flag{
-					&cli.BoolFlag{
-						Name:        "dryrun",
-						Aliases:     []string{"d"},
-						Value:       false,
-						Usage:       "toggle dryrun mode",
-						Destination: &dryRun,
-					},
-				}),
+				Name:      "stream",
+				Aliases:   []string{"s"},
+				Usage:     "The stream subresource. Used to manage streams at runtime.",
+				UsageText: ``,
+				Flags:     allFlags([]cli.Flag{}),
 				Action: func(c *cli.Context) error {
-					allInit()
-					args := c.Args()
-					if args.Len() != 2 {
-						cli.ShowCommandHelp(c, "stream")
-						return nil
-					}
-					title := args.Get(0)
-					description := args.Get(1)
-					if dryRun {
-						logger.Info("DRYRUN MODE ENABLED")
-					}
-					logger.Info("TITLE:       %s", title)
-					logger.Info("DESCRIPTION: %s", description)
-					logger.Always("Starting stream...")
-					launcher := twinx.NewLauncher(title, description)
-					launcher.SetDryRun(dryRun)
-					return launcher.Start()
+					cli.ShowSubcommandHelp(c)
+					return nil
+				},
+				Subcommands: []*cli.Command{
+					// Stream Start
+					{
+						Name:      "start",
+						Usage:     "Start a new stream. Only one stream can be ran at a time.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							x, err := twinx.NewActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to start new active stream: %v", err)
+							}
+							logger.Info("Running PID %d", x.PID)
+							logger.Always("Success!")
+							return nil
+						},
+					},
+
+					// Stream Stop
+					{
+						Name:      "stop",
+						Usage:     "Stop any running stream.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							x, err := twinx.GetActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to find active running stream: %v", err)
+							}
+							err = twinx.StopActiveStream(x)
+							if err != nil {
+								return fmt.Errorf("unable to stop active stream. consider twinx stream kill: %v", err)
+							}
+							return nil
+						},
+					},
+
+					// Stream Kill
+					{
+						Name:      "kill",
+						Usage:     "Kill any existing stream. Forcefully.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							x, err := twinx.GetActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to find active running stream: %v", err)
+							}
+							err = twinx.KillActiveStream(x)
+							if err != nil {
+								return fmt.Errorf("unable to force kill active stream: %v", err)
+							}
+							return nil
+						},
+					},
+
+					// Stream Info
+					{
+						Name:      "info",
+						Usage:     "Print stream metrics and data.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							x, err := twinx.GetActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to find active running stream: %v", err)
+							}
+							ch := x.InfoChannel()
+							for {
+								logger.Always(<-ch)
+							}
+							return nil
+						},
+					},
 				},
 			},
 		},

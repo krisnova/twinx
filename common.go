@@ -25,8 +25,7 @@ import (
 	"strconv"
 )
 
-func GetenvInt(key string) int {
-	n := os.Getenv(key)
+func StrInt0(n string) int {
 	if n == "" {
 		return 0
 	}
@@ -35,4 +34,8 @@ func GetenvInt(key string) int {
 		return 0
 	}
 	return x
+}
+
+func GetenvInt(key string) int {
+	return StrInt0(os.Getenv(key))
 }

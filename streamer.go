@@ -25,7 +25,7 @@
 
 package twinx
 
-type Launcher struct {
+type Streamer struct {
 	dryRun      bool
 	Title       string
 	Description string
@@ -35,40 +35,19 @@ type Launcher struct {
 	YouTubeClient *YouTubeClient
 }
 
-func NewLauncher(title, description string) *Launcher {
-	return &Launcher{
+func NewStreamer(title, description string) *Streamer {
+	return &Streamer{
 		Title:       title,
 		Description: description,
 	}
 }
 
-func (l *Launcher) SetDryRun(dryRun bool) {
-	l.dryRun = dryRun
+func (s *Streamer) SetDryRun(dryRun bool) {
+	s.dryRun = dryRun
 }
 
-func (l *Launcher) Start() error {
+func (s *Streamer) Start() error {
 	var err error
 
-	// Initialize OBS
-	l.OBSClient = NewOBSClient()
-	err = l.OBSClient.Authenticate()
-	if err != nil {
-		return err
-	}
-
-	// Initialize Twitch
-	l.TwitchClient = NewInteractiveTwitchClient()
-	err = l.TwitchClient.Authenticate()
-	if err != nil {
-		return err
-	}
-
-	// Initialize YouTube
-	l.YouTubeClient = NewYouTubeClient()
-	err = l.YouTubeClient.Authenticate()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
