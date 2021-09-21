@@ -1,9 +1,15 @@
 # github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d
 ## explicit; go 1.12
 github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/golang-jwt/jwt v3.2.1+incompatible
+## explicit
+github.com/golang-jwt/jwt
 # github.com/kris-nova/logger v0.2.2
 ## explicit; go 1.16
 github.com/kris-nova/logger
+# github.com/nicklaw5/helix v1.25.0
+## explicit; go 1.15
+github.com/nicklaw5/helix
 # github.com/russross/blackfriday/v2 v2.0.1
 ## explicit
 github.com/russross/blackfriday/v2
