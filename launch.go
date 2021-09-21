@@ -30,7 +30,9 @@ type Launcher struct {
 	Title       string
 	Description string
 
-	TwitchClient *InteractiveTwitchClient
+	TwitchClient  *InteractiveTwitchClient
+	OBSClient     *OBSClient
+	YouTubeClient *YouTubeClient
 }
 
 func NewLauncher(title, description string) *Launcher {
@@ -45,10 +47,25 @@ func (l *Launcher) SetDryRun(dryRun bool) {
 }
 
 func (l *Launcher) Start() error {
+	var err error
+
+	// Initialize OBS
+	l.OBSClient = NewOBSClient()
+	err = l.OBSClient.Authenticate()
+	if err != nil {
+		return err
+	}
 
 	// Initialize Twitch
 	l.TwitchClient = NewInteractiveTwitchClient()
-	err := l.TwitchClient.Authenticate()
+	err = l.TwitchClient.Authenticate()
+	if err != nil {
+		return err
+	}
+
+	// Initialize YouTube
+	l.YouTubeClient = NewYouTubeClient()
+	err = l.YouTubeClient.Authenticate()
 	if err != nil {
 		return err
 	}

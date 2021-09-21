@@ -55,9 +55,6 @@ const (
 
 	TWINX_PUBLIC_ID           string = "ykiaywwbve0aa3vm15cruou06dpuct"
 	TWINX_PUBLIC_CALLBACK_URL string = "http://localhost:1717"
-
-	//TWINX_ID     string = "TWINX_ID"
-	//TWINX_SECRET string = "TWINX_SECRET"
 )
 
 type InteractiveTwitchClient struct {
@@ -81,19 +78,6 @@ func NewInteractiveTwitchClient() *InteractiveTwitchClient {
 
 func (c *InteractiveTwitchClient) Authenticate() error {
 
-	//// Small Uncertain System
-	//id := os.Getenv(TWINX_ID)
-	//if id == "" {
-	//	return fmt.Errorf("Environmental Variable TWINX_ID not set. Get this from the official Nivenly Twinx twitch app.")
-	//}
-	//secret := os.Getenv(TWINX_SECRET)
-	//if secret == "" {
-	//	return fmt.Errorf("Environmental Variable TWINX_SECRET not set. Get this from the official Nivenly Twinx twitch app.")
-	//}
-	//c.AppID = id
-	//c.AppSecret = secret
-
-	// Default client example
 	client, err := helix.NewClient(&helix.Options{
 		ClientID:    TWINX_PUBLIC_ID,
 		RedirectURI: TWINX_PUBLIC_CALLBACK_URL,
