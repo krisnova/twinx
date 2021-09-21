@@ -101,7 +101,6 @@ func (c *InteractiveTwitchClient) Authenticate() error {
 	if err != nil {
 		return fmt.Errorf("unable to initialize twitch client: %v", err)
 	}
-	c.Client = client
 
 	url := client.GetAuthorizationURL(&helix.AuthorizationURLParams{
 		// Return an auth "Code" to use for later
@@ -114,7 +113,12 @@ func (c *InteractiveTwitchClient) Authenticate() error {
 		ForceVerify: false,
 	})
 
-	iCh, errCh := LocalhostServerGetParameters()
+	iCh, errCh := LocalhostServerGetParameters(&CallbackText{
+		Title:       "Twinx - Nivenly.com",
+		MainHeading: "Successfully Authenticated Twitch.tv",
+		SubHeading1: "Open Source Live Streaming",
+		SubHeading2: "You may now close this window.",
+	})
 	logger.Info("Waiting for callback response...")
 	c.LoginURL = url
 	err = OpenInBrowserDefault(c.LoginURL)
@@ -153,5 +157,14 @@ func (c *InteractiveTwitchClient) Authenticate() error {
 	authenticatedCode := authResponse.Code[0]
 	logger.Info("Success! Auth code from Twitch. [%v]", len(authenticatedCode))
 
+	resp, err := client.RequestUserAccessToken(authenticatedCode)
+	if err != nil {
+		return fmt.Errorf("unable to request user access token: %v", err)
+	}
+
+	client.SetUserAccessToken(resp.Data.AccessToken)
+	c.Client = client
+
+	logger.Success("Successfully authenticated with Twitch!")
 	return nil
 }

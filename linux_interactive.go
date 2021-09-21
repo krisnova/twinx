@@ -46,14 +46,25 @@ const (
 	LocalhostListenPort = "1717"
 )
 
+type CallbackText struct {
+	Title       string
+	MainHeading string
+	SubHeading1 string
+	SubHeading2 string
+}
+
+func (d *CallbackText) render() string {
+	return fmt.Sprintf(NivenlyDefaultPageTemplate, d.Title, d.MainHeading, d.SubHeading1, d.SubHeading2)
+}
+
 // LocalhostServerGetParameters will run an HTTP server on localhost
 // and listen for parameters passed back over the GET request to populate
 // the parameters into JSON returned over the []byte channel
-func LocalhostServerGetParameters() (chan []byte, chan error) {
+func LocalhostServerGetParameters(d *CallbackText) (chan []byte, chan error) {
 	errCh := make(chan error)
 	iCh := make(chan []byte)
 	go func() {
-		http.HandleFunc("/", SharedValues)
+		http.HandleFunc("/", SharedValuesDynamic(d))
 		go func() {
 			http.ListenAndServe(fmt.Sprintf(":%s", LocalhostListenPort), nil)
 			// TODO we need a way to close this server after we have our parameters
@@ -85,13 +96,25 @@ var (
 	localhostServerValuesMutex sync.Mutex
 )
 
+var dynamicCallbackText = &CallbackText{
+	Title:       "Twinx",
+	MainHeading: "Live Streaming Application",
+	SubHeading1: "Built for Linux",
+	SubHeading2: "Very impressive",
+}
+
+func SharedValuesDynamic(d *CallbackText) func(w http.ResponseWriter, r *http.Request) {
+	dynamicCallbackText = d
+	return SharedValues
+}
+
 // SharedValues will plumb shared values back over the queue
 func SharedValues(w http.ResponseWriter, r *http.Request) {
 	localhostServerValuesMutex.Lock()
 	defer localhostServerValuesMutex.Unlock()
 	localhostServerValuesQueue = append(localhostServerValuesQueue, r.URL.Query())
 	//logger.Debug(r.URL.Query().Encode())
-	w.Write([]byte(NivenlyDefaultPageTemplate))
+	w.Write([]byte(dynamicCallbackText.render()))
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.WriteHeader(http.StatusOK)
 }
@@ -174,6 +197,12 @@ func ExecCommand(cmd string, args []string) (*ExecResult, error) {
 const (
 	NivenlyDefaultPageHeader string = "Access-Control-Allow-Origin: *"
 
+	// NivenlyDefaultPageTemplate
+	// 4 string substitutions
+	//   1. Title
+	//   2. Main text
+	//   3. Sub 1
+	//   4. Sub 2
 	NivenlyDefaultPageTemplate string = `
 
 <!DOCTYPE html>
@@ -184,7 +213,7 @@ const (
     
         <title>
         
-            Twinx - Nivenly.com - Live Streaming CLI Tool for Linux
+            %s
         
         </title>
     
@@ -423,7 +452,7 @@ const (
     <a href="https://nivenly.com/bio">
         <img src="https://nivenly.com/assets/logo/Nivenly_2.png" width="450" height="auto" style="padding-bottom: 20px">
         <span class="logo-host glow" style="font-size: 1.3rem">[</span>
-        <span class="logo-user glow" style="font-size: 1.3rem">Twinx - Live Streaming CLI</span>
+        <span class="logo-user glow" style="font-size: 1.3rem">%s</span>
         <span class="logo-host glow" style="font-size: 1.3rem">]</span>
     </a>
 </div>
@@ -432,10 +461,10 @@ const (
 <div class="glow">
 
     <div class="logo-host glow" style="font-size: 1.1rem; padding-top: 20px">
-        Live streaming CLI tool for Linux
-    </div>
+		%s
+	</div>
     <div class="logo-user glow" style="font-size: 1.1rem">
-		You may now close this window
+		%s
     </div>
 
 </div>
