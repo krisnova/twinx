@@ -28,6 +28,7 @@ package twinx
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/kris-nova/logger"
@@ -77,12 +78,12 @@ func NewActiveStream() (*ActiveStream, error) {
 
 	// Now we wait for the "daemon" to write it's PID
 	started := false
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 50; i++ {
 		if Exists(ActiveStreamPID) {
 			started = true
 			break
 		}
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Millisecond * 100)
 	}
 	if !started {
 		return nil, fmt.Errorf("unable to find PID for stream")
@@ -106,10 +107,48 @@ func NewActiveStream() (*ActiveStream, error) {
 
 // StopActiveStream will stop an active stream.
 func StopActiveStream(x *ActiveStream) error {
-	return nil
+	if !Exists(ActiveStreamPID) {
+		logger.Info("missing PID file")
+		return nil
+	}
+	pidBytes, err := ioutil.ReadFile(ActiveStreamPID)
+	if err != nil {
+		return fmt.Errorf("unable to access PID file: %v", err)
+	}
+	pidStr := string(pidBytes)
+
+	// Send SIGHUP (1)
+	cmd, err := ExecCommand("kill", []string{"-1", pidStr})
+	if err != nil {
+		return fmt.Errorf("unable to kill: %v", err)
+	}
+	err = cmd.Command.Wait()
+	if err != nil {
+		return fmt.Errorf("error waiting on kill: %v", err)
+	}
+	return os.Remove(ActiveStreamPID)
 }
 
 // KillActiveStream will force kill an active stream.
 func KillActiveStream(x *ActiveStream) error {
-	return nil
+	if !Exists(ActiveStreamPID) {
+		logger.Info("missing PID file")
+		return nil
+	}
+	pidBytes, err := ioutil.ReadFile(ActiveStreamPID)
+	if err != nil {
+		return fmt.Errorf("unable to access PID file: %v", err)
+	}
+	pidStr := string(pidBytes)
+
+	// Send SIGKILL (9)
+	cmd, err := ExecCommand("kill", []string{"-9", pidStr})
+	if err != nil {
+		return fmt.Errorf("unable to kill: %v", err)
+	}
+	err = cmd.Command.Wait()
+	if err != nil {
+		return fmt.Errorf("error waiting on kill: %v", err)
+	}
+	return os.Remove(ActiveStreamPID)
 }

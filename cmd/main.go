@@ -168,6 +168,17 @@ func RunWithOptions(opt *RuntimeOptions) error {
 						},
 					},
 
+					// Stream Clean
+					{
+						Name:      "clean",
+						Usage:     "Clean any existing stream files. Forcefully.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							return os.Remove(twinx.ActiveStreamPID)
+						},
+					},
+
 					// Stream Info
 					{
 						Name:      "info",

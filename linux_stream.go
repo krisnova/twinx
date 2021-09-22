@@ -41,7 +41,8 @@ const (
 )
 
 type Stream struct {
-	Shutdown chan bool
+	Shutdown        chan bool
+	IsManagedDaemon bool
 }
 
 func NewStream() *Stream {
@@ -108,6 +109,7 @@ func (s *Stream) SigHandler() {
 				s.Shutdown <- true
 			} else {
 				logger.Always("Daemon launched successfully!")
+				s.IsManagedDaemon = true
 			}
 		case syscall.SIGTERM:
 			logger.Always("SIGTERM")
