@@ -46,7 +46,7 @@ generate: ## Will generate Go code from .proto files in /api
 		--go_opt=paths=source_relative \
         --go-grpc_out=. \
         --go-grpc_opt=paths=source_relative \
-        api/twinx.proto
+        activestreamer/twinx.proto
 
 
 test: ## 🤓 Test is used to test

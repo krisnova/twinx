@@ -35,16 +35,22 @@ package twinx
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/kris-nova/twinx/activestreamer"
+
+	"google.golang.org/grpc"
 
 	"github.com/kris-nova/logger"
 )
 
 const (
 	ActiveStreamPIDWriteMode os.FileMode = 0600
+	ActiveStreamSocket                   = "/var/run/twinx.sock"
 )
 
 type Stream struct {
@@ -67,6 +73,15 @@ func (s *Stream) Run() error {
 	// Setup the signal handler in Run()
 	s.SigHandler()
 
+	// Setup the gRPC server
+	go func() {
+		err := s.ServerGRPC()
+		if err != nil {
+			logger.Critical("Unable to start gRPC server! %v", err)
+			s.Shutdown <- true
+		}
+	}()
+
 	// Do not handle error. If it cannot be removed just exit and let the user
 	// figure out what to do.
 	defer os.Remove(ActiveStreamPID)
@@ -82,6 +97,7 @@ func (s *Stream) Run() error {
 		select {
 		case <-s.Shutdown:
 			logger.Always("Graceful shutdown...")
+			os.Remove(ActiveStreamSocket)
 			return nil
 		default:
 			break
@@ -133,4 +149,27 @@ func (s *Stream) SigHandler() {
 			s.Shutdown <- true
 		}
 	}()
+}
+
+type ActiveStreamerServer struct {
+	activestreamer.UnimplementedActiveStreamerServer
+}
+
+func (s *Stream) ServerGRPC() error {
+	if Exists(ActiveStreamSocket) {
+		return fmt.Errorf("grpc stream socket exists %s", ActiveStreamSocket)
+	}
+
+	conn, err := net.Listen("unix", ActiveStreamSocket)
+	if err != nil {
+		return fmt.Errorf("unable to open unix domain socket: %v", err)
+	}
+	server := grpc.NewServer()
+	activestreamer.RegisterActiveStreamerServer(server, &ActiveStreamerServer{})
+	//log.Printf("server listening at %v", lis.Addr())
+	logger.Info("ActiveStreamer listening: %v", conn.Addr())
+	if err := server.Serve(conn); err != nil {
+		return fmt.Errorf("unable to start server on unix domain socket: %v", err)
+	}
+	return nil
 }

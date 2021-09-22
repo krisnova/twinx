@@ -39,6 +39,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/kris-nova/twinx/activestreamer"
+	"google.golang.org/grpc"
+
 	"github.com/kris-nova/logger"
 )
 
@@ -52,6 +55,7 @@ type ActiveStream struct {
 	Description string
 	PID         int
 	PID64       int64
+	Client      *activestreamer.ActiveStreamerClient
 }
 
 // InfoChannel will return a channel that can be accessed
@@ -65,12 +69,38 @@ func (x *ActiveStream) InfoChannel() chan string {
 // to assure that it is running, healthy, and that we can talk
 // to it.
 func (x *ActiveStream) Assure() error {
+
+	// Note: See https://github.com/grpc/grpc-go/issues/1846
+	// Example:
+	//	passthrough:///unix:///run/example.sock
+
+	conn, err := grpc.Dial(fmt.Sprintf("passthrough:///unix://%s", ActiveStreamSocket), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Second*3))
+	if err != nil {
+		return fmt.Errorf("error dialing socket: %v", err)
+	}
+	defer conn.Close()
+	client := activestreamer.NewActiveStreamerClient(conn)
+	x.Client = &client
+	logger.Info("Successfully connected to server!")
 	return nil
 }
 
 // GetActiveStream will attempt to lookup an active stream running locally.
 func GetActiveStream() (*ActiveStream, error) {
-	return nil, nil
+	pidBytes, err := ioutil.ReadFile(ActiveStreamPID)
+	if err != nil {
+		return nil, fmt.Errorf("unable to access PID file: %v", err)
+	}
+	pidStr := string(pidBytes)
+	//logger.Info("Success. Found PID: %s", pidStr)
+	pidInt := StrInt0(pidStr)
+	if pidInt == 0 {
+		return nil, fmt.Errorf("unable to parse PID from string: %v", err)
+	}
+	return &ActiveStream{
+		PID:   pidInt,
+		PID64: int64(pidInt),
+	}, nil
 }
 
 // NewActiveStream will create a new active stream as long as
@@ -86,11 +116,13 @@ func NewActiveStream(title, description string) (*ActiveStream, error) {
 	// It is up to the child to handle it accordingly. We handle this in twinx by checking ppid on the child!
 	//
 	// Command:
-	// /bin/sh -c twinx activestream > /var/log/twinx.log &
+	// /bin/sh -c twinx activestreamer > /var/log/twinx.log &
 	_, err := ExecCommand("/bin/sh", []string{"-c", fmt.Sprintf("twinx activestreamer > %s &", ActiveStreamLog)})
 	if err != nil {
 		return nil, fmt.Errorf("unable to fork(): %v", err)
 	}
+	//defer logger.Info(o.Stderr.String())
+	//defer logger.Info(o.Stdout.String())
 
 	// Now we wait for the "daemon" to write it's PID
 	started := false
@@ -109,7 +141,7 @@ func NewActiveStream(title, description string) (*ActiveStream, error) {
 		return nil, fmt.Errorf("unable to access PID file: %v", err)
 	}
 	pidStr := string(pidBytes)
-	logger.Info("Success. Found PID: %s", pidStr)
+	//logger.Info("Success. Found PID: %s", pidStr)
 	pidInt := StrInt0(pidStr)
 	if pidInt == 0 {
 		return nil, fmt.Errorf("unable to parse PID from string: %v", err)

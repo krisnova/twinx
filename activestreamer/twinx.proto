@@ -25,23 +25,15 @@
 
 syntax = "proto3";
 
-option go_package = "github.com/kris-nova/twinx/api";
+option go_package = "github.com/kris-nova/twinx/activestreamer";
 
 package twinx;
 
-// [Twitch] A simple interprocess message queue between the client and the server
-service Stream {
-  rpc TwitchMeta (StreamMeta) returns (Ack) {}
-  rpc YouTubeMeta (StreamMeta) returns (Ack) {}
-}
-
-// [Messages] A simple interprocess message queue between the client and the server
-service Messages {
+// [ActiveStreamer] A simple interprocess message queue between the client and the server
+service ActiveStreamer {
+  rpc SetTwitchMeta (StreamMeta) returns (Ack) {}
+  rpc SetYouTubeMeta (StreamMeta) returns (Ack) {}
   rpc GetMessage (ClientConfig) returns (Ack) {}
-}
-
-// [Logger] The main logger service
-service Logger {
   rpc SetLogger (LoggerConfig) returns (Ack) {}
 }
 

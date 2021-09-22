@@ -133,7 +133,31 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								return fmt.Errorf("unable to start new active stream: %v", err)
 							}
 							logger.Info("Running PID %d", x.PID)
+							err = x.Assure()
+							if err != nil {
+								return fmt.Errorf("unable to connect to gRPC server over unix domain socket: %v", err)
+							}
 							logger.Always("Success!")
+							return nil
+						},
+					},
+
+					// Stream assure
+					{
+						Name:      "assure",
+						Usage:     "Connect to an existing active stream, and validate the connection.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							x, err := twinx.GetActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to find active running stream: %v", err)
+							}
+							err = x.Assure()
+							if err != nil {
+								return fmt.Errorf("unable to connect to gRPC server over unix domain socket: %v", err)
+							}
+							logger.Always("Connected to active stream!")
 							return nil
 						},
 					},
@@ -224,6 +248,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 					// Default verbose for daemon
 					logger.BitwiseLevel = logger.LogEverything
 					stream := twinx.NewStream()
+
 					// This should log and exit cleanly.
 					return stream.Run()
 				},
