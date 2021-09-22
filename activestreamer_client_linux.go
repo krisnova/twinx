@@ -23,6 +23,14 @@
 //
 // ────────────────────────────────────────────────────────────────────────────
 
+//
+// This is the "client".
+// This is how the twinx command line tool interfaces with active streamers at runtime.
+//
+
+//go:build linux
+// +build linux
+
 package twinx
 
 import (
@@ -36,6 +44,7 @@ import (
 
 const (
 	ActiveStreamPID string = "/var/run/twinx.pid"
+	ActiveStreamLog string = "/var/log/twinx.log"
 )
 
 type ActiveStream struct {
@@ -72,8 +81,13 @@ func NewActiveStream(title, description string) (*ActiveStream, error) {
 		return nil, fmt.Errorf("existing PID File: %s", ActiveStreamPID)
 	}
 
-	// A very poor fork() implementation
-	_, err := ExecCommand("/bin/sh", []string{"-c", "twinx daemon > /var/log/twinx.log &"})
+	// A very poor fork() implementation. Works for now.
+	// Very important! When the parent process (this) exits, it WILL send SIGINT to the child.
+	// It is up to the child to handle it accordingly. We handle this in twinx by checking ppid on the child!
+	//
+	// Command:
+	// /bin/sh -c twinx activestream > /var/log/twinx.log &
+	_, err := ExecCommand("/bin/sh", []string{"-c", fmt.Sprintf("twinx activestreamer > %s &", ActiveStreamLog)})
 	if err != nil {
 		return nil, fmt.Errorf("unable to fork(): %v", err)
 	}

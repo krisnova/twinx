@@ -23,6 +23,13 @@
 //
 // ────────────────────────────────────────────────────────────────────────────
 
+//
+// This is the "server".
+// This is the code that an active streamer runs.
+
+//go:build linux
+// +build linux
+
 package twinx
 
 import (

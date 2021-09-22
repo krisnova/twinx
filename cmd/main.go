@@ -211,13 +211,13 @@ func RunWithOptions(opt *RuntimeOptions) error {
 				},
 			},
 			// ********************************************************
-			// [ Daemon ]
+			// [ ActiveStreamer ]
 			// ********************************************************
 
 			{
-				Name:      "daemon",
-				Aliases:   []string{"d"},
-				Usage:     "The daemon subresource. Used to run a new stream in the foreground.",
+				Name:      "activestreamer",
+				Aliases:   []string{"a"},
+				Usage:     "The activestreamer subresource. Used to run a new stream in the foreground. Do NOT run this unless you know what you are doing!",
 				UsageText: ``,
 				Flags:     allFlags([]cli.Flag{}),
 				Action: func(c *cli.Context) error {
