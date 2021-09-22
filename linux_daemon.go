@@ -70,7 +70,7 @@ func NewActiveStream() (*ActiveStream, error) {
 	}
 
 	// A very poor fork() implementation
-	_, err := ExecCommand("twinx", []string{"daemon", "&"})
+	_, err := ExecCommand("/bin/sh", []string{"-c", "twinx daemon > /var/log/twinx.log &"})
 	if err != nil {
 		return nil, fmt.Errorf("unable to fork(): %v", err)
 	}
@@ -97,6 +97,7 @@ func NewActiveStream() (*ActiveStream, error) {
 	if pidInt == 0 {
 		return nil, fmt.Errorf("unable to parse PID from string: %v", err)
 	}
+
 	return &ActiveStream{
 		PID:   pidInt,
 		PID64: int64(pidInt),

@@ -94,16 +94,32 @@ func (s *Stream) SigHandler() {
 		logger.Always("Shutting down...")
 		switch sig {
 		case syscall.SIGHUP:
+			logger.Always("SIGHUP")
 			s.Shutdown <- true
 		case syscall.SIGINT:
-			s.Shutdown <- true
+			logger.Always("SIGINT")
+			// Check parent PID
+			ppid := os.Getppid()
+			logger.Always("%d", ppid)
+
+			// ppid == 1 The daemon was started by root in true daemon mode
+			// ppid != 1 The deamon was started in foreground mode
+			if ppid != 1 {
+				s.Shutdown <- true
+			} else {
+				logger.Always("Daemon launched successfully!")
+			}
 		case syscall.SIGTERM:
+			logger.Always("SIGTERM")
 			s.Shutdown <- true
 		case syscall.SIGKILL:
+			logger.Always("SIGKILL")
 			s.Shutdown <- true
 		case syscall.SIGQUIT:
+			logger.Always("SIGQUIT")
 			s.Shutdown <- true
 		default:
+			logger.Always("os.Interrupt() DEFAULT")
 			logger.Always("Caught Signal!")
 			s.Shutdown <- true
 		}
