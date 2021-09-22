@@ -63,18 +63,6 @@ $ twinx rtmp stop
 $ twinx stream stop
 ```
 
-
---- 
-
-# FAQ
-
-This tool is a reflection of being asked the following questions
-
- > What are you working on today?
- > Where is that video you did on <thing>
- > What is this stream even about?
-
-
 ## Configuration
 
 Twitch Callback URL Port: 1717
@@ -90,3 +78,18 @@ export TWINX_OBS_HOST="localhost"
 # YouTube
 export TWINX_YOUTUBE_API_KEY=""
 ```
+
+## Permissions
+
+`twinx` will manage RTMP servers, unix sockets, and gRPC servers and clients for you.
+`twinx` requires root privileges to do this.
+
+## FAQ
+
+This tool is a reflection of being asked the following questions
+
+> What are you working on today?
+> Where is that video you did on <thing>
+> What is this stream even about?
+
+
