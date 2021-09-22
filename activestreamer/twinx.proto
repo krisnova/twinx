@@ -33,6 +33,8 @@ package twinx;
 service ActiveStreamer {
   rpc SetTwitchMeta (StreamMeta) returns (Ack) {}
   rpc SetYouTubeMeta (StreamMeta) returns (Ack) {}
+  rpc GetStreamMeta (ClientConfig) returns (StreamMeta) {}
+  rpc SetStreamMeta (StreamMeta) returns (Ack) {}
   rpc GetMessage (ClientConfig) returns (Ack) {}
   rpc SetLogger (LoggerConfig) returns (Ack) {}
 }

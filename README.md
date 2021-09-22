@@ -35,9 +35,9 @@ $ twinx stream start \
 Use `twinx` to update the title and description on your Twitch channel and your YouTube live broadcast.
 
 ```bash 
-$ # twinx <integration> refresh 
-$ twinx youtube refresh
-$ twinx twitch refresh
+$ # twinx <integration> update 
+$ twinx youtube update
+$ twinx twitch update
 ```
 
 Use `twinx` to start a local `RTMP` router.

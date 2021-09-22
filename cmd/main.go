@@ -99,6 +99,87 @@ func RunWithOptions(opt *RuntimeOptions) error {
 		Commands: []*cli.Command{
 
 			// ********************************************************
+			// [ OBS ]
+			// ********************************************************
+
+			{
+				Name:      "obs",
+				Aliases:   []string{"o"},
+				Usage:     "The OBS subresource. Used to control OBS.",
+				UsageText: ``,
+				Flags:     allFlags([]cli.Flag{}),
+				Action: func(c *cli.Context) error {
+					cli.ShowSubcommandHelp(c)
+					return nil
+				},
+				Subcommands: []*cli.Command{
+					{
+						Name:      "start",
+						Usage:     "Start an OBS Stream ",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							return nil
+						},
+					},
+				},
+			},
+
+			// ********************************************************
+			// [ Twitch ]
+			// ********************************************************
+
+			{
+				Name:      "twitch",
+				Aliases:   []string{"t"},
+				Usage:     "The Twitch subresource. Used to control Twitch.",
+				UsageText: ``,
+				Flags:     allFlags([]cli.Flag{}),
+				Action: func(c *cli.Context) error {
+					cli.ShowSubcommandHelp(c)
+					return nil
+				},
+				Subcommands: []*cli.Command{
+					{
+						Name:      "update",
+						Usage:     "Send the current StreamMeta to Twitch to use.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							return nil
+						},
+					},
+				},
+			},
+
+			// ********************************************************
+			// [ YouTube ]
+			// ********************************************************
+
+			{
+				Name:      "youtube",
+				Aliases:   []string{"yt"},
+				Usage:     "The YouTube subresource. Used to control YouTube.",
+				UsageText: ``,
+				Flags:     allFlags([]cli.Flag{}),
+				Action: func(c *cli.Context) error {
+					cli.ShowSubcommandHelp(c)
+					return nil
+				},
+				Subcommands: []*cli.Command{
+					{
+						Name:      "update",
+						Usage:     "Send the current StreamMeta to YouTube to use.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							return nil
+						},
+					},
+				},
+			},
+
+			// ********************************************************
 			// [ Stream ]
 			// ********************************************************
 
