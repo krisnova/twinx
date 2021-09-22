@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-#  ============================================================================
+#  ────────────────────────────────────────────────────────────────────────────
 #
 #   ████████╗██╗    ██╗██╗███╗   ██╗██╗  ██╗
 #   ╚══██╔══╝██║    ██║██║████╗  ██║╚██╗██╔╝
@@ -21,7 +21,7 @@
 #      ██║   ╚███╔███╔╝██║██║ ╚████║██╔╝ ██╗
 #      ╚═╝    ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝
 #
-#  ============================================================================
+#  ────────────────────────────────────────────────────────────────────────────
 
 
 all: compile
@@ -31,13 +31,23 @@ version=$(shell git rev-parse HEAD)
 # Change this to bump the build version!
 version="0.3.1"
 
-compile: ## Compile for the local architecture ⚙
+compile: generate ## Compile for the local architecture ⚙
 	@echo "Compiling..."
 	go build -ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" -o twinx cmd/*.go
 
 install: ## Install your twinx 🎉
 	@echo "Installing..."
 	cp twinx /usr/local/bin/twinx
+
+generate: ## Will generate Go code from .proto files in /api
+	@echo "Generating..."
+	protoc \
+		--go_out=. \
+		--go_opt=paths=source_relative \
+        --go-grpc_out=. \
+        --go-grpc_opt=paths=source_relative \
+        api/twinx.proto
+
 
 test: ## 🤓 Test is used to test
 	@echo "Testing..."

@@ -23,24 +23,55 @@
 //
 // ────────────────────────────────────────────────────────────────────────────
 
-package twinx
+syntax = "proto3";
 
-import (
-	"os"
-	"strconv"
-)
+option go_package = "github.com/kris-nova/twinx/api";
 
-func StrInt0(n string) int {
-	if n == "" {
-		return 0
-	}
-	x, err := strconv.Atoi(n)
-	if err != nil {
-		return 0
-	}
-	return x
+package twinx;
+
+// [Twitch] A simple interprocess message queue between the client and the server
+service Stream {
+  rpc TwitchMeta (StreamMeta) returns (Ack) {}
+  rpc YouTubeMeta (StreamMeta) returns (Ack) {}
 }
 
-func GetenvInt(key string) int {
-	return StrInt0(os.Getenv(key))
+// [Messages] A simple interprocess message queue between the client and the server
+service Messages {
+  rpc GetMessage (ClientConfig) returns (Ack) {}
 }
+
+// [Logger] The main logger service
+service Logger {
+  rpc SetLogger (LoggerConfig) returns (Ack) {}
+}
+
+// Ack is a generic response. Can be successful, or returns an error message.
+message Ack {
+  bool success = 1;
+  optional string message = 2;
+}
+
+message StreamMeta {
+  // Generic title of your stream
+  string title = 1;
+
+  // Generic description of your stream
+  string description = 2;
+
+  // Optional list of tags or keywords to use with various services
+  optional string tags = 3;
+}
+
+message ClientConfig {
+  // TODO add auth token here if we would like to lock down the gRPC service
+  optional string name = 1;
+}
+
+
+// LoggerConfig is a way to configure a logger with twinx
+message LoggerConfig {
+
+  // Path is the logger path on the local filesystem to send logs to.
+  string path = 1;
+}
+
