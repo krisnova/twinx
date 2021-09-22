@@ -120,7 +120,15 @@ func RunWithOptions(opt *RuntimeOptions) error {
 						UsageText: ``,
 						Flags:     allFlags([]cli.Flag{}),
 						Action: func(c *cli.Context) error {
-							x, err := twinx.NewActiveStream()
+
+							args := c.Args()
+							if args.Len() != 2 {
+								return fmt.Errorf("usage: twinx stream start <title> <description>")
+							}
+							title := args.Get(0)
+							description := args.Get(1)
+
+							x, err := twinx.NewActiveStream(title, description)
 							if err != nil {
 								return fmt.Errorf("unable to start new active stream: %v", err)
 							}
@@ -145,6 +153,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to stop active stream. consider twinx stream kill: %v", err)
 							}
+							logger.Always("SIGHUP sent...")
 							return nil
 						},
 					},
@@ -164,6 +173,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to force kill active stream: %v", err)
 							}
+							logger.Always("SIGKILL sent...")
 							return nil
 						},
 					},
@@ -175,6 +185,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 						UsageText: ``,
 						Flags:     allFlags([]cli.Flag{}),
 						Action: func(c *cli.Context) error {
+							logger.Success("Remove %s", twinx.ActiveStreamPID)
 							return os.Remove(twinx.ActiveStreamPID)
 						},
 					},

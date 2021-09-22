@@ -39,8 +39,10 @@ const (
 )
 
 type ActiveStream struct {
-	PID   int
-	PID64 int64
+	Title       string
+	Description string
+	PID         int
+	PID64       int64
 }
 
 // InfoChannel will return a channel that can be accessed
@@ -64,7 +66,7 @@ func GetActiveStream() (*ActiveStream, error) {
 
 // NewActiveStream will create a new active stream as long as
 // one does not exist.
-func NewActiveStream() (*ActiveStream, error) {
+func NewActiveStream(title, description string) (*ActiveStream, error) {
 	// Check if PID file exists
 	if Exists(ActiveStreamPID) {
 		return nil, fmt.Errorf("existing PID File: %s", ActiveStreamPID)
@@ -100,8 +102,10 @@ func NewActiveStream() (*ActiveStream, error) {
 	}
 
 	return &ActiveStream{
-		PID:   pidInt,
-		PID64: int64(pidInt),
+		Title:       title,
+		Description: description,
+		PID:         pidInt,
+		PID64:       int64(pidInt),
 	}, nil
 }
 
