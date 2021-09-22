@@ -28,87 +28,84 @@ package twinx
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/kris-nova/logger"
 )
 
 const (
-	ActiveStreamPID string = "/var/run/twinx.pid"
+	ActiveStreamPIDWriteMode os.FileMode = 0600
 )
 
-type ActiveStream struct {
-	PID   int
-	PID64 int64
+type Stream struct {
+	Shutdown chan bool
 }
 
-// InfoChannel will return a channel that can be accessed
-// to gain information about the stream.
-func (x *ActiveStream) InfoChannel() chan string {
-	ch := make(chan string)
-	return ch
+func NewStream() *Stream {
+	return &Stream{
+		Shutdown: make(chan bool, 1),
+	}
 }
 
-// Assure will run a sanity check against the active stream
-// to assure that it is running, healthy, and that we can talk
-// to it.
-func (x *ActiveStream) Assure() error {
-	return nil
-}
-
-// GetActiveStream will attempt to lookup an active stream running locally.
-func GetActiveStream() (*ActiveStream, error) {
-	return nil, nil
-}
-
-// NewActiveStream will create a new active stream as long as
-// one does not exist.
-func NewActiveStream() (*ActiveStream, error) {
-	// Check if PID file exists
+// Run will run the stream until a client tells it to stop.
+func (s *Stream) Run() error {
 	if Exists(ActiveStreamPID) {
-		return nil, fmt.Errorf("existing PID File: %s", ActiveStreamPID)
+		return fmt.Errorf("existing PID file %s", ActiveStreamPID)
 	}
 
-	// A very poor fork() implementation
-	_, err := ExecCommand("twinx", []string{"daemon", "&"})
+	// Setup the signal handler in Run()
+	s.SigHandler()
+
+	// Do not handle error. If it cannot be removed just exit and let the user
+	// figure out what to do.
+	defer os.Remove(ActiveStreamPID)
+	pidInt := os.Getpid()
+	pidStr := fmt.Sprintf("%d", pidInt)
+	err := ioutil.WriteFile(ActiveStreamPID, []byte(pidStr), ActiveStreamPIDWriteMode)
 	if err != nil {
-		return nil, fmt.Errorf("unable to fork(): %v", err)
+		return fmt.Errorf("unable to write PID file: %v", err)
 	}
 
-	// Now we wait for the "daemon" to write it's PID
-	started := false
-	for i := 0; i < 10; i++ {
-		if Exists(ActiveStreamPID) {
-			started = true
+	for {
+		logger.Info("Streaming...")
+		select {
+		case <-s.Shutdown:
+			logger.Always("Graceful shutdown...")
+			return nil
+		default:
 			break
 		}
 		time.Sleep(time.Second * 1)
 	}
-	if !started {
-		return nil, fmt.Errorf("unable to find PID for stream")
-	}
-	pidBytes, err := ioutil.ReadFile(ActiveStreamPID)
-	if err != nil {
-		return nil, fmt.Errorf("unable to access PID file: %v", err)
-	}
-	pidStr := string(pidBytes)
-	logger.Info("Success. Found PID: %s", pidStr)
-	pidInt := StrInt0(pidStr)
-	if pidInt == 0 {
-		return nil, fmt.Errorf("unable to parse PID from string: %v", err)
-	}
-	return &ActiveStream{
-		PID:   pidInt,
-		PID64: int64(pidInt),
-	}, nil
-}
-
-// StopActiveStream will stop an active stream.
-func StopActiveStream(x *ActiveStream) error {
 	return nil
 }
 
-// KillActiveStream will force kill an active stream.
-func KillActiveStream(x *ActiveStream) error {
-	return nil
+func (s *Stream) SigHandler() {
+	sigCh := make(chan os.Signal, 2)
+
+	// Register signals for the signal handler
+	// os.Interrupt is ^C
+	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL, syscall.SIGQUIT, os.Interrupt)
+	go func() {
+		sig := <-sigCh
+		logger.Always("Shutting down...")
+		switch sig {
+		case syscall.SIGHUP:
+			s.Shutdown <- true
+		case syscall.SIGINT:
+			s.Shutdown <- true
+		case syscall.SIGTERM:
+			s.Shutdown <- true
+		case syscall.SIGKILL:
+			s.Shutdown <- true
+		case syscall.SIGQUIT:
+			s.Shutdown <- true
+		default:
+			logger.Always("Caught Signal!")
+			s.Shutdown <- true
+		}
+	}()
 }

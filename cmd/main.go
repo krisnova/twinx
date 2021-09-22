@@ -188,6 +188,24 @@ func RunWithOptions(opt *RuntimeOptions) error {
 					},
 				},
 			},
+			// ********************************************************
+			// [ Daemon ]
+			// ********************************************************
+
+			{
+				Name:      "daemon",
+				Aliases:   []string{"d"},
+				Usage:     "The daemon subresource. Used to run a new stream in the foreground.",
+				UsageText: ``,
+				Flags:     allFlags([]cli.Flag{}),
+				Action: func(c *cli.Context) error {
+					// Default verbose for daemon
+					logger.BitwiseLevel = logger.LogEverything
+					stream := twinx.NewStream()
+					// This should log and exit cleanly.
+					return stream.Run()
+				},
+			},
 		},
 	}
 
