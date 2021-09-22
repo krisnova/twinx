@@ -56,6 +56,7 @@ const (
 type Stream struct {
 	Shutdown        chan bool
 	IsManagedDaemon bool
+	Server          *grpc.Server
 }
 
 func NewStream() *Stream {
@@ -92,12 +93,19 @@ func (s *Stream) Run() error {
 		return fmt.Errorf("unable to write PID file: %v", err)
 	}
 
+	info := s.Server.GetServiceInfo()
+	for name, service := range info {
+		logger.Info("%s %v", name, service.Metadata)
+	}
+
+	logger.Info("Streaming...")
 	for {
-		logger.Info("Streaming...")
 		select {
 		case <-s.Shutdown:
-			logger.Always("Graceful shutdown...")
+			s.Server.GracefulStop()
 			os.Remove(ActiveStreamSocket)
+			os.Remove(ActiveStreamPID)
+			logger.Always("Graceful shutdown...")
 			return nil
 		default:
 			break
@@ -168,6 +176,7 @@ func (s *Stream) ServerGRPC() error {
 	activestreamer.RegisterActiveStreamerServer(server, &ActiveStreamerServer{})
 	//log.Printf("server listening at %v", lis.Addr())
 	logger.Info("ActiveStreamer listening: %v", conn.Addr())
+	s.Server = server
 	if err := server.Serve(conn); err != nil {
 		return fmt.Errorf("unable to start server on unix domain socket: %v", err)
 	}

@@ -132,7 +132,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to start new active stream: %v", err)
 							}
-							logger.Info("Running PID %d", x.PID)
+							logger.Info("Child ActiveStreamer PID %d", x.PID)
 							err = x.Assure()
 							if err != nil {
 								return fmt.Errorf("unable to connect to gRPC server over unix domain socket: %v", err)

@@ -37,6 +37,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
+	"strconv"
 	"time"
 
 	"github.com/kris-nova/twinx/activestreamer"
@@ -81,7 +83,6 @@ func (x *ActiveStream) Assure() error {
 	defer conn.Close()
 	client := activestreamer.NewActiveStreamerClient(conn)
 	x.Client = &client
-	logger.Info("Successfully connected to server!")
 	return nil
 }
 
@@ -103,9 +104,29 @@ func GetActiveStream() (*ActiveStream, error) {
 	}, nil
 }
 
+func IsUser(i int) (bool, error) {
+	u, err := user.Current()
+	if err != nil {
+		return false, err
+	}
+	ui, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return false, err
+	}
+	return ui == i, nil
+}
+
 // NewActiveStream will create a new active stream as long as
 // one does not exist.
 func NewActiveStream(title, description string) (*ActiveStream, error) {
+	i, err := IsUser(0)
+	if err != nil {
+		return nil, fmt.Errorf("user validation error: %v", err)
+	}
+	if !i {
+		return nil, fmt.Errorf("permission denied")
+	}
+
 	// Check if PID file exists
 	if Exists(ActiveStreamPID) {
 		return nil, fmt.Errorf("existing PID File: %s", ActiveStreamPID)
@@ -117,7 +138,7 @@ func NewActiveStream(title, description string) (*ActiveStream, error) {
 	//
 	// Command:
 	// /bin/sh -c twinx activestreamer > /var/log/twinx.log &
-	_, err := ExecCommand("/bin/sh", []string{"-c", fmt.Sprintf("twinx activestreamer > %s &", ActiveStreamLog)})
+	_, err = ExecCommand("/bin/sh", []string{"-c", fmt.Sprintf("twinx activestreamer > %s &", ActiveStreamLog)})
 	if err != nil {
 		return nil, fmt.Errorf("unable to fork(): %v", err)
 	}
@@ -126,7 +147,7 @@ func NewActiveStream(title, description string) (*ActiveStream, error) {
 
 	// Now we wait for the "daemon" to write it's PID
 	started := false
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 100; i++ {
 		if Exists(ActiveStreamPID) {
 			started = true
 			break
