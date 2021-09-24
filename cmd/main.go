@@ -31,6 +31,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/kris-nova/twinx/goops"
+
 	"google.golang.org/grpc"
 
 	"github.com/kris-nova/twinx/activestreamer"
@@ -140,7 +142,8 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
 							ack, err := x.Client.StartRTMP(context.TODO(), &activestreamer.RTMP{
-								Port: int64(rtmpPort),
+								Port:       int64(rtmpPort),
+								BufferSize: goops.BufferSizeOBSDefaultBytes,
 							}, grpc.EmptyCallOption{})
 
 							if err != nil {
@@ -148,6 +151,13 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							}
 							if ack.Success {
 								logger.Always("Success!")
+								logger.Always("You can now stream RTMP (using OBS or similar)")
+								logger.Always("     OBS > Settings > Stream")
+								logger.Always("     Service:             Custom")
+								logger.Always("     Server:              rtmp://%s:%d", twinx.ActiveStreamRTMPHost, rtmpPort)
+								logger.Always("     Stream Key:          ")
+								logger.Always("     Use Authentication:  no")
+
 								return nil
 							}
 							return fmt.Errorf("error RTMP: %s", ack.Message)

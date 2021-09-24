@@ -29,22 +29,25 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/kris-nova/logger"
 )
 
 const (
+
+	// RTMPProtocol is a well-known TCP protocol.
 	RTMPProtocol string = "tcp"
 
-	// OBSDefaultBufferBytes is the default output buffer size used by OBS.
+	// BufferSizeOBSDefaultBytes is the default output buffer size used by OBS.
 	// This should be used for the simplest and smoothest use with OBS.
 	// This can be adjusted (and so should OBS!) if you are sure what you
 	// are doing, and have system resources to support your change.
-	OBSDefaultBufferBytes int = 2500
+	BufferSizeOBSDefaultBytes int64 = 2500
 
-	// NovaDefaultBufferBytes is my personal default buffer size for my
-	// streams. I run Arch Linux on 16 cores.
-	NovaDefaultBufferBytes int = 256
+	// BufferSizeNovaDefaultBytes is my personal default buffer size for my
+	// streams. I run Arch btw.
+	BufferSizeNovaDefaultBytes int64 = 256
 )
 
 type Service struct {
@@ -71,11 +74,16 @@ func NewService(host string, port int, bufferSize int) *Service {
 	}
 }
 
-func (g *Service) Listen() error {
+func (g *Service) Listen() {
+	//logger.BitwiseLevel = logger.LogEverything
 	listener, err := net.Listen(RTMPProtocol, g.ListenAddr())
 	if err != nil {
-		return fmt.Errorf("unable to start RTMP server: %v", err)
+		logger.Critical("unable to start RTMP server: %v", err)
+		time.Sleep(time.Second * 2)
+		logger.Info("Restarting RTMP server recursively...")
+		g.Listen()
 	}
+	logger.Info("Started RTMP server [%s:%d] BufferSize %d bytes", g.listenHost, g.listenPort, g.bufferSize)
 	g.listener = listener
 	defer g.listener.Close()
 	for {
@@ -84,10 +92,11 @@ func (g *Service) Listen() error {
 			logger.Warning("unable to accept new connection: %v", err)
 			continue
 		}
+		logger.Info("*****************************************************")
 		logger.Info("client connected: %s", conn.RemoteAddr().String())
+		logger.Info("*****************************************************")
 		go g.manageConn(conn)
 	}
-	return nil
 }
 
 var (
@@ -101,9 +110,9 @@ var (
 // This system will also respect the associated mutex with the proxies.
 func (g *Service) manageConn(conn net.Conn) {
 	connectedCount++
-	logger.Info("total managed connections: %d", connectedCount)
-	logger.Info("managing local connection: %s", conn.LocalAddr().String())
-	logger.Info("buffer size: %d bytes", g.bufferSize)
+	logger.Debug("total managed connections: %d", connectedCount)
+	logger.Debug("managing local connection: %s", conn.LocalAddr().String())
+	logger.Debug("buffer size: %d bytes", g.bufferSize)
 	buffer := make([]byte, g.bufferSize)
 	for {
 
