@@ -93,3 +93,20 @@ This tool is a reflection of being asked the following questions
 > What is this stream even about?
 
 
+## Installing
+
+Build the binary.
+
+Install the binary.
+
+```
+./configure
+make
+sudo make install
+```
+
+Arch Linux dependencies
+
+```
+protoc-gen-go protoc-gen-go-grpc
+```

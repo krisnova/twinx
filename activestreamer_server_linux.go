@@ -93,12 +93,13 @@ func (s *Stream) Run() error {
 		return fmt.Errorf("unable to write PID file: %v", err)
 	}
 
-	info := s.Server.GetServiceInfo()
-	for name, service := range info {
-		logger.Info("%s %v", name, service.Metadata)
-	}
-
 	logger.Info("Streaming...")
+	if s.Server != nil {
+		info := s.Server.GetServiceInfo()
+		for name, service := range info {
+			logger.Info("%s %v", name, service.Metadata)
+		}
+	}
 	for {
 		select {
 		case <-s.Shutdown:

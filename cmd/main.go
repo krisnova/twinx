@@ -99,6 +99,51 @@ func RunWithOptions(opt *RuntimeOptions) error {
 		Commands: []*cli.Command{
 
 			// ********************************************************
+			// [ RTMP ]
+			// ********************************************************
+
+			{
+				Name:      "rtmp",
+				Aliases:   []string{"r"},
+				Usage:     "RTMP stream proxy, and forwarding.",
+				UsageText: ``,
+				Flags:     allFlags([]cli.Flag{}),
+				Action: func(c *cli.Context) error {
+					cli.ShowSubcommandHelp(c)
+					return nil
+				},
+				Subcommands: []*cli.Command{
+					{
+						Name:      "listen",
+						Usage:     "Start an RTMP server locally.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							return nil
+						},
+					},
+					{
+						Name:      "stop",
+						Usage:     "Stop the RTMP server.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							return nil
+						},
+					},
+					{
+						Name:      "proxy",
+						Usage:     "An advanced RTMP proxy that can be used in parallel. Example: Proxy to both Twitch and YouTube.",
+						UsageText: ``,
+						Flags:     allFlags([]cli.Flag{}),
+						Action: func(c *cli.Context) error {
+							return nil
+						},
+					},
+				},
+			},
+
+			// ********************************************************
 			// [ OBS ]
 			// ********************************************************
 
@@ -321,8 +366,8 @@ func RunWithOptions(opt *RuntimeOptions) error {
 
 			{
 				Name:      "activestreamer",
-				Aliases:   []string{"a"},
-				Usage:     "The activestreamer subresource. Used to run a new stream in the foreground. Do NOT run this unless you know what you are doing!",
+				Aliases:   []string{"x"},
+				Usage:     "Run a new active streamer process in the foreground. Expert usage only. ⚠",
 				UsageText: ``,
 				Flags:     allFlags([]cli.Flag{}),
 				Action: func(c *cli.Context) error {
