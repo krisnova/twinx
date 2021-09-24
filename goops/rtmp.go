@@ -33,10 +33,6 @@ import (
 	"github.com/kris-nova/logger"
 )
 
-// BufferSizeBytes is the RTMP buffer size
-// if possible make this as small as possible for as low latency as possible.
-type BufferSizeBytes int
-
 const (
 	RTMPProtocol string = "tcp"
 
@@ -44,11 +40,11 @@ const (
 	// This should be used for the simplest and smoothest use with OBS.
 	// This can be adjusted (and so should OBS!) if you are sure what you
 	// are doing, and have system resources to support your change.
-	OBSDefaultBufferBytes BufferSizeBytes = 2500
+	OBSDefaultBufferBytes int = 2500
 
 	// NovaDefaultBufferBytes is my personal default buffer size for my
 	// streams. I run Arch Linux on 16 cores.
-	NovaDefaultBufferBytes BufferSizeBytes = 256
+	NovaDefaultBufferBytes int = 256
 )
 
 type Service struct {
@@ -58,14 +54,14 @@ type Service struct {
 	listener     net.Listener
 	proxyMutex   sync.Mutex
 	proxies      []*Proxy
-	bufferSize   BufferSizeBytes
+	bufferSize   int
 }
 
 type Proxy struct {
 	conn net.Conn
 }
 
-func NewService(host string, port int, bufferSize BufferSizeBytes) *Service {
+func NewService(host string, port int, bufferSize int) *Service {
 	return &Service{
 		listenHost:   host,
 		listenPort:   port,

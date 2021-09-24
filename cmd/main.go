@@ -31,6 +31,8 @@ import (
 	"fmt"
 	"os"
 
+	"google.golang.org/grpc"
+
 	"github.com/kris-nova/twinx/activestreamer"
 
 	"github.com/kris-nova/twinx"
@@ -64,7 +66,7 @@ var (
 	dryRun bool
 
 	// rtmpPort is the port to listen for the local RTMP server
-	rtmpPort string = "1719"
+	rtmpPort int = 1719
 
 	globalFlags = []cli.Flag{
 		&cli.BoolFlag{
@@ -120,14 +122,14 @@ func RunWithOptions(opt *RuntimeOptions) error {
 				},
 				Subcommands: []*cli.Command{
 					{
-						Name:      "listen",
+						Name:      "start",
 						Usage:     "Start an RTMP server locally.",
 						UsageText: ``,
 						Flags: allFlags([]cli.Flag{
-							&cli.StringFlag{
+							&cli.IntFlag{
 								Name:        "port",
 								Aliases:     []string{"p"},
-								Value:       "1719",
+								Value:       1719,
 								Usage:       "toggle verbose mode for logger",
 								Destination: &rtmpPort,
 							},
@@ -138,8 +140,9 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
 							ack, err := x.Client.StartRTMP(context.TODO(), &activestreamer.RTMP{
-								Port: rtmpPort,
-							}, nil)
+								Port: int64(rtmpPort),
+							}, grpc.EmptyCallOption{})
+
 							if err != nil {
 								return fmt.Errorf("unable to start RTMP: %v", err)
 							}

@@ -76,11 +76,10 @@ func (x *ActiveStream) Assure() error {
 	// Example:
 	//	passthrough:///unix:///run/example.sock
 
-	conn, err := grpc.Dial(fmt.Sprintf("passthrough:///unix://%s", ActiveStreamSocket), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Second*3))
+	conn, err := grpc.Dial(fmt.Sprintf("passthrough:///unix://%s", ActiveStreamSocket), grpc.WithInsecure(), grpc.WithTimeout(time.Second*3))
 	if err != nil {
 		return fmt.Errorf("error dialing socket: %v", err)
 	}
-	defer conn.Close()
 	client := activestreamer.NewActiveStreamerClient(conn)
 	x.Client = client
 	return nil
@@ -98,10 +97,16 @@ func GetActiveStream() (*ActiveStream, error) {
 	if pidInt == 0 {
 		return nil, fmt.Errorf("unable to parse PID from string: %v", err)
 	}
-	return &ActiveStream{
+
+	activeStream := ActiveStream{
 		PID:   pidInt,
 		PID64: int64(pidInt),
-	}, nil
+	}
+	err = activeStream.Assure()
+	if err != nil {
+		return nil, fmt.Errorf("unable to assure active stream: %v", err)
+	}
+	return &activeStream, nil
 }
 
 func IsUser(i int) (bool, error) {

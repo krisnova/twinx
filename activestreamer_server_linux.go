@@ -42,6 +42,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kris-nova/twinx/goops"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -55,6 +57,7 @@ import (
 const (
 	ActiveStreamPIDWriteMode os.FileMode = 0600
 	ActiveStreamSocket                   = "/var/run/twinx.sock"
+	ActiveStreamRTMPHost                 = "localhost"
 )
 
 type Stream struct {
@@ -188,8 +191,13 @@ type ActiveStreamerServer struct {
 	activestreamer.UnimplementedActiveStreamerServer
 }
 
-func (ActiveStreamerServer) StartRTMP(context.Context, *activestreamer.RTMP) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StartRTMP not implemented")
+func (ActiveStreamerServer) StartRTMP(ctx context.Context, rtmp *activestreamer.RTMP) (*activestreamer.Ack, error) {
+
+	service := goops.NewService(ActiveStreamRTMPHost, int(rtmp.Port), int(rtmp.BufferSize))
+	go service.Listen()
+	return &activestreamer.Ack{
+		Success: true,
+	}, nil
 }
 func (ActiveStreamerServer) StopRTMP(context.Context, *activestreamer.RTMP) (*activestreamer.Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StopRTMP not implemented")

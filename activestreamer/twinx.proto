@@ -42,7 +42,8 @@ service ActiveStreamer {
 }
 
 message RTMP {
-  string port = 1;
+  int64 port = 1;
+  int64 bufferSize = 2;
 }
 
 // Ack is a generic response. Can be successful, or returns an error message.
