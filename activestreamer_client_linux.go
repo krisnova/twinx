@@ -57,7 +57,7 @@ type ActiveStream struct {
 	Description string
 	PID         int
 	PID64       int64
-	Client      *activestreamer.ActiveStreamerClient
+	Client      activestreamer.ActiveStreamerClient
 }
 
 // InfoChannel will return a channel that can be accessed
@@ -82,7 +82,7 @@ func (x *ActiveStream) Assure() error {
 	}
 	defer conn.Close()
 	client := activestreamer.NewActiveStreamerClient(conn)
-	x.Client = &client
+	x.Client = client
 	return nil
 }
 

@@ -31,12 +31,18 @@ package twinx;
 
 // [ActiveStreamer] A simple interprocess message queue between the client and the server
 service ActiveStreamer {
+  rpc StartRTMP (RTMP) returns (Ack) {}
+  rpc StopRTMP (RTMP) returns (Ack) {}
   rpc SetTwitchMeta (StreamMeta) returns (Ack) {}
   rpc SetYouTubeMeta (StreamMeta) returns (Ack) {}
   rpc GetStreamMeta (ClientConfig) returns (StreamMeta) {}
   rpc SetStreamMeta (StreamMeta) returns (Ack) {}
   rpc GetMessage (ClientConfig) returns (Ack) {}
   rpc SetLogger (LoggerConfig) returns (Ack) {}
+}
+
+message RTMP {
+  string port = 1;
 }
 
 // Ack is a generic response. Can be successful, or returns an error message.

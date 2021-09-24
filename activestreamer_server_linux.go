@@ -33,6 +33,7 @@
 package twinx
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -40,6 +41,9 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/kris-nova/twinx/activestreamer"
 
@@ -160,10 +164,6 @@ func (s *Stream) SigHandler() {
 	}()
 }
 
-type ActiveStreamerServer struct {
-	activestreamer.UnimplementedActiveStreamerServer
-}
-
 func (s *Stream) ServerGRPC() error {
 	if Exists(ActiveStreamSocket) {
 		return fmt.Errorf("grpc stream socket exists %s", ActiveStreamSocket)
@@ -182,4 +182,33 @@ func (s *Stream) ServerGRPC() error {
 		return fmt.Errorf("unable to start server on unix domain socket: %v", err)
 	}
 	return nil
+}
+
+type ActiveStreamerServer struct {
+	activestreamer.UnimplementedActiveStreamerServer
+}
+
+func (ActiveStreamerServer) StartRTMP(context.Context, *activestreamer.RTMP) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartRTMP not implemented")
+}
+func (ActiveStreamerServer) StopRTMP(context.Context, *activestreamer.RTMP) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StopRTMP not implemented")
+}
+func (ActiveStreamerServer) SetTwitchMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetTwitchMeta not implemented")
+}
+func (ActiveStreamerServer) SetYouTubeMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetYouTubeMeta not implemented")
+}
+func (ActiveStreamerServer) GetStreamMeta(context.Context, *activestreamer.ClientConfig) (*activestreamer.StreamMeta, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStreamMeta not implemented")
+}
+func (ActiveStreamerServer) SetStreamMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetStreamMeta not implemented")
+}
+func (ActiveStreamerServer) GetMessage(context.Context, *activestreamer.ClientConfig) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMessage not implemented")
+}
+func (ActiveStreamerServer) SetLogger(context.Context, *activestreamer.LoggerConfig) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetLogger not implemented")
 }

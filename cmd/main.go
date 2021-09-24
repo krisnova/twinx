@@ -27,8 +27,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+
+	"github.com/kris-nova/twinx/activestreamer"
 
 	"github.com/kris-nova/twinx"
 
@@ -59,6 +62,9 @@ var (
 
 	// dryRun will run the command without calling the services
 	dryRun bool
+
+	// rtmpPort is the port to listen for the local RTMP server
+	rtmpPort string = "1719"
 
 	globalFlags = []cli.Flag{
 		&cli.BoolFlag{
@@ -117,9 +123,31 @@ func RunWithOptions(opt *RuntimeOptions) error {
 						Name:      "listen",
 						Usage:     "Start an RTMP server locally.",
 						UsageText: ``,
-						Flags:     allFlags([]cli.Flag{}),
+						Flags: allFlags([]cli.Flag{
+							&cli.StringFlag{
+								Name:        "port",
+								Aliases:     []string{"p"},
+								Value:       "1719",
+								Usage:       "toggle verbose mode for logger",
+								Destination: &rtmpPort,
+							},
+						}),
 						Action: func(c *cli.Context) error {
-							return nil
+							x, err := twinx.GetActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to find active running stream: %v", err)
+							}
+							ack, err := x.Client.StartRTMP(context.TODO(), &activestreamer.RTMP{
+								Port: rtmpPort,
+							}, nil)
+							if err != nil {
+								return fmt.Errorf("unable to start RTMP: %v", err)
+							}
+							if ack.Success {
+								logger.Always("Success!")
+								return nil
+							}
+							return fmt.Errorf("error RTMP: %s", ack.Message)
 						},
 					},
 					{

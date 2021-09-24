@@ -140,6 +140,7 @@ func (g *Service) AddProxyDestination(host string, port int) error {
 	g.proxies = append(g.proxies, &Proxy{
 		conn: conn,
 	})
+	return nil
 }
 
 func (g *Service) ListenAddr() string {
