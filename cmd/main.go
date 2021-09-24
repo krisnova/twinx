@@ -141,7 +141,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
-							ack, err := x.Client.StartRTMP(context.TODO(), &activestreamer.RTMP{
+							ack, err := x.Client.StartProxy(context.TODO(), &activestreamer.ProxyServer{
 								Port:       int64(proxyPort),
 								BufferSize: goops.BufferSizeOBSDefaultBytes,
 							}, grpc.EmptyCallOption{})
@@ -169,7 +169,20 @@ func RunWithOptions(opt *RuntimeOptions) error {
 						UsageText: ``,
 						Flags:     allFlags([]cli.Flag{}),
 						Action: func(c *cli.Context) error {
-							return nil
+							x, err := twinx.GetActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to find active running stream: %v", err)
+							}
+							ack, err := x.Client.StopProxy(context.TODO(), &activestreamer.Null{}, grpc.EmptyCallOption{})
+
+							if err != nil {
+								return fmt.Errorf("unable to start proxy: %v", err)
+							}
+							if ack.Success {
+								logger.Always("Success!")
+								return nil
+							}
+							return fmt.Errorf("error proxy: %s", ack.Message)
 						},
 					},
 					{

@@ -31,8 +31,9 @@ package twinx;
 
 // [ActiveStreamer] A simple interprocess message queue between the client and the server
 service ActiveStreamer {
-  rpc StartRTMP (RTMP) returns (Ack) {}
-  rpc StopRTMP (RTMP) returns (Ack) {}
+  rpc StartProxy (ProxyServer) returns (Ack) {}
+  rpc StopProxy (Null) returns (Ack) {}
+  rpc AddForeignServer (ForeignServer) returns (Ack) {}
   rpc SetTwitchMeta (StreamMeta) returns (Ack) {}
   rpc SetYouTubeMeta (StreamMeta) returns (Ack) {}
   rpc GetStreamMeta (ClientConfig) returns (StreamMeta) {}
@@ -41,7 +42,15 @@ service ActiveStreamer {
   rpc SetLogger (LoggerConfig) returns (Ack) {}
 }
 
-message RTMP {
+message ForeignServer {
+  string host = 1;
+  int64 port = 2;
+}
+
+message Null {
+}
+
+message ProxyServer {
   int64 port = 1;
   int64 bufferSize = 2;
 }

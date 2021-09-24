@@ -44,8 +44,8 @@ Use `twinx` to start a local `RTMP` router.
 This will allow your local OBS to stream to both YouTube and Twitch at the same time.
 
 ```bash
-$ # Start a local RTMP server
-$ twinx rtmp start
+$ # Start a local proxy server
+$ twinx proxy start
 ```
 
 Use `twinx` to start streaming in OBS via the new RTMP server.

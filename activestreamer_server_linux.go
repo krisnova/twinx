@@ -191,15 +191,20 @@ type ActiveStreamerServer struct {
 	activestreamer.UnimplementedActiveStreamerServer
 }
 
-func (ActiveStreamerServer) StartRTMP(ctx context.Context, rtmp *activestreamer.RTMP) (*activestreamer.Ack, error) {
+func (ActiveStreamerServer) StartRTMP(ctx context.Context, proxy *activestreamer.ProxyServer) (*activestreamer.Ack, error) {
 
-	service := goops.NewService(ActiveStreamRTMPHost, int(rtmp.Port), int(rtmp.BufferSize))
+	service := goops.NewService(ActiveStreamRTMPHost, int(proxy.Port), int(proxy.BufferSize))
 	go service.Listen()
 	return &activestreamer.Ack{
 		Success: true,
 	}, nil
 }
-func (ActiveStreamerServer) StopRTMP(context.Context, *activestreamer.RTMP) (*activestreamer.Ack, error) {
+
+func (ActiveStreamerServer) AddForeignServer(context.Context, *activestreamer.ForeignServer) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddForeignServer not implemented")
+}
+
+func (ActiveStreamerServer) StopRTMP(context.Context, *activestreamer.Null) (*activestreamer.Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StopRTMP not implemented")
 }
 func (ActiveStreamerServer) SetTwitchMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
