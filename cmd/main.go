@@ -67,8 +67,8 @@ var (
 	// dryRun will run the command without calling the services
 	dryRun bool
 
-	// rtmpPort is the port to listen for the local RTMP server
-	rtmpPort int = 1719
+	// proxyPort is the port to listen for the local proxy server
+	proxyPort int = 1719
 
 	globalFlags = []cli.Flag{
 		&cli.BoolFlag{
@@ -109,13 +109,13 @@ func RunWithOptions(opt *RuntimeOptions) error {
 		Commands: []*cli.Command{
 
 			// ********************************************************
-			// [ RTMP ]
+			// [ proxy ]
 			// ********************************************************
 
 			{
-				Name:      "rtmp",
+				Name:      "proxy",
 				Aliases:   []string{"r"},
-				Usage:     "RTMP stream proxy, and forwarding.",
+				Usage:     "proxy stream proxy, and forwarding.",
 				UsageText: ``,
 				Flags:     allFlags([]cli.Flag{}),
 				Action: func(c *cli.Context) error {
@@ -125,7 +125,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 				Subcommands: []*cli.Command{
 					{
 						Name:      "start",
-						Usage:     "Start an RTMP server locally.",
+						Usage:     "Start a proxy server locally.",
 						UsageText: ``,
 						Flags: allFlags([]cli.Flag{
 							&cli.IntFlag{
@@ -133,7 +133,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								Aliases:     []string{"p"},
 								Value:       1719,
 								Usage:       "toggle verbose mode for logger",
-								Destination: &rtmpPort,
+								Destination: &proxyPort,
 							},
 						}),
 						Action: func(c *cli.Context) error {
@@ -142,30 +142,30 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
 							ack, err := x.Client.StartRTMP(context.TODO(), &activestreamer.RTMP{
-								Port:       int64(rtmpPort),
+								Port:       int64(proxyPort),
 								BufferSize: goops.BufferSizeOBSDefaultBytes,
 							}, grpc.EmptyCallOption{})
 
 							if err != nil {
-								return fmt.Errorf("unable to start RTMP: %v", err)
+								return fmt.Errorf("unable to start proxy: %v", err)
 							}
 							if ack.Success {
 								logger.Always("Success!")
-								logger.Always("You can now stream RTMP (using OBS or similar)")
+								logger.Always("You can now stream (using OBS or similar)")
 								logger.Always("     OBS > Settings > Stream")
 								logger.Always("     Service:             Custom")
-								logger.Always("     Server:              rtmp://%s:%d", twinx.ActiveStreamRTMPHost, rtmpPort)
+								logger.Always("     Server:              rtmp://%s:%d", twinx.ActiveStreamRTMPHost, proxyPort)
 								logger.Always("     Stream Key:          ")
 								logger.Always("     Use Authentication:  no")
 
 								return nil
 							}
-							return fmt.Errorf("error RTMP: %s", ack.Message)
+							return fmt.Errorf("error proxy: %s", ack.Message)
 						},
 					},
 					{
 						Name:      "stop",
-						Usage:     "Stop the RTMP server.",
+						Usage:     "Stop the proxy server.",
 						UsageText: ``,
 						Flags:     allFlags([]cli.Flag{}),
 						Action: func(c *cli.Context) error {
@@ -174,7 +174,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 					},
 					{
 						Name:      "proxy",
-						Usage:     "An advanced RTMP proxy that can be used in parallel. Example: Proxy to both Twitch and YouTube.",
+						Usage:     "A simple proxy server designed to fork raw streams.",
 						UsageText: ``,
 						Flags:     allFlags([]cli.Flag{}),
 						Action: func(c *cli.Context) error {

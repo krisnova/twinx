@@ -36,8 +36,8 @@ import (
 
 const (
 
-	// RTMPProtocol is a well-known TCP protocol.
-	RTMPProtocol string = "tcp"
+	// ProxyProtocol will use TCP to support protocols such as RTMP.
+	ProxyProtocol string = "tcp"
 
 	// BufferSizeOBSDefaultBytes is the default output buffer size used by OBS.
 	// This should be used for the simplest and smoothest use with OBS.
@@ -51,39 +51,39 @@ const (
 )
 
 type Service struct {
-	listenHost   string
-	listenPort64 int64
-	listenPort   int
-	listener     net.Listener
-	proxyMutex   sync.Mutex
-	proxies      []*Proxy
-	bufferSize   int
+	listenHost         string
+	listenPort64       int64
+	listenPort         int
+	listener           net.Listener
+	foreignServerMutex sync.Mutex
+	foreignServers     []*ForeignServer
+	bufferSize         int
 }
 
-type Proxy struct {
+type ForeignServer struct {
 	conn net.Conn
 }
 
 func NewService(host string, port int, bufferSize int) *Service {
 	return &Service{
-		listenHost:   host,
-		listenPort:   port,
-		listenPort64: int64(port),
-		proxies:      []*Proxy{},
-		bufferSize:   bufferSize,
+		listenHost:     host,
+		listenPort:     port,
+		listenPort64:   int64(port),
+		foreignServers: []*ForeignServer{},
+		bufferSize:     bufferSize,
 	}
 }
 
 func (g *Service) Listen() {
 	//logger.BitwiseLevel = logger.LogEverything
-	listener, err := net.Listen(RTMPProtocol, g.ListenAddr())
+	listener, err := net.Listen(ProxyProtocol, g.ListenAddr())
 	if err != nil {
-		logger.Critical("unable to start RTMP server: %v", err)
+		logger.Critical("unable to start proxy server: %v", err)
 		time.Sleep(time.Second * 2)
-		logger.Info("Restarting RTMP server recursively...")
+		logger.Info("Restarting proxy server recursively...")
 		g.Listen()
 	}
-	logger.Info("Started RTMP server [%s:%d] BufferSize %d bytes", g.listenHost, g.listenPort, g.bufferSize)
+	logger.Info("Started proxy server [%s:%d] BufferSize %d bytes", g.listenHost, g.listenPort, g.bufferSize)
 	g.listener = listener
 	defer g.listener.Close()
 	for {
@@ -124,25 +124,25 @@ func (g *Service) manageConn(conn net.Conn) {
 		// here. Our intention is for this connection to favor speed
 		// over resiliency.
 		conn.Read(buffer)
-		g.proxyMutex.Lock()
-		for _, proxy := range g.proxies {
-			proxy.conn.Write(buffer)
+		g.foreignServerMutex.Lock()
+		for _, foreignServer := range g.foreignServers {
+			foreignServer.conn.Write(buffer)
 		}
-		g.proxyMutex.Unlock()
+		g.foreignServerMutex.Unlock()
 	}
 }
 
-// AddProxyDestination will attempt to add a proxy destination as seemlessly as possible.
-func (g *Service) AddProxyDestination(host string, port int) error {
-	g.proxyMutex.Lock()
-	defer g.proxyMutex.Unlock()
-	conn, err := net.Dial(RTMPProtocol, fmt.Sprintf("%s:%d", host, port))
+// AddForeignServer will add a foreign server of an unknown type to the Twinx proxy.
+func (g *Service) AddForeignServer(host string, port int) error {
+	g.foreignServerMutex.Lock()
+	defer g.foreignServerMutex.Unlock()
+	conn, err := net.Dial(ProxyProtocol, fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
-		return fmt.Errorf("unable to connect to foreign RTMP server: %s", err)
+		return fmt.Errorf("unable to connect to foreign server: %s", err)
 	}
-	logger.Info("connected to foreign proxy server: %s:%d", host, port)
+	logger.Info("connected to foreign server: %s:%d", host, port)
 
-	g.proxies = append(g.proxies, &Proxy{
+	g.foreignServers = append(g.foreignServers, &ForeignServer{
 		conn: conn,
 	})
 	return nil
