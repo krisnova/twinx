@@ -39,10 +39,10 @@
 package rtmp
 
 const (
-	DefaultProtocl           string = "tcp"
+	DefaultProtocol          string = "tcp"
 	DefaultLocalHost         string = "localhost"
 	DefaultLocalPort         string = "1935"
-	DefaultPrefix            string = "rtmp"
+	DefaultScheme            string = "rtmp"
 	DefaultRTMPApp           string = "twinx"
 	DefaultGenerateKeyLength int    = 20
 	DefaultGenerateKeyPrefix string = "twinx_"

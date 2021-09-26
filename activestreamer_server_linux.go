@@ -255,6 +255,11 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("invalid RTPM addr: %v", err)
 	}
 
+	logger.Debug(addr.Scheme())
+	logger.Debug(addr.Host())
+	logger.Debug(addr.App())
+	logger.Debug(addr.Key())
+
 	// Ensure no host has been started
 	if a.Local != nil {
 		return &activestreamer.Ack{
@@ -268,7 +273,7 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 	server := rtmp.NewRtmpServer(stream, nil)
 
 	logger.Debug("net.listen TCP %s", addr.Host())
-	listener, err := net.Listen(twinxrtmp.DefaultProtocl, addr.Host())
+	listener, err := net.Listen(twinxrtmp.DefaultProtocol, addr.Host())
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,

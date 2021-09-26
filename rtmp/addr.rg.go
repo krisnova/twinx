@@ -43,6 +43,8 @@ import (
 	"math/rand"
 	"net/url"
 	"strings"
+
+	"github.com/kris-nova/logger"
 )
 
 // Addr is a flexible RTMP addr reference
@@ -53,9 +55,9 @@ type Addr struct {
 	// into a valid *Addr
 	raw string
 
-	// Parsed URL with available fields
-	// [scheme:][//[userinfo@]host][/]path[?query][#fragment]
-	URL *url.URL
+	scheme string
+
+	host string
 
 	app string
 
@@ -63,26 +65,48 @@ type Addr struct {
 }
 
 func NewAddr(raw string) (*Addr, error) {
+	logger.Always(raw)
+	var scheme, host, app, key string
+
 	url, err := url.Parse(raw)
 	if err != nil {
 		return nil, fmt.Errorf("unable to url.Parse raw rtmp string: %s", err)
 	}
-	path := url.Path
+	if len(url.Scheme) == 4 {
+		scheme = url.Scheme
+	}
+	path := strings.Replace(raw, fmt.Sprintf("%s://", scheme), "", 1)
 
-	// System to calculate the app and key
-	var app, key string
+	// host/app/key
 	if strings.Contains(path, "/") {
-		splt := strings.Split(path, "/")
-		if len(splt) == 2 {
-			app = splt[0]
-			key = splt[1]
+		splt := strings.Split(raw, "/")
+		if len(splt) == 3 {
+			host = splt[0]
+			app = splt[1]
+			key = splt[2]
 		}
-		if len(splt) > 2 {
+		if len(splt) == 2 {
+			// Assume host and app
+			host = splt[0]
+			app = splt[1]
+		}
+		if len(splt) == 1 {
+			// Assume host
+			host = splt[0]
+		}
+		if len(splt) > 3 {
 			return nil, fmt.Errorf("too many slashes: %s", raw)
-		} else {
-			return nil, fmt.Errorf("invalid raw addr: %s", raw)
 		}
 	} else if path == "" {
+		app = DefaultRTMPApp
+	}
+	if scheme == "" {
+		scheme = DefaultScheme
+	}
+	if host == "" {
+		host = fmt.Sprintf("%s:%s", DefaultLocalHost, DefaultLocalPort)
+	}
+	if app == "" {
 		app = DefaultRTMPApp
 	}
 	if key == "" {
@@ -90,10 +114,11 @@ func NewAddr(raw string) (*Addr, error) {
 	}
 
 	return &Addr{
-		raw: raw,
-		URL: url,
-		app: app,
-		key: key,
+		raw:    raw,
+		scheme: scheme,
+		host:   host,
+		app:    app,
+		key:    key,
 	}, nil
 }
 
@@ -103,14 +128,14 @@ func NewAddr(raw string) (*Addr, error) {
 //   :1730
 //   :
 func (a *Addr) Host() string {
-	return a.URL.Host
+	return a.host
 }
 
 // StreamURL is a resolvable stream URL that can be played, published, or relayed.
 //  rtmp://localhost:1730/app/key
 //
 func (a *Addr) StreamURL() string {
-	return fmt.Sprintf("%s://%s/%s/%s", DefaultPrefix, a.URL.Host, a.app, a.key)
+	return fmt.Sprintf("%s://%s/%s/%s", a.scheme, a.host, a.app, a.key)
 }
 
 // generateKey will generate a random stream key
@@ -120,6 +145,10 @@ func generateKey() string {
 		b[i] = letterBytePool[rand.Intn(len(letterBytePool))]
 	}
 	return fmt.Sprintf("%s%s", DefaultGenerateKeyPrefix, string(b))
+}
+
+func (a *Addr) Scheme() string {
+	return a.scheme
 }
 
 func (a *Addr) Key() string {
