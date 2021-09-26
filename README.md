@@ -24,6 +24,7 @@ You can add integrations and functionality to your stream after it has been star
 
 Use `twinx` to start a new stream on a Linux filesystem.
 This will register your `title` and `description` for your new stream, and start the background process.
+The title and description will be used as we work with various backends.
 
 ```bash 
 $ # twinx stream start <title> <description>
@@ -32,14 +33,23 @@ $ twinx stream start \
     "This is a live stream about how to hack the kernel to burn down capitalism"
 ```
 
-Start an RTMP Relay. If no `host:port` is defined, `twinx` will select a port and listen on `localhost`.
+Start an RTMP server. If no `host:port` is defined, `twinx` will select a port and listen on `localhost:1935`.
 
 ```bash 
-$ twinx relay start <optional host:port>
-$ twinx relay start localhost:1719
+$ twinx rtmp start <optional host:port>
+$ twinx rtmp start localhost:1719
 ```
 
+Send the local stream to a remote backend such as [Twitch](https://stream.twitch.tv/ingests/) or [YouTube Live](https://youtube.com) via the proxy command.
+You may proxy to multiple backends 🙂 at the same time.
 
+```bash 
+# Example Twitch
+$ twinx rtmp proxy rtmp://jfk.contribute.live-video.net/app/{stream_key}
+
+# Example YouTube
+$ twinx rtmp proxy rtmp://a.rtmp.youtube.com/live2/{stream_key}
+```
 
 ## Configuration
 

@@ -255,10 +255,10 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("invalid RTPM addr: %v", err)
 	}
 
-	logger.Debug(addr.Scheme())
-	logger.Debug(addr.Host())
-	logger.Debug(addr.App())
-	logger.Debug(addr.Key())
+	//logger.Debug(addr.Scheme())
+	//logger.Debug(addr.Host())
+	//logger.Debug(addr.App())
+	//logger.Debug(addr.Key())
 
 	// Ensure no host has been started
 	if a.Local != nil {
@@ -272,7 +272,6 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 	stream := rtmp.NewRtmpStream()
 	server := rtmp.NewRtmpServer(stream, nil)
 
-	logger.Debug("net.listen TCP %s", addr.Host())
 	listener, err := net.Listen(twinxrtmp.DefaultProtocol, addr.Host())
 	if err != nil {
 		return &activestreamer.Ack{
@@ -282,13 +281,13 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 	}
 
 	// Cache the local server
-	logger.Debug("Caching local RTMP server")
+	//logger.Debug("Caching local RTMP server")
 	a.Local = addr
 	a.Listener = listener
 
 	// Run the server in a go routine
 	go func() {
-		logger.Info("Starting local RTMP server %s", addr.StreamURL())
+		logger.Debug("RTMP net.listen TCP %s", addr.Host())
 		err = server.Serve(listener)
 		if err != nil {
 			logger.Critical(err.Error())
