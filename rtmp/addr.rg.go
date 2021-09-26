@@ -43,8 +43,6 @@ import (
 	"math/rand"
 	"net/url"
 	"strings"
-
-	"github.com/kris-nova/logger"
 )
 
 // Addr is a flexible RTMP addr reference
@@ -65,7 +63,6 @@ type Addr struct {
 }
 
 func NewAddr(raw string) (*Addr, error) {
-	logger.Always(raw)
 	var scheme, host, app, key string
 
 	url, err := url.Parse(raw)
@@ -97,13 +94,23 @@ func NewAddr(raw string) (*Addr, error) {
 		if len(splt) > 3 {
 			return nil, fmt.Errorf("too many slashes: %s", raw)
 		}
-	} else if path == "" {
-		app = DefaultRTMPApp
+	} else if strings.Contains(path, ":") {
+		splt := strings.Split(path, ":")
+		if len(splt) == 2 {
+			if len(splt[0]) == 0 {
+				splt[0] = DefaultLocalHost
+			}
+			if len(splt[1]) == 0 {
+				splt[0] = DefaultLocalPort
+			}
+			host = fmt.Sprintf("%s:%s", splt[0], splt[1])
+		}
 	}
 	if scheme == "" {
 		scheme = DefaultScheme
 	}
 	if host == "" {
+		// Check for host/port
 		host = fmt.Sprintf("%s:%s", DefaultLocalHost, DefaultLocalPort)
 	}
 	if app == "" {
