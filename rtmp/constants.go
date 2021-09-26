@@ -43,7 +43,7 @@ const (
 	DefaultLocalHost         string = "localhost"
 	DefaultLocalPort         string = "1935"
 	DefaultScheme            string = "rtmp"
-	DefaultRTMPApp           string = "live"
+	DefaultRTMPApp           string = "twinx"
 	DefaultGenerateKeyLength int    = 20
 	DefaultGenerateKeyPrefix string = "twinx_"
 

@@ -157,6 +157,7 @@ func initDefault() {
 }
 
 func CheckAppName(appname string) bool {
+	return true
 	apps := Applications{}
 	Config.UnmarshalKey("server", &apps)
 	for _, app := range apps {

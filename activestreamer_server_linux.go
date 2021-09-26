@@ -52,8 +52,6 @@ import (
 
 	"github.com/gwuhaolin/livego/protocol/rtmp/rtmprelay"
 
-	"github.com/gwuhaolin/livego/protocol/rtmp"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -268,9 +266,8 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("unable to start rtmp, already running")
 	}
 
-	// RTMPStream is a set of rtmp.Stream
-	stream := rtmp.NewRtmpStream()
-	server := rtmp.NewRtmpServer(stream, nil)
+	stream := twinxrtmp.NewRtmpStream()
+	server := twinxrtmp.NewRtmpServer(stream, nil)
 
 	listener, err := net.Listen(twinxrtmp.DefaultProtocol, addr.Host())
 	if err != nil {

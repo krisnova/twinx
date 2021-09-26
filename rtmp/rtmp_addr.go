@@ -45,20 +45,26 @@ import (
 	"strings"
 )
 
-// Addr is a flexible RTMP addr reference
-// rtmp://host/app/key
+// Addr is a flexible RTMP address member that resembles url.URL.
 type Addr struct {
 
 	// raw can be any string, which we hope we can turn
 	// into a valid *Addr
 	raw string
 
+	// scheme should always be DefaultScheme "rtmp://"
 	scheme string
 
+	// host is the host:port combination for the server
+	// host should be valid with net.Listen() and net.Dial()
 	host string
 
+	// app is the first parameter to the RTMP URL
+	// such as rtmp://host:port/app/key
 	app string
 
+	// key is the 2nd and final parameter to the RTMP URL
+	// such as rtmp://host:port/app/key
 	key string
 }
 
@@ -129,18 +135,20 @@ func NewAddr(raw string) (*Addr, error) {
 	}, nil
 }
 
-// Host will return a net.Listener compatible host string
+// Host will return a net.Listener compatible host string as verbosely as possible.
+// Given inputs such as:
 //   localhost:
-//   localhost:1730
-//   :1730
+//   localhost:1935
+//   :1935
 //   :
+// We should see
+//   localhost:1935
 func (a *Addr) Host() string {
 	return a.host
 }
 
 // StreamURL is a resolvable stream URL that can be played, published, or relayed.
-//  rtmp://localhost:1730/app/key
-//
+//  rtmp://localhost:1935/app/key
 func (a *Addr) StreamURL() string {
 	return fmt.Sprintf("%s://%s/%s/%s", a.scheme, a.host, a.app, a.key)
 }
@@ -154,14 +162,19 @@ func generateKey() string {
 	return fmt.Sprintf("%s%s", DefaultGenerateKeyPrefix, string(b))
 }
 
+// Scheme should always return DefaultScheme "rtmp://"
 func (a *Addr) Scheme() string {
 	return a.scheme
 }
 
+// Key should return the stream key for this instance of *rtmp.Addr
+// All instances will generate a key if one is not provided.
 func (a *Addr) Key() string {
 	return a.key
 }
 
+// App will return the first parameter of the path.
+// Such as rtmp://host:port/app/key
 func (a *Addr) App() string {
 	return a.app
 }

@@ -1,3 +1,29 @@
+// Copyright © 2021 Kris Nóva <kris@nivenly.com>
+// Copyright (c) 2017 吴浩麟
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// ────────────────────────────────────────────────────────────────────────────
+//
+//  ████████╗██╗    ██╗██╗███╗   ██╗██╗  ██╗
+//  ╚══██╔══╝██║    ██║██║████╗  ██║╚██╗██╔╝
+//     ██║   ██║ █╗ ██║██║██╔██╗ ██║ ╚███╔╝
+//     ██║   ██║███╗██║██║██║╚██╗██║ ██╔██╗
+//     ██║   ╚███╔███╔╝██║██║ ╚████║██╔╝ ██╗
+//     ╚═╝    ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝
+//
+// ────────────────────────────────────────────────────────────────────────────
+
 package rtmp
 
 import (
@@ -8,13 +34,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gwuhaolin/livego/utils/uid"
-
 	"github.com/gwuhaolin/livego/av"
-	"github.com/gwuhaolin/livego/configure"
 	"github.com/gwuhaolin/livego/container/flv"
-	"github.com/gwuhaolin/livego/protocol/rtmp/core"
-
+	"github.com/gwuhaolin/livego/utils/uid"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -24,8 +46,8 @@ const (
 )
 
 var (
-	readTimeout  = configure.Config.GetInt("read_timeout")
-	writeTimeout = configure.Config.GetInt("write_timeout")
+	readTimeout  = Config.GetInt("read_timeout")
+	writeTimeout = Config.GetInt("write_timeout")
 )
 
 type Client struct {
@@ -41,7 +63,7 @@ func NewRtmpClient(h av.Handler, getter av.GetWriter) *Client {
 }
 
 func (c *Client) Dial(url string, method string) error {
-	connClient := core.NewConnClient()
+	connClient := NewConnClient()
 	if err := connClient.Start(url, method); err != nil {
 		return err
 	}
@@ -90,20 +112,20 @@ func (s *Server) Serve(listener net.Listener) (err error) {
 		if err != nil {
 			return
 		}
-		conn := core.NewConn(netconn, 4*1024)
+		conn := NewConn(netconn, 4*1024)
 		log.Debug("new client, connect remote: ", conn.RemoteAddr().String(),
 			"local:", conn.LocalAddr().String())
 		go s.handleConn(conn)
 	}
 }
 
-func (s *Server) handleConn(conn *core.Conn) error {
+func (s *Server) handleConn(conn *Conn) error {
 	if err := conn.HandshakeServer(); err != nil {
 		conn.Close()
 		log.Error("handleConn HandshakeServer err: ", err)
 		return err
 	}
-	connServer := core.NewConnServer(conn)
+	connServer := NewConnServer(conn)
 
 	if err := connServer.ReadMsg(); err != nil {
 		conn.Close()
@@ -113,7 +135,7 @@ func (s *Server) handleConn(conn *core.Conn) error {
 
 	appname, name, _ := connServer.GetInfo()
 
-	if ret := configure.CheckAppName(appname); !ret {
+	if ret := CheckAppName(appname); !ret {
 		err := fmt.Errorf("application name=%s is not configured", appname)
 		conn.Close()
 		log.Error("CheckAppName err: ", err)
@@ -122,8 +144,8 @@ func (s *Server) handleConn(conn *core.Conn) error {
 
 	log.Debugf("handleConn: IsPublisher=%v", connServer.IsPublisher())
 	if connServer.IsPublisher() {
-		if configure.Config.GetBool("rtmp_noauth") {
-			key, err := configure.RoomKeys.GetKey(name)
+		if Config.GetBool("rtmp_noauth") {
+			key, err := RoomKeys.GetKey(name)
 			if err != nil {
 				err := fmt.Errorf("Cannot create key err=%s", err.Error())
 				conn.Close()
@@ -132,17 +154,17 @@ func (s *Server) handleConn(conn *core.Conn) error {
 			}
 			name = key
 		}
-		//channel, err := configure.RoomKeys.GetChannel(name)
-		//if err != nil {
-		//	err := fmt.Errorf("invalid key err=%s", err.Error())
-		//	conn.Close()
-		//	log.Error("CheckKey err: ", err)
-		//	return err
-		//}
-		//connServer.PublishInfo.Name = channel
-		//if pushlist, ret := configure.GetStaticPushUrlList(appname); ret && (pushlist != nil) {
-		//	log.Debugf("GetStaticPushUrlList: %v", pushlist)
-		//}
+		channel, err := RoomKeys.GetChannel(name)
+		if err != nil {
+			err := fmt.Errorf("invalid key err=%s", err.Error())
+			conn.Close()
+			log.Error("CheckKey err: ", err)
+			return err
+		}
+		connServer.PublishInfo.Name = channel
+		if pushlist, ret := GetStaticPushUrlList(appname); ret && (pushlist != nil) {
+			log.Debugf("GetStaticPushUrlList: %v", pushlist)
+		}
 		reader := NewVirReader(connServer)
 		s.handler.HandleReader(reader)
 		log.Debugf("new publisher: %+v", reader.Info())
@@ -153,7 +175,7 @@ func (s *Server) handleConn(conn *core.Conn) error {
 			writer := s.getter.GetWriter(reader.Info())
 			s.handler.HandleWriter(writer)
 		}
-		if configure.Config.GetBool("flv_archive") {
+		if Config.GetBool("flv_archive") {
 			flvWriter := new(flv.FlvDvr)
 			s.handler.HandleWriter(flvWriter.GetWriter(reader.Info()))
 		}
@@ -173,8 +195,8 @@ type GetInFo interface {
 type StreamReadWriteCloser interface {
 	GetInFo
 	Close(error)
-	Write(core.ChunkStream) error
-	Read(c *core.ChunkStream) error
+	Write(ChunkStream) error
+	Read(c *ChunkStream) error
 }
 
 type StaticsBW struct {
@@ -243,7 +265,7 @@ func (v *VirWriter) SaveStatics(streamid uint32, length uint64, isVideoFlag bool
 }
 
 func (v *VirWriter) Check() {
-	var c core.ChunkStream
+	var c ChunkStream
 	for {
 		if err := v.conn.Read(&c); err != nil {
 			v.Close(err)
@@ -307,7 +329,7 @@ func (v *VirWriter) Write(p *av.Packet) (err error) {
 
 func (v *VirWriter) SendPacket() error {
 	Flush := reflect.ValueOf(v.conn).MethodByName("Flush")
-	var cs core.ChunkStream
+	var cs ChunkStream
 	for {
 		p, ok := <-v.packetQueue
 		if ok {
@@ -416,7 +438,7 @@ func (v *VirReader) Read(p *av.Packet) (err error) {
 	}()
 
 	v.SetPreTime()
-	var cs core.ChunkStream
+	var cs ChunkStream
 	for {
 		err = v.conn.Read(&cs)
 		if err != nil {

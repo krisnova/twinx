@@ -40,7 +40,7 @@ package rtmp
 
 import "testing"
 
-func TestLocalAddrs(t *testing.T) {
+func TestAddrs(t *testing.T) {
 
 	happyCases := map[string]*Addr{
 		"rtmp://localhost:1935/twinx/1234": &Addr{
@@ -84,6 +84,17 @@ func TestLocalAddrs(t *testing.T) {
 			t.Errorf("Expected: %+v", expected)
 			t.Errorf("Actual: %+v", actual)
 		}
+		if expected.key != "" {
+			if !assertKeys(actual, expected) {
+				t.Errorf("Expected key: %s", expected.key)
+				t.Errorf("Actual key: %s", actual.key)
+			}
+		} else {
+			// Validate a key was generated
+			if actual.key == "" {
+				t.Errorf("Failed generating key for raw: %s", actual.raw)
+			}
+		}
 	}
 
 }
@@ -101,8 +112,12 @@ func assertAddrs(a, b *Addr) bool {
 	if a.scheme != b.scheme {
 		return false
 	}
-	//if a.key != b.key {
-	//	return false
-	//}
+	return true
+}
+
+func assertKeys(a, b *Addr) bool {
+	if a.key != b.key {
+		return false
+	}
 	return true
 }
