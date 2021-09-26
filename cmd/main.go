@@ -31,8 +31,6 @@ import (
 	"fmt"
 	"os"
 
-	"google.golang.org/grpc"
-
 	"github.com/kris-nova/twinx/activestreamer"
 
 	"github.com/kris-nova/twinx"
@@ -132,7 +130,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							&cli.StringFlag{
 								Name:        "connection",
 								Aliases:     []string{"c"},
-								Value:       "localhost:1720",
+								Value:       "localhost:1720/beeps/boops",
 								Usage:       "connection string. 'localhost:' 'localhost:1719' ':' 'rtmp://localhost:1719/app/stream-key'",
 								Destination: &addr,
 							},
@@ -149,11 +147,16 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
+
+							rtmpAddr, err := twinx.RTMPNewAddr(addr)
+							if err != nil {
+								return fmt.Errorf("invalid rtmp addr %s: %v", addr, err)
+							}
 							ack, err := x.Client.RTMPStartRelay(context.TODO(), &activestreamer.RTMPHost{
-								Addr:       addr,
+								Addr:       rtmpAddr.Full(),
 								Key:        streamkey,
 								BufferSize: twinx.RTMPBufferSizeOBSDefaultBytes, // TODO Pull this out to a flag
-							}, grpc.EmptyCallOption{})
+							})
 
 							if err != nil {
 								return fmt.Errorf("unable to start proxy: %v", err)
@@ -181,7 +184,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
-							ack, err := x.Client.RTMPStopRelay(context.TODO(), &activestreamer.Null{}, grpc.EmptyCallOption{})
+							ack, err := x.Client.RTMPStopRelay(context.TODO(), &activestreamer.Null{})
 
 							if err != nil {
 								return fmt.Errorf("unable to start proxy: %v", err)
@@ -220,6 +223,10 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								return fmt.Errorf("usage: twinx relay forward <host:port/app/stream-key>")
 							}
 							connString := args.Get(0)
+							rtmpAddr, err := twinx.RTMPNewAddr(connString)
+							if err != nil {
+								return fmt.Errorf("invalid rtmp url %s: %v", connString, err)
+							}
 							logger.Info("Connecting %s...", connString)
 
 							x, err := twinx.GetActiveStream()
@@ -227,18 +234,17 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
 							ack, err := x.Client.RTMPForward(context.TODO(), &activestreamer.RTMPHost{
-								Addr: addr,
+								Addr: rtmpAddr.Full(),
 								Key:  streamkey,
-							}, grpc.EmptyCallOption{})
-
+							})
 							if err != nil {
-								return fmt.Errorf("unable to start proxy: %v", err)
+								return fmt.Errorf("calling RTMPForward(): %v", err)
 							}
 							if ack.Success {
 								logger.Always("Success!")
 								return nil
 							}
-							return fmt.Errorf("error proxy: %s", ack.Message)
+							return fmt.Errorf("forwarding RTMP stream: %s", ack.Message)
 
 							return nil
 						},

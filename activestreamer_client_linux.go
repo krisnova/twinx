@@ -147,8 +147,8 @@ func NewActiveStream(title, description string) (*ActiveStream, error) {
 	// It is up to the child to handle it accordingly. We handle this in twinx by checking ppid on the child!
 	//
 	// Command:
-	// /bin/sh -c twinx activestreamer > /var/log/twinx.log &
-	_, err = ExecCommand("/bin/sh", []string{"-c", fmt.Sprintf("twinx activestreamer > %s &", ActiveStreamLog)})
+	// /bin/sh -c twinx activestreamer > /var/log/twinx.log 2>&1 &
+	_, err = ExecCommand("/bin/sh", []string{"-c", fmt.Sprintf("twinx activestreamer > %s 2>&1 &", ActiveStreamLog)})
 	if err != nil {
 		return nil, fmt.Errorf("unable to fork(): %v", err)
 	}

@@ -25,6 +25,12 @@
 
 package twinx
 
+import (
+	"fmt"
+	"net/url"
+	"strings"
+)
+
 const (
 	RTMPLocalAddress = "localhost"
 
@@ -39,4 +45,33 @@ const (
 	// RTMPBufferSizeNovaDefaultBytes is my personal default buffer size for my
 	// streams. I run Arch btw.
 	RTMPBufferSizeNovaDefaultBytes int64 = 256
+
+	RTMPPrefix = "rtmp://"
 )
+
+type RTMPAddr struct {
+	Raw string
+	URL *url.URL
+}
+
+func RTMPNewAddr(raw string) (*RTMPAddr, error) {
+	url, err := url.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("unable to url.Parse raw rtmp string: %s", err)
+	}
+	return &RTMPAddr{
+		Raw: raw,
+		URL: url,
+	}, nil
+}
+
+func (r *RTMPAddr) Full() string {
+	if !strings.HasPrefix(r.Raw, RTMPPrefix) {
+		return fmt.Sprintf("%s%s", RTMPPrefix, r.Raw)
+	}
+	return r.Raw
+}
+
+func (r *RTMPAddr) Server() string {
+	return r.URL.Host
+}

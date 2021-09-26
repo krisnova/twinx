@@ -33,14 +33,20 @@
 package twinx
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/gwuhaolin/livego/av"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/gwuhaolin/livego/protocol/rtmp/rtmprelay"
 
@@ -66,6 +72,7 @@ type Stream struct {
 	Shutdown        chan bool
 	IsManagedDaemon bool
 	Server          *grpc.Server
+	LogrusBuffer    *bytes.Buffer
 }
 
 func NewStream() *Stream {
@@ -91,6 +98,23 @@ func (s *Stream) Run() error {
 			s.Shutdown <- true
 		}
 	}()
+
+	// Setup the log buffer for logrus
+	s.LogrusBuffer = &bytes.Buffer{}
+	logger.Info("Logrus level: TraceLevel")
+	logrus.SetLevel(logrus.TraceLevel)
+	logrus.SetOutput(s.LogrusBuffer)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp:       true,
+		DisableColors:          true,
+		DisableLevelTruncation: false,
+		//CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+		//	filename := path.Base(f.File)
+		//	return fmt.Sprintf("Buffered Logrus Log: %s()", f.Function), fmt.Sprintf(" %s:%d", filename, f.Line)
+		//},
+	})
+	logrus.Info("Ensure level: TraceLevel")
+	defer logrus.Exit(0)
 
 	// Do not handle error. If it cannot be removed just exit and let the user
 	// figure out what to do.
@@ -119,6 +143,14 @@ func (s *Stream) Run() error {
 			return nil
 		default:
 			break
+		}
+
+		flushedLogsRaw, err := ioutil.ReadAll(s.LogrusBuffer)
+		if err != nil {
+			logger.Critical("logrus buffer read: %v", err)
+		}
+		if len(flushedLogsRaw) > 0 {
+			logger.Warning(string(flushedLogsRaw))
 		}
 		time.Sleep(time.Second * 1)
 	}
@@ -179,7 +211,7 @@ func (s *Stream) ServerGRPC() error {
 		return fmt.Errorf("unable to open unix domain socket: %v", err)
 	}
 	server := grpc.NewServer()
-	activestreamer.RegisterActiveStreamerServer(server, &ActiveStreamerServer{})
+	activestreamer.RegisterActiveStreamerServer(server, NewActiveStreamerServer())
 	//log.Printf("server listening at %v", lis.Addr())
 	logger.Info("ActiveStreamer listening: %v", conn.Addr())
 	s.Server = server
@@ -198,16 +230,32 @@ func SPointer(s string) *string {
 }
 
 type ActiveStreamerServer struct {
-	Local   *activestreamer.RTMPHost
-	Remotes map[string]*activestreamer.RTMPHost
-
 	activestreamer.UnimplementedActiveStreamerServer
+	Local    *activestreamer.RTMPHost
+	Remotes  map[string]*activestreamer.RTMPHost
+	Handler  av.Handler
+	Listener net.Listener
+}
+
+func NewActiveStreamerServer() *ActiveStreamerServer {
+	return &ActiveStreamerServer{
+		Remotes: make(map[string]*activestreamer.RTMPHost),
+	}
 }
 
 func (a *ActiveStreamerServer) RTMPStartRelay(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
 
+	addr, err := RTMPNewAddr(r.Addr)
+	if err != nil {
+		return &activestreamer.Ack{
+			Success: false,
+			Message: S("invalid RTMP addr"),
+		}, fmt.Errorf("invalid RTPM addr: %v", err)
+	}
+
 	logger.Debug("Starting RTMP Relay Addr       %s", r.Addr)
 	logger.Debug("Starting RTMP Relay BufferSize %d", r.BufferSize)
+
 	// Ensure no host has been started
 	if a.Local != nil {
 		return &activestreamer.Ack{
@@ -217,10 +265,11 @@ func (a *ActiveStreamerServer) RTMPStartRelay(ctx context.Context, r *activestre
 	}
 
 	// RTMPStream is a set of rtmp.Stream
-	handler := rtmp.NewRtmpStream()
-	server := rtmp.NewRtmpServer(handler, nil)
-	logger.Debug("net.listen TCP %s", r.Addr)
-	listener, err := net.Listen(RTMPProtocol, r.Addr)
+	stream := rtmp.NewRtmpStream()
+	server := rtmp.NewRtmpServer(stream, nil)
+
+	logger.Debug("net.listen TCP %s", addr.Server())
+	listener, err := net.Listen(RTMPProtocol, addr.Server())
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
@@ -231,6 +280,7 @@ func (a *ActiveStreamerServer) RTMPStartRelay(ctx context.Context, r *activestre
 	// Cache the local server
 	logger.Debug("Caching local RTMP server")
 	a.Local = r
+	a.Listener = listener
 
 	// Run the server in a go routine
 	go func() {
@@ -240,6 +290,10 @@ func (a *ActiveStreamerServer) RTMPStartRelay(ctx context.Context, r *activestre
 			logger.Critical(err.Error())
 		}
 	}()
+
+	// This is called in New()
+	// go handler.CheckAlive()
+	a.Handler = stream
 
 	return &activestreamer.Ack{
 		Success: true,
@@ -256,31 +310,73 @@ func (a *ActiveStreamerServer) RTMPStopRelay(context.Context, *activestreamer.Nu
 		}, nil
 	}
 
-	logger.Critical("Close() not yet implemented")
-	// TODO Close a.Local
-
-	return nil, status.Errorf(codes.Unimplemented, "method RTMPStopRelay not implemented")
+	err := a.Listener.Close()
+	if err != nil {
+		return &activestreamer.Ack{
+			Success: false,
+			Message: S(fmt.Sprintf("closing RTMP server: %v", err)),
+		}, err
+	}
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
 func (a *ActiveStreamerServer) RTMPForward(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
+
+	addr, err := RTMPNewAddr(r.Addr)
+	if err != nil {
+		return &activestreamer.Ack{
+			Success: false,
+			Message: S("invalid RTMP addr"),
+		}, fmt.Errorf("invalid RTPM addr: %v", err)
+	}
+
+	//logger.Debug("Starting RTMP Relay Forward Addr       %s", r.Addr)
+	//logger.Debug("Starting RTMP Relay Forward BufferSize %d", r.BufferSize)
 
 	// Ensure no host has been started
 	if a.Local == nil {
 		return &activestreamer.Ack{
 			Success: false,
 			Message: S("unable to start rtmp relay, local server not running"),
-		}, nil
+		}, fmt.Errorf("unable to start rtmp relay, local server notrunning")
 	}
 
-	relay := rtmprelay.NewRtmpRelay(S(a.Local.Addr), S(r.Addr))
+	logger.Debug("Starting RTMP relay %s -> %s", a.Local.Addr, r.Addr)
+	relay := rtmprelay.NewRtmpRelay(S(a.Local.Addr), S(addr.Full()))
 
 	// Cache
 	a.Remotes[r.Addr] = r
 
 	go func() {
-		logger.Info("Starting RTMP relay %s -> %s", a.Local.Addr, r.Addr)
 		err := relay.Start()
 		if err != nil {
-			logger.Critical(err.Error())
+
+			logger.Critical("Error forwarding RTMP. Raw: %v", err)
+			logger.Critical("Check the forward address.")
+
+			// Note: The backend library is written by what I assume is an ESL engineer.
+			// The "u path err:" message is here: https://github.com/gwuhaolin/livego/blob/master/protocol/rtmp/core/conn_client.go#L220
+			//
+			// u, err := neturl.Parse(url)
+			//	if err != nil {
+			//		return err
+			//	}
+			//	connClient.url = url
+			//	path := strings.TrimLeft(u.Path, "/")
+			//	ps := strings.SplitN(path, "/", 2)
+			//	if len(ps) != 2 {
+			//		return fmt.Errorf("u path err: %s", path)
+			//	}
+			//
+			if strings.Contains(err.Error(), "u path err:") {
+				logger.Critical("Error with backend RTMP library")
+				logger.Critical("  Configured PlayURL   : %s", relay.PlayUrl)
+				logger.Critical("  Configured PublishURL: %s", relay.PublishUrl)
+				logger.Critical("All URLs must contain starting protocols such as rtmp:// or http:// prefixes")
+			}
+
 		}
 	}()
 
