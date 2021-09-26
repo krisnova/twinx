@@ -68,6 +68,9 @@ var (
 	// addr is the string to be used as net.Addr for RTMP connections
 	addr string = "localhost:1720"
 
+	// streamkey is your private stream key to us
+	streamkey string = ""
+
 	globalFlags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:        "verbose",
@@ -133,6 +136,13 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								Usage:       "connection string. 'localhost:' 'localhost:1719' ':' 'rtmp://localhost:1719/app/stream-key'",
 								Destination: &addr,
 							},
+							&cli.StringFlag{
+								Name:        "key",
+								Aliases:     []string{"k"},
+								Value:       "",
+								Usage:       "Your private stream key to use.",
+								Destination: &streamkey,
+							},
 						}),
 						Action: func(c *cli.Context) error {
 							x, err := twinx.GetActiveStream()
@@ -141,6 +151,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							}
 							ack, err := x.Client.RTMPStartRelay(context.TODO(), &activestreamer.RTMPHost{
 								Addr:       addr,
+								Key:        streamkey,
 								BufferSize: twinx.RTMPBufferSizeOBSDefaultBytes, // TODO Pull this out to a flag
 							}, grpc.EmptyCallOption{})
 
@@ -150,11 +161,11 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if ack.Success {
 								logger.Always("Success!")
 								logger.Always("You can now stream (using OBS or similar)")
-								logger.Always("     OBS > Settings > Stream")
-								logger.Always("     Service:             Custom")
-								logger.Always("     Server:              %s", addr)
-								logger.Always("     Stream Key:          ")
-								logger.Always("     Use Authentication:  no")
+								logger.Always("OBS > Settings > Stream")
+								logger.Always(" Service:            'Custom'")
+								logger.Always(" Server:             '%s'", addr)
+								logger.Always(" Stream Key:         '%s'", streamkey)
+								logger.Always(" Use Authentication: 'no'")
 								return nil
 							}
 							return fmt.Errorf("error proxy: %s", ack.Message)
@@ -194,6 +205,13 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								Usage:       "connection string. 'localhost:' 'localhost:1719' ':' 'rtmp://localhost:1719/app/stream-key'",
 								Destination: &addr,
 							},
+							&cli.StringFlag{
+								Name:        "key",
+								Aliases:     []string{"k"},
+								Value:       "",
+								Usage:       "Your private stream key to use.",
+								Destination: &streamkey,
+							},
 						}),
 						Action: func(c *cli.Context) error {
 
@@ -210,6 +228,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							}
 							ack, err := x.Client.RTMPForward(context.TODO(), &activestreamer.RTMPHost{
 								Addr: addr,
+								Key:  streamkey,
 							}, grpc.EmptyCallOption{})
 
 							if err != nil {

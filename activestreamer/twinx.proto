@@ -59,6 +59,7 @@ message Null {
 message RTMPHost {
   string addr = 1;
   int64 bufferSize = 2;
+  string key = 3;
 }
 
 // Ack is a generic response. Can be successful, or returns an error message.
