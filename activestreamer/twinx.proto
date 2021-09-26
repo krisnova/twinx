@@ -48,7 +48,7 @@ service ActiveStreamer {
   rpc SetStreamMeta (StreamMeta) returns (Ack) {}
 
   // Common
-  rpc GetMessage (ClientConfig) returns (Ack) {}
+  rpc Transact (ClientConfig) returns (Ack) {}
   rpc SetLogger (LoggerConfig) returns (Ack) {}
 }
 
@@ -79,8 +79,6 @@ message StreamMeta {
 }
 
 message ClientConfig {
-  // TODO add auth token here if we would like to lock down the gRPC service
-  optional string name = 1;
 }
 
 

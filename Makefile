@@ -33,7 +33,12 @@ version="0.3.1"
 
 compile: generate ## Compile for the local architecture ⚙
 	@echo "Compiling..."
-	go build -ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" -o twinx cmd/*.go
+	# Note: Bypassing the init() function in gwuhaolin/livego
+	go build \
+		-ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" \
+		-ldflags "-X 'github.com/gwuhaolin/livego/configure.BypassInit=true'" \
+		-o twinx \
+		cmd/*.go
 
 install: ## Install your twinx 🎉
 	@echo "Installing..."

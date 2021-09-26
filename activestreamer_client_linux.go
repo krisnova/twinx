@@ -34,6 +34,7 @@
 package twinx
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -81,6 +82,10 @@ func (x *ActiveStream) Assure() error {
 		return fmt.Errorf("error dialing socket: %v", err)
 	}
 	client := activestreamer.NewActiveStreamerClient(conn)
+	_, err = client.Transact(context.TODO(), &activestreamer.ClientConfig{})
+	if err != nil {
+		return fmt.Errorf("unable to get complete transaction: %v", err)
+	}
 	x.Client = client
 	return nil
 }

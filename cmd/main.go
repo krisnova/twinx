@@ -66,7 +66,7 @@ var (
 	dryRun bool
 
 	// addr is the string to be used as net.Addr for RTMP connections
-	addr string = ":"
+	addr string = "localhost:1720"
 
 	globalFlags = []cli.Flag{
 		&cli.BoolFlag{
@@ -129,7 +129,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							&cli.StringFlag{
 								Name:        "connection",
 								Aliases:     []string{"c"},
-								Value:       ":",
+								Value:       "localhost:1720",
 								Usage:       "connection string. 'localhost:' 'localhost:1719' ':' 'rtmp://localhost:1719/app/stream-key'",
 								Destination: &addr,
 							},
@@ -190,7 +190,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							&cli.StringFlag{
 								Name:        "connection",
 								Aliases:     []string{"c"},
-								Value:       ":",
+								Value:       "",
 								Usage:       "connection string. 'localhost:' 'localhost:1719' ':' 'rtmp://localhost:1719/app/stream-key'",
 								Destination: &addr,
 							},
@@ -352,9 +352,9 @@ func RunWithOptions(opt *RuntimeOptions) error {
 						},
 					},
 
-					// Stream assure
+					// Stream connect
 					{
-						Name:      "assure",
+						Name:      "connect",
 						Usage:     "Connect to an existing active stream, and validate the connection.",
 						UsageText: ``,
 						Flags:     allFlags([]cli.Flag{}),
@@ -466,6 +466,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 		},
 	}
 
+	app.Flags = globalFlags
 	return app.Run(os.Args)
 }
 

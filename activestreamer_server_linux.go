@@ -42,6 +42,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gwuhaolin/livego/protocol/rtmp/rtmprelay"
+
+	"github.com/gwuhaolin/livego/protocol/rtmp"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -185,34 +189,136 @@ func (s *Stream) ServerGRPC() error {
 	return nil
 }
 
+func S(s string) *string {
+	return SPointer(s)
+}
+
+func SPointer(s string) *string {
+	return &s
+}
+
 type ActiveStreamerServer struct {
+	Local   *activestreamer.RTMPHost
+	Remotes map[string]*activestreamer.RTMPHost
+
 	activestreamer.UnimplementedActiveStreamerServer
 }
 
-func (ActiveStreamerServer) RTMPStartRelay(context.Context, *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RTMPStartRelay not implemented")
+func (a *ActiveStreamerServer) RTMPStartRelay(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
+
+	logger.Debug("Starting RTMP Relay Addr       %s", r.Addr)
+	logger.Debug("Starting RTMP Relay BufferSize %d", r.BufferSize)
+	// Ensure no host has been started
+	if a.Local != nil {
+		return &activestreamer.Ack{
+			Success: false,
+			Message: S("unable to start rtmp, already running"),
+		}, fmt.Errorf("unable to start rtmp, already running")
+	}
+
+	// RTMPStream is a set of rtmp.Stream
+	handler := rtmp.NewRtmpStream()
+	server := rtmp.NewRtmpServer(handler, nil)
+	logger.Debug("net.listen TCP %s", r.Addr)
+	listener, err := net.Listen(RTMPProtocol, r.Addr)
+	if err != nil {
+		return &activestreamer.Ack{
+			Success: false,
+			Message: S(err.Error()),
+		}, err
+	}
+
+	// Cache the local server
+	logger.Debug("Caching local RTMP server")
+	a.Local = r
+
+	// Run the server in a go routine
+	go func() {
+		logger.Info("Starting local RTMP server %s", r.Addr)
+		err = server.Serve(listener)
+		if err != nil {
+			logger.Critical(err.Error())
+		}
+	}()
+
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
-func (ActiveStreamerServer) RTMPStopRelay(context.Context, *activestreamer.Null) (*activestreamer.Ack, error) {
+func (a *ActiveStreamerServer) RTMPStopRelay(context.Context, *activestreamer.Null) (*activestreamer.Ack, error) {
+
+	// Ensure no host has been started
+	if a.Local == nil {
+		return &activestreamer.Ack{
+			Success: false,
+			Message: S("unable to stop rtmp, not running"),
+		}, nil
+	}
+
+	logger.Critical("Close() not yet implemented")
+	// TODO Close a.Local
+
 	return nil, status.Errorf(codes.Unimplemented, "method RTMPStopRelay not implemented")
 }
-func (ActiveStreamerServer) RTMPForward(context.Context, *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RTMPForward not implemented")
+func (a *ActiveStreamerServer) RTMPForward(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
+
+	// Ensure no host has been started
+	if a.Local == nil {
+		return &activestreamer.Ack{
+			Success: false,
+			Message: S("unable to start rtmp relay, local server not running"),
+		}, nil
+	}
+
+	relay := rtmprelay.NewRtmpRelay(S(a.Local.Addr), S(r.Addr))
+
+	// Cache
+	a.Remotes[r.Addr] = r
+
+	go func() {
+		logger.Info("Starting RTMP relay %s -> %s", a.Local.Addr, r.Addr)
+		err := relay.Start()
+		if err != nil {
+			logger.Critical(err.Error())
+		}
+	}()
+
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
-func (ActiveStreamerServer) SetTwitchMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetTwitchMeta not implemented")
+func (a *ActiveStreamerServer) SetTwitchMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
-func (ActiveStreamerServer) SetYouTubeMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetYouTubeMeta not implemented")
+func (a *ActiveStreamerServer) SetYouTubeMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
-func (ActiveStreamerServer) GetStreamMeta(context.Context, *activestreamer.ClientConfig) (*activestreamer.StreamMeta, error) {
+func (a *ActiveStreamerServer) GetStreamMeta(context.Context, *activestreamer.ClientConfig) (*activestreamer.StreamMeta, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStreamMeta not implemented")
 }
-func (ActiveStreamerServer) SetStreamMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetStreamMeta not implemented")
+func (a *ActiveStreamerServer) SetStreamMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
-func (ActiveStreamerServer) GetMessage(context.Context, *activestreamer.ClientConfig) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMessage not implemented")
+func (a *ActiveStreamerServer) Transact(context.Context, *activestreamer.ClientConfig) (*activestreamer.Ack, error) {
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
-func (ActiveStreamerServer) SetLogger(context.Context, *activestreamer.LoggerConfig) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetLogger not implemented")
+func (a *ActiveStreamerServer) SetLogger(context.Context, *activestreamer.LoggerConfig) (*activestreamer.Ack, error) {
+	return &activestreamer.Ack{
+		Success: true,
+		Message: S("Success"),
+	}, nil
 }
