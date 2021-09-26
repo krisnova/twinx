@@ -164,7 +164,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								logger.Always(" Use Authentication: 'no'")
 								return nil
 							}
-							return fmt.Errorf("starting RTMP server: %s", ack.Message)
+							return fmt.Errorf("starting RTMP server: %s", *ack.Message)
 						},
 					},
 					{
@@ -185,7 +185,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								logger.Always("Success!")
 								return nil
 							}
-							return fmt.Errorf("stopping RTMP server: %s", ack.Message)
+							return fmt.Errorf("stopping RTMP server: %s", *ack.Message)
 						},
 					},
 					{
@@ -219,7 +219,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								logger.Always("Success!")
 								return nil
 							}
-							return fmt.Errorf("proxy RTMP: %s", ack.Message)
+							return fmt.Errorf("proxy RTMP: %s", *ack.Message)
 						},
 					},
 				},

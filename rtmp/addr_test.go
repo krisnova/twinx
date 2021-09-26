@@ -38,123 +38,46 @@
 
 package rtmp
 
-import (
-	"fmt"
-	"math/rand"
-	"net/url"
-	"strings"
+import "testing"
 
-	"github.com/kris-nova/logger"
-)
+func TestLocalAddrs(t *testing.T) {
 
-// Addr is a flexible RTMP addr reference
-// rtmp://host/app/key
-type Addr struct {
-
-	// raw can be any string, which we hope we can turn
-	// into a valid *Addr
-	raw string
-
-	scheme string
-
-	host string
-
-	app string
-
-	key string
-}
-
-func NewAddr(raw string) (*Addr, error) {
-	logger.Always(raw)
-	var scheme, host, app, key string
-
-	url, err := url.Parse(raw)
-	if err != nil {
-		return nil, fmt.Errorf("unable to url.Parse raw rtmp string: %s", err)
+	happyCases := map[string]*Addr{
+		"rtmp://localhost:1935/twinx/1234": &Addr{
+			host:   "localhost:1935",
+			scheme: "rtmp",
+			app:    "twinx",
+			key:    "1234",
+		},
 	}
-	if len(url.Scheme) == 4 {
-		scheme = url.Scheme
-	}
-
-	path := strings.Replace(raw, fmt.Sprintf("%s://", scheme), "", 1)
-
-	if strings.Contains(path, "/") {
-		splt := strings.Split(path, "/")
-		if len(splt) == 3 {
-			host = splt[0]
-			app = splt[1]
-			key = splt[2]
+	for input, expected := range happyCases {
+		actual, err := NewAddr(input)
+		if err != nil {
+			t.Errorf("happyCase error %v", err)
 		}
-		if len(splt) == 2 {
-			// Assume host and app
-			host = splt[0]
-			app = splt[1]
+		if !assertAddrs(actual, expected) {
+			t.Errorf("Expected: %+v", expected)
+			t.Errorf("Actual: %+v", actual)
 		}
-		if len(splt) == 1 {
-			// Assume host
-			host = splt[0]
-		}
-		if len(splt) > 3 {
-			return nil, fmt.Errorf("too many slashes: %s", raw)
-		}
-	} else if path == "" {
-		app = DefaultRTMPApp
-	}
-	if scheme == "" {
-		scheme = DefaultScheme
-	}
-	if host == "" {
-		host = fmt.Sprintf("%s:%s", DefaultLocalHost, DefaultLocalPort)
-	}
-	if app == "" {
-		app = DefaultRTMPApp
-	}
-	if key == "" {
-		key = generateKey()
 	}
 
-	return &Addr{
-		raw:    raw,
-		scheme: scheme,
-		host:   host,
-		app:    app,
-		key:    key,
-	}, nil
 }
 
-// Host will return a net.Listener compatible host string
-//   localhost:
-//   localhost:1730
-//   :1730
-//   :
-func (a *Addr) Host() string {
-	return a.host
-}
-
-// StreamURL is a resolvable stream URL that can be played, published, or relayed.
-//  rtmp://localhost:1730/app/key
-//
-func (a *Addr) StreamURL() string {
-	return fmt.Sprintf("%s://%s/%s/%s", a.scheme, a.host, a.app, a.key)
-}
-
-// generateKey will generate a random stream key
-func generateKey() string {
-	b := make([]byte, DefaultGenerateKeyLength)
-	for i := range b {
-		b[i] = letterBytePool[rand.Intn(len(letterBytePool))]
+func assertAddrs(a, b *Addr) bool {
+	if a == nil || b == nil {
+		return false
 	}
-	return fmt.Sprintf("%s%s", DefaultGenerateKeyPrefix, string(b))
-}
-
-func (a *Addr) Scheme() string {
-	return a.scheme
-}
-
-func (a *Addr) Key() string {
-	return a.key
-}
-
-func (a *Addr) App() string {
-	return a.app
+	if a.app != b.app {
+		return false
+	}
+	if a.host != b.host {
+		return false
+	}
+	if a.scheme != b.scheme {
+		return false
+	}
+	if a.key != b.key {
+		return false
+	}
+	return true
 }
