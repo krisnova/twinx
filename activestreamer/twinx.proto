@@ -33,23 +33,23 @@ package twinx;
 service ActiveStreamer {
 
   // RTMP
-  rpc RTMPStartRelay (RTMPHost) returns (Ack) {}
-  rpc RTMPStopRelay (Null) returns (Ack) {}
-  rpc RTMPForward (RTMPHost) returns (Ack) {}
+  rpc StartRTMP (RTMPHost) returns (Ack) {}
+  rpc StopRTMP (Null) returns (Ack) {}
+  rpc ProxyRTMP (RTMPHost) returns (Ack) {}
 
   // Twitch
-  rpc SetTwitchMeta (StreamMeta) returns (Ack) {}
+  //rpc SetTwitchMeta (StreamMeta) returns (Ack) {}
 
   // YouTube
-  rpc SetYouTubeMeta (StreamMeta) returns (Ack) {}
+  //rpc SetYouTubeMeta (StreamMeta) returns (Ack) {}
 
   // Stream Meta
-  rpc GetStreamMeta (ClientConfig) returns (StreamMeta) {}
-  rpc SetStreamMeta (StreamMeta) returns (Ack) {}
+  //rpc GetStreamMeta (ClientConfig) returns (StreamMeta) {}
+  //rpc SetStreamMeta (StreamMeta) returns (Ack) {}
 
   // Common
   rpc Transact (ClientConfig) returns (Ack) {}
-  rpc SetLogger (LoggerConfig) returns (Ack) {}
+  //rpc SetLogger (LoggerConfig) returns (Ack) {}
 }
 
 message Null {
@@ -59,7 +59,6 @@ message Null {
 message RTMPHost {
   string addr = 1;
   int64 bufferSize = 2;
-  string key = 3;
 }
 
 // Ack is a generic response. Can be successful, or returns an error message.
