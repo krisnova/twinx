@@ -42,9 +42,10 @@ package rtmp
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/gwuhaolin/livego/protocol/amf"
+	"github.com/kris-nova/logger"
 
 	"github.com/gwuhaolin/livego/av"
 	"github.com/gwuhaolin/livego/configure"
@@ -243,7 +244,8 @@ func init() {
 	b := bytes.NewBuffer(nil)
 	encoder := &amf.Encoder{}
 	if _, err := encoder.Encode(b, SetDataFrame, amf.AMF0); err != nil {
-		log.Fatal(err)
+		logger.Critical(err.Error())
+		os.Exit(1)
 	}
 	setFrameFrame = b.Bytes()
 }

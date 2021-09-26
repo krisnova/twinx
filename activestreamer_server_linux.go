@@ -50,11 +50,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/gwuhaolin/livego/protocol/rtmp/rtmprelay"
-
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/kris-nova/twinx/activestreamer"
 
 	"google.golang.org/grpc"
@@ -341,7 +336,7 @@ func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.
 	}
 
 	logger.Debug("Starting RTMP proxy %s -> %s", a.Local.StreamURL(), addr.StreamURL())
-	relay := rtmprelay.NewRtmpRelay(S(a.Local.StreamURL()), S(addr.StreamURL()))
+	relay := twinxrtmp.NewRtmpRelay(S(a.Local.StreamURL()), S(addr.StreamURL()))
 
 	// Cache
 	a.Remotes[addr.StreamURL()] = addr
@@ -365,34 +360,8 @@ func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.
 		Message: S("Success"),
 	}, nil
 }
-func (a *ActiveStreamerServer) SetTwitchMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
-	return &activestreamer.Ack{
-		Success: true,
-		Message: S("Success"),
-	}, nil
-}
-func (a *ActiveStreamerServer) SetYouTubeMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
-	return &activestreamer.Ack{
-		Success: true,
-		Message: S("Success"),
-	}, nil
-}
-func (a *ActiveStreamerServer) GetStreamMeta(context.Context, *activestreamer.ClientConfig) (*activestreamer.StreamMeta, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetStreamMeta not implemented")
-}
-func (a *ActiveStreamerServer) SetStreamMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
-	return &activestreamer.Ack{
-		Success: true,
-		Message: S("Success"),
-	}, nil
-}
+
 func (a *ActiveStreamerServer) Transact(context.Context, *activestreamer.ClientConfig) (*activestreamer.Ack, error) {
-	return &activestreamer.Ack{
-		Success: true,
-		Message: S("Success"),
-	}, nil
-}
-func (a *ActiveStreamerServer) SetLogger(context.Context, *activestreamer.LoggerConfig) (*activestreamer.Ack, error) {
 	return &activestreamer.Ack{
 		Success: true,
 		Message: S("Success"),
