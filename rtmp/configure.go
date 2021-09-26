@@ -44,7 +44,6 @@ import (
 
 	"github.com/kris-nova/logger"
 
-	"github.com/go-redis/redis/v7"
 	"github.com/gwuhaolin/livego/utils/uid"
 	"github.com/patrickmn/go-cache"
 )
@@ -89,7 +88,6 @@ func GetStaticPushUrlList(appname string) ([]string, bool) {
 }
 
 type RoomKeysType struct {
-	redisCli   *redis.Client
 	localCache *cache.Cache
 }
 

@@ -112,8 +112,9 @@ func (s *Server) Serve(listener net.Listener) (err error) {
 			return
 		}
 		conn := NewConn(netconn, 4*1024)
-		logger.Info("new client, connect remote: ", conn.RemoteAddr().String(),
-			"local:", conn.LocalAddr().String())
+		logger.Info("Client connected!")
+		logger.Info("Remote : %s", conn.RemoteAddr().String())
+		logger.Info("Local  : %s", conn.LocalAddr().String())
 		go s.handleConn(conn)
 	}
 }
@@ -141,7 +142,7 @@ func (s *Server) handleConn(conn *Conn) error {
 		return err
 	}
 
-	logger.Info("handleConn: IsPublisher=%v", connServer.IsPublisher())
+	//logger.Info("handleConn: IsPublisher=%v", connServer.IsPublisher())
 	if connServer.IsPublisher() {
 		//if Config.GetBool("rtmp_noauth") {
 		// Default rtmp_noauth
@@ -181,7 +182,7 @@ func (s *Server) handleConn(conn *Conn) error {
 		//}
 	} else {
 		writer := NewVirWriter(connServer)
-		logger.Info("new player: %+v", writer.Info())
+		logger.Info("RTMP stream is now accessible: %s", writer.Info().URL)
 		s.handler.HandleWriter(writer)
 	}
 
@@ -234,7 +235,7 @@ func NewVirWriter(conn StreamReadWriteCloser) *VirWriter {
 	go func() {
 		err := ret.SendPacket()
 		if err != nil {
-			logger.Warning(err.Error())
+			logger.Debug("Dropped packet(s). Possible closed connection: %v", err)
 		}
 	}()
 	return ret
@@ -275,7 +276,7 @@ func (v *VirWriter) Check() {
 }
 
 func (v *VirWriter) DropPacket(pktQue chan *av.Packet, info av.Info) {
-	logger.Warning("[%v] packet queue max!!!", info)
+	logger.Critical("packet queue max [%+v]", info)
 	for i := 0; i < maxQueueNum-84; i++ {
 		tmpPkt, ok := <-pktQue
 		// try to don't drop audio
@@ -371,7 +372,7 @@ func (v *VirWriter) Info() (ret av.Info) {
 	ret.URL = URL
 	_url, err := url.Parse(URL)
 	if err != nil {
-		logger.Warning(err.Error())
+		logger.Warning("parsing URL: %v", err)
 	}
 	ret.Key = strings.TrimLeft(_url.Path, "/")
 	ret.Inter = true
@@ -379,7 +380,7 @@ func (v *VirWriter) Info() (ret av.Info) {
 }
 
 func (v *VirWriter) Close(err error) {
-	logger.Warning("player closed: %v", err)
+	logger.Warning("Client connection closed: %v", err)
 	if !v.closed {
 		close(v.packetQueue)
 	}
@@ -470,7 +471,7 @@ func (v *VirReader) Info() (ret av.Info) {
 	ret.URL = URL
 	_url, err := url.Parse(URL)
 	if err != nil {
-		logger.Warning(err.Error())
+		logger.Warning("parsing URL: %v", err)
 	}
 	ret.Key = strings.TrimLeft(_url.Path, "/")
 	return

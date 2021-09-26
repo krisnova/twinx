@@ -48,7 +48,6 @@ import (
 	"github.com/kris-nova/logger"
 
 	"github.com/gwuhaolin/livego/av"
-	"github.com/gwuhaolin/livego/configure"
 )
 
 type Cache struct {
@@ -60,7 +59,7 @@ type Cache struct {
 
 func NewCache() *Cache {
 	return &Cache{
-		gop:      NewGopCache(configure.Config.GetInt("gop_num")),
+		gop:      NewGopCache(1),
 		videoSeq: NewSpecialCache(),
 		audioSeq: NewSpecialCache(),
 		metadata: NewSpecialCache(),

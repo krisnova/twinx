@@ -35,7 +35,6 @@ import (
 	"github.com/kris-nova/logger"
 
 	"github.com/gwuhaolin/livego/av"
-	"github.com/gwuhaolin/livego/protocol/rtmp/rtmprelay"
 )
 
 var (
@@ -80,12 +79,13 @@ func (rs *RtmpStream) HandleReader(r av.ReadCloser) {
 
 func (rs *RtmpStream) HandleWriter(w av.WriteCloser) {
 	info := w.Info()
-	logger.Info("HandleWriter: info[%v]", info)
+	//logger.Info("HandleWriter: info[%v]", info)
 
 	var s *Stream
 	item, ok := rs.streams.Load(info.Key)
 	if !ok {
-		logger.Info("HandleWriter: not found create new info[%v]", info)
+		//logger.Info("Validating with cache")
+		//logger.Info("HandleWriter: not found create new info[%v]", info)
 		s = NewStream()
 		rs.streams.Store(info.Key, s)
 		s.info = info
@@ -192,7 +192,7 @@ func (s *Stream) StartStaticPush() {
 	appname := dscr[0]
 
 	logger.Info("StartStaticPush: current streamname=%s， appname=%s", streamname, appname)
-	pushurllist, err := rtmprelay.GetStaticPushList(appname)
+	pushurllist, err := GetStaticPushList(appname)
 	if err != nil || len(pushurllist) < 1 {
 		logger.Info("StartStaticPush: GetStaticPushList error=%v", err)
 		return
@@ -202,7 +202,7 @@ func (s *Stream) StartStaticPush() {
 		pushurl := pushurl + "/" + streamname
 		logger.Info("StartStaticPush: static pushurl=%s", pushurl)
 
-		staticpushObj := rtmprelay.GetAndCreateStaticPushObject(pushurl)
+		staticpushObj := GetAndCreateStaticPushObject(pushurl)
 		if staticpushObj != nil {
 			if err := staticpushObj.Start(); err != nil {
 				logger.Info("StartStaticPush: staticpushObj.Start %s error=%v", pushurl, err)
@@ -233,7 +233,7 @@ func (s *Stream) StopStaticPush() {
 	appname := dscr[0]
 
 	logger.Info("StopStaticPush: current streamname=%s， appname=%s", streamname, appname)
-	pushurllist, err := rtmprelay.GetStaticPushList(appname)
+	pushurllist, err := GetStaticPushList(appname)
 	if err != nil || len(pushurllist) < 1 {
 		logger.Info("StopStaticPush: GetStaticPushList error=%v", err)
 		return
@@ -243,10 +243,10 @@ func (s *Stream) StopStaticPush() {
 		pushurl := pushurl + "/" + streamname
 		logger.Info("StopStaticPush: static pushurl=%s", pushurl)
 
-		staticpushObj, err := rtmprelay.GetStaticPushObject(pushurl)
+		staticpushObj, err := GetStaticPushObject(pushurl)
 		if (staticpushObj != nil) && (err == nil) {
 			staticpushObj.Stop()
-			rtmprelay.ReleaseStaticPushObject(pushurl)
+			ReleaseStaticPushObject(pushurl)
 			logger.Info("StopStaticPush: staticpushObj.Stop %s ", pushurl)
 		} else {
 			logger.Info("StopStaticPush GetStaticPushObject %s error", pushurl)
@@ -265,7 +265,7 @@ func (s *Stream) IsSendStaticPush() bool {
 	appname := dscr[0]
 
 	//logger.Info("SendStaticPush: current streamname=%s， appname=%s", streamname, appname)
-	pushurllist, err := rtmprelay.GetStaticPushList(appname)
+	pushurllist, err := GetStaticPushList(appname)
 	if err != nil || len(pushurllist) < 1 {
 		//logger.Info("SendStaticPush: GetStaticPushList error=%v", err)
 		return false
@@ -282,7 +282,7 @@ func (s *Stream) IsSendStaticPush() bool {
 		pushurl := pushurl + "/" + streamname
 		//logger.Info("SendStaticPush: static pushurl=%s", pushurl)
 
-		staticpushObj, err := rtmprelay.GetStaticPushObject(pushurl)
+		staticpushObj, err := GetStaticPushObject(pushurl)
 		if (staticpushObj != nil) && (err == nil) {
 			return true
 			//staticpushObj.WriteAvPacket(&packet)
@@ -311,7 +311,7 @@ func (s *Stream) SendStaticPush(packet av.Packet) {
 	appname := dscr[0]
 
 	//logger.Info("SendStaticPush: current streamname=%s， appname=%s", streamname, appname)
-	pushurllist, err := rtmprelay.GetStaticPushList(appname)
+	pushurllist, err := GetStaticPushList(appname)
 	if err != nil || len(pushurllist) < 1 {
 		//logger.Info("SendStaticPush: GetStaticPushList error=%v", err)
 		return
@@ -321,7 +321,7 @@ func (s *Stream) SendStaticPush(packet av.Packet) {
 		pushurl := pushurl + "/" + streamname
 		//logger.Info("SendStaticPush: static pushurl=%s", pushurl)
 
-		staticpushObj, err := rtmprelay.GetStaticPushObject(pushurl)
+		staticpushObj, err := GetStaticPushObject(pushurl)
 		if (staticpushObj != nil) && (err == nil) {
 			staticpushObj.WriteAvPacket(&packet)
 			//logger.Info("SendStaticPush: WriteAvPacket %s ", pushurl)

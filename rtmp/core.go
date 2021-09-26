@@ -564,7 +564,7 @@ func (connClient *ConnClient) readRespMsg() error {
 						}
 					case cmdPublish:
 						if int(v.(float64)) != 0 {
-							return fmt.Errorf("cmdPublish != 0")
+							return fmt.Errorf("failed to publish stream on server - rejected")
 						}
 					}
 				case amf.Object:
@@ -692,9 +692,8 @@ func (connClient *ConnClient) Start(url string, method string) error {
 		port = ":" + port
 	}
 	ips, err := net.LookupIP(host)
-	logger.Info("ips: %v, host: %v", ips, host)
 	if err != nil {
-		logger.Warning(err.Error())
+		logger.Warning("look up host IP: %v", err)
 		return err
 	}
 	remoteIP = ips[rand.Intn(len(ips))].String()
@@ -704,41 +703,44 @@ func (connClient *ConnClient) Start(url string, method string) error {
 
 	local, err := net.ResolveTCPAddr("tcp", localIP)
 	if err != nil {
-		logger.Warning(err.Error())
+		logger.Warning("Proxy (local) resolve TCP addr: %v", err)
 		return err
 	}
-	logger.Info("remoteIP: ", remoteIP)
 	remote, err := net.ResolveTCPAddr("tcp", remoteIP)
 	if err != nil {
-		logger.Warning(err.Error())
+		logger.Warning("Proxy (remote) resolve TCP addr: %v", err)
 		return err
 	}
 	conn, err := net.DialTCP("tcp", local, remote)
 	if err != nil {
-		logger.Warning(err.Error())
+		logger.Critical("Bridging proxy connection from local -> remote %v", err)
 		return err
 	}
 
-	logger.Info("connection:", "local:", conn.LocalAddr(), "remote:", conn.RemoteAddr())
+	//logger.Info("Connection")
+	//logger.Info("connection:", "local:", conn.LocalAddr(), "remote:", conn.RemoteAddr())
 
 	connClient.conn = NewConn(conn, 4*1024)
 
-	logger.Info("HandshakeClient....")
 	if err := connClient.conn.HandshakeClient(); err != nil {
+		logger.Warning("[RTMP] Handshake", err)
 		return err
 	}
+	logger.Debug("[RTMP] Handshake")
 
-	logger.Info("writeConnectMsg....")
 	if err := connClient.writeConnectMsg(); err != nil {
+		logger.Warning("[RTMP] Connecting", err)
 		return err
 	}
-	logger.Info("writeCreateStreamMsg....")
-	if err := connClient.writeCreateStreamMsg(); err != nil {
-		logger.Info("writeCreateStreamMsg error", err)
-		return err
-	}
+	logger.Debug("[RTMP] Connecting")
 
-	logger.Info("method control:", method, av.PUBLISH, av.PLAY)
+	if err := connClient.writeCreateStreamMsg(); err != nil {
+		logger.Warning("[RTMP] Creating Stream", err)
+		return err
+	}
+	logger.Debug("[RTMP] Creating Stream")
+
+	logger.Info("Method control: %s %s %s", method, av.PUBLISH, av.PLAY)
 	if method == av.PUBLISH {
 		if err := connClient.writePublishMsg(); err != nil {
 			return err
@@ -1054,7 +1056,7 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 			}
 			connServer.done = true
 			connServer.isPublisher = true
-			logger.Info("handle publish req done")
+			logger.Info("Publish request complete")
 		case cmdPlay:
 			if err = connServer.publishOrPlay(vs[1:]); err != nil {
 				return err

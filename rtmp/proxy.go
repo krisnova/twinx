@@ -45,13 +45,10 @@ import (
 	"io"
 	"sync"
 
-	"github.com/gwuhaolin/livego/configure"
-
 	"github.com/kris-nova/logger"
 
 	"github.com/gwuhaolin/livego/av"
 	"github.com/gwuhaolin/livego/protocol/amf"
-	"github.com/gwuhaolin/livego/protocol/rtmp/core"
 )
 
 var (
@@ -61,10 +58,10 @@ var (
 type RtmpRelay struct {
 	PlayUrl              string
 	PublishUrl           string
-	cs_chan              chan core.ChunkStream
+	cs_chan              chan ChunkStream
 	sndctrl_chan         chan string
-	connectPlayClient    *core.ConnClient
-	connectPublishClient *core.ConnClient
+	connectPlayClient    *ConnClient
+	connectPublishClient *ConnClient
 	startflag            bool
 }
 
@@ -72,7 +69,7 @@ func NewRtmpRelay(playurl *string, publishurl *string) *RtmpRelay {
 	return &RtmpRelay{
 		PlayUrl:              *playurl,
 		PublishUrl:           *publishurl,
-		cs_chan:              make(chan core.ChunkStream, 500),
+		cs_chan:              make(chan ChunkStream, 500),
 		sndctrl_chan:         make(chan string),
 		connectPlayClient:    nil,
 		connectPublishClient: nil,
@@ -83,7 +80,7 @@ func NewRtmpRelay(playurl *string, publishurl *string) *RtmpRelay {
 func (r *RtmpRelay) rcvPlayChunkStream() {
 	logger.Debug("rcvPlayRtmpMediaPacket connectClient.Read...")
 	for {
-		var rc core.ChunkStream
+		var rc ChunkStream
 
 		if r.startflag == false {
 			r.connectPlayClient.Close(nil)
@@ -127,24 +124,23 @@ func (r *RtmpRelay) sendPublishChunkStream() {
 }
 
 func (r *RtmpRelay) Start() error {
+	logger.Debug("Starting RTMP Relay")
 	if r.startflag {
 		return fmt.Errorf("The rtmprelay already started, playurl=%s, publishurl=%s\n", r.PlayUrl, r.PublishUrl)
 	}
 
-	r.connectPlayClient = core.NewConnClient()
-	r.connectPublishClient = core.NewConnClient()
+	r.connectPlayClient = NewConnClient()
+	r.connectPublishClient = NewConnClient()
 
-	logger.Debug("play server addr:%v starting....", r.PlayUrl)
 	err := r.connectPlayClient.Start(r.PlayUrl, av.PLAY)
 	if err != nil {
-		logger.Debug("connectPlayClient.Start url=%v error", r.PlayUrl)
+		logger.Warning("Unable to connect [PLAY] %s %v", r.PlayUrl, err)
 		return err
 	}
 
-	logger.Debug("publish server addr:%v starting....", r.PublishUrl)
 	err = r.connectPublishClient.Start(r.PublishUrl, av.PUBLISH)
 	if err != nil {
-		logger.Debug("connectPublishClient.Start url=%v error", r.PublishUrl)
+		logger.Warning("Unable to connect [PLAY] %s %v", r.PublishUrl, err)
 		r.connectPlayClient.Close(nil)
 		return err
 	}
@@ -152,6 +148,8 @@ func (r *RtmpRelay) Start() error {
 	r.startflag = true
 	go r.rcvPlayChunkStream()
 	go r.sendPublishChunkStream()
+
+	logger.Info("Bridge Success [%s] -> [%s]", r.PlayUrl, r.PublishUrl)
 
 	return nil
 }
@@ -170,7 +168,7 @@ type StaticPush struct {
 	RtmpUrl       string
 	packet_chan   chan *av.Packet
 	sndctrl_chan  chan string
-	connectClient *core.ConnClient
+	connectClient *ConnClient
 	startflag     bool
 }
 
@@ -185,7 +183,7 @@ var (
 func GetStaticPushList(appname string) ([]string, error) {
 	if G_PushUrlList == nil {
 		// Do not unmarshel the config every time, lots of reflect works -gs
-		pushurlList, ok := configure.GetStaticPushUrlList(appname)
+		pushurlList, ok := GetStaticPushUrlList(appname)
 		if !ok {
 			G_PushUrlList = []string{}
 		} else {
@@ -260,7 +258,7 @@ func (s *StaticPush) Start() error {
 		return fmt.Errorf("StaticPush already start %s", s.RtmpUrl)
 	}
 
-	s.connectClient = core.NewConnClient()
+	s.connectClient = NewConnClient()
 
 	logger.Debug("static publish server addr:%v starting....", s.RtmpUrl)
 	err := s.connectClient.Start(s.RtmpUrl, "publish")
@@ -297,7 +295,7 @@ func (s *StaticPush) sendPacket(p *av.Packet) {
 	if !s.startflag {
 		return
 	}
-	var cs core.ChunkStream
+	var cs ChunkStream
 
 	cs.Data = p.Data
 	cs.Length = uint32(len(p.Data))

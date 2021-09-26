@@ -33,22 +33,18 @@
 package twinx
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	twinxrtmp "github.com/kris-nova/twinx/rtmp"
 
 	"github.com/gwuhaolin/livego/av"
-
-	"github.com/sirupsen/logrus"
 
 	"github.com/kris-nova/twinx/activestreamer"
 
@@ -67,7 +63,6 @@ type Stream struct {
 	Shutdown        chan bool
 	IsManagedDaemon bool
 	Server          *grpc.Server
-	LogrusBuffer    *bytes.Buffer
 }
 
 func NewStream() *Stream {
@@ -93,23 +88,6 @@ func (s *Stream) Run() error {
 			s.Shutdown <- true
 		}
 	}()
-
-	// Setup the log buffer for logrus
-	s.LogrusBuffer = &bytes.Buffer{}
-	logger.Info("Logrus level: TraceLevel")
-	logrus.SetLevel(logrus.TraceLevel)
-	logrus.SetOutput(s.LogrusBuffer)
-	logrus.SetFormatter(&logrus.TextFormatter{
-		DisableTimestamp:       true,
-		DisableColors:          true,
-		DisableLevelTruncation: false,
-		//CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-		//	filename := path.Base(f.File)
-		//	return fmt.Sprintf("Buffered Logrus Log: %s()", f.Function), fmt.Sprintf(" %s:%d", filename, f.Line)
-		//},
-	})
-	logrus.Info("Ensure level: TraceLevel")
-	defer logrus.Exit(0)
 
 	// Do not handle error. If it cannot be removed just exit and let the user
 	// figure out what to do.
@@ -138,14 +116,6 @@ func (s *Stream) Run() error {
 			return nil
 		default:
 			break
-		}
-
-		flushedLogsRaw, err := ioutil.ReadAll(s.LogrusBuffer)
-		if err != nil {
-			logger.Critical("logrus buffer read: %v", err)
-		}
-		if len(flushedLogsRaw) > 0 {
-			logger.Warning(string(flushedLogsRaw))
 		}
 		time.Sleep(time.Second * 1)
 	}
@@ -344,14 +314,7 @@ func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.
 	go func() {
 		err := relay.Start()
 		if err != nil {
-			logger.Critical("Error forwarding RTMP. Raw: %v", err)
-			logger.Critical("Check the forward address.")
-			if strings.Contains(err.Error(), "u path err:") {
-				logger.Critical("Error with backend RTMP library")
-				logger.Critical("  Configured PlayURL   : %s", relay.PlayUrl)
-				logger.Critical("  Configured PublishURL: %s", relay.PublishUrl)
-			}
-
+			logger.Critical("starting RTMP proxy: %v", err)
 		}
 	}()
 

@@ -159,7 +159,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								logger.Always("You can now stream (using OBS or similar)")
 								logger.Always("OBS > Settings > Stream")
 								logger.Always(" Service:            'Custom'")
-								logger.Always(" Server:             '%s/%s'", parsedAddr.Host(), parsedAddr.App())
+								logger.Always(" Server:             '%s://%s/%s'", parsedAddr.Scheme(), parsedAddr.Host(), parsedAddr.App())
 								logger.Always(" Stream Key:         '%s'", parsedAddr.Key())
 								logger.Always(" Use Authentication: 'no'")
 								return nil
