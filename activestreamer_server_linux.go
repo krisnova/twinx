@@ -42,8 +42,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/kris-nova/twinx/goops"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -191,21 +189,14 @@ type ActiveStreamerServer struct {
 	activestreamer.UnimplementedActiveStreamerServer
 }
 
-func (ActiveStreamerServer) StartRTMP(ctx context.Context, proxy *activestreamer.ProxyServer) (*activestreamer.Ack, error) {
-
-	service := goops.NewService(ActiveStreamRTMPHost, int(proxy.Port), int(proxy.BufferSize))
-	go service.Listen()
-	return &activestreamer.Ack{
-		Success: true,
-	}, nil
+func (ActiveStreamerServer) RTMPStartRelay(context.Context, *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RTMPStartRelay not implemented")
 }
-
-func (ActiveStreamerServer) AddForeignServer(context.Context, *activestreamer.ForeignServer) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddForeignServer not implemented")
+func (ActiveStreamerServer) RTMPStopRelay(context.Context, *activestreamer.Null) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RTMPStopRelay not implemented")
 }
-
-func (ActiveStreamerServer) StopRTMP(context.Context, *activestreamer.Null) (*activestreamer.Ack, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StopRTMP not implemented")
+func (ActiveStreamerServer) RTMPForward(context.Context, *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RTMPForward not implemented")
 }
 func (ActiveStreamerServer) SetTwitchMeta(context.Context, *activestreamer.StreamMeta) (*activestreamer.Ack, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetTwitchMeta not implemented")

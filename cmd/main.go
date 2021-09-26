@@ -31,8 +31,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kris-nova/twinx/goops"
-
 	"google.golang.org/grpc"
 
 	"github.com/kris-nova/twinx/activestreamer"
@@ -67,8 +65,8 @@ var (
 	// dryRun will run the command without calling the services
 	dryRun bool
 
-	// proxyPort is the port to listen for the local proxy server
-	proxyPort int = 1719
+	// addr is the string to be used as net.Addr for RTMP connections
+	addr string = ":"
 
 	globalFlags = []cli.Flag{
 		&cli.BoolFlag{
@@ -109,13 +107,13 @@ func RunWithOptions(opt *RuntimeOptions) error {
 		Commands: []*cli.Command{
 
 			// ********************************************************
-			// [ proxy ]
+			// [ relay ]
 			// ********************************************************
 
 			{
-				Name:      "proxy",
+				Name:      "relay",
 				Aliases:   []string{"r"},
-				Usage:     "proxy stream proxy, and forwarding.",
+				Usage:     "RTMP relay and local proxy server.",
 				UsageText: ``,
 				Flags:     allFlags([]cli.Flag{}),
 				Action: func(c *cli.Context) error {
@@ -125,15 +123,15 @@ func RunWithOptions(opt *RuntimeOptions) error {
 				Subcommands: []*cli.Command{
 					{
 						Name:      "start",
-						Usage:     "Start a proxy server locally.",
+						Usage:     "Start a local RTMP listener, which can be relayed to other RTMP servers such as YouTube or Twitch.",
 						UsageText: ``,
 						Flags: allFlags([]cli.Flag{
-							&cli.IntFlag{
-								Name:        "port",
-								Aliases:     []string{"p"},
-								Value:       1719,
-								Usage:       "toggle verbose mode for logger",
-								Destination: &proxyPort,
+							&cli.StringFlag{
+								Name:        "connection",
+								Aliases:     []string{"c"},
+								Value:       ":",
+								Usage:       "connection string. 'localhost:' 'localhost:1719' ':' 'rtmp://localhost:1719/app/stream-key'",
+								Destination: &addr,
 							},
 						}),
 						Action: func(c *cli.Context) error {
@@ -141,9 +139,9 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
-							ack, err := x.Client.StartProxy(context.TODO(), &activestreamer.ProxyServer{
-								Port:       int64(proxyPort),
-								BufferSize: goops.BufferSizeOBSDefaultBytes,
+							ack, err := x.Client.RTMPStartRelay(context.TODO(), &activestreamer.RTMPHost{
+								Addr:       addr,
+								BufferSize: twinx.RTMPBufferSizeOBSDefaultBytes, // TODO Pull this out to a flag
 							}, grpc.EmptyCallOption{})
 
 							if err != nil {
@@ -154,10 +152,9 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								logger.Always("You can now stream (using OBS or similar)")
 								logger.Always("     OBS > Settings > Stream")
 								logger.Always("     Service:             Custom")
-								logger.Always("     Server:              rtmp://%s:%d", twinx.ActiveStreamRTMPHost, proxyPort)
+								logger.Always("     Server:              %s", addr)
 								logger.Always("     Stream Key:          ")
 								logger.Always("     Use Authentication:  no")
-
 								return nil
 							}
 							return fmt.Errorf("error proxy: %s", ack.Message)
@@ -165,7 +162,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 					},
 					{
 						Name:      "stop",
-						Usage:     "Stop the proxy server.",
+						Usage:     "Stop the local RTMP relay stream.",
 						UsageText: ``,
 						Flags:     allFlags([]cli.Flag{}),
 						Action: func(c *cli.Context) error {
@@ -173,7 +170,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 							if err != nil {
 								return fmt.Errorf("unable to find active running stream: %v", err)
 							}
-							ack, err := x.Client.StopProxy(context.TODO(), &activestreamer.Null{}, grpc.EmptyCallOption{})
+							ack, err := x.Client.RTMPStopRelay(context.TODO(), &activestreamer.Null{}, grpc.EmptyCallOption{})
 
 							if err != nil {
 								return fmt.Errorf("unable to start proxy: %v", err)
@@ -186,11 +183,44 @@ func RunWithOptions(opt *RuntimeOptions) error {
 						},
 					},
 					{
-						Name:      "proxy",
-						Usage:     "A simple proxy server designed to fork raw streams.",
+						Name:      "forward",
+						Usage:     "Forward the RTMP stream to multiple backends such as YouTube and Twitch. Use this command to add a backend.",
 						UsageText: ``,
-						Flags:     allFlags([]cli.Flag{}),
+						Flags: allFlags([]cli.Flag{
+							&cli.StringFlag{
+								Name:        "connection",
+								Aliases:     []string{"c"},
+								Value:       ":",
+								Usage:       "connection string. 'localhost:' 'localhost:1719' ':' 'rtmp://localhost:1719/app/stream-key'",
+								Destination: &addr,
+							},
+						}),
 						Action: func(c *cli.Context) error {
+
+							args := c.Args()
+							if args.Len() != 1 {
+								return fmt.Errorf("usage: twinx relay forward <host:port/app/stream-key>")
+							}
+							connString := args.Get(0)
+							logger.Info("Connecting %s...", connString)
+
+							x, err := twinx.GetActiveStream()
+							if err != nil {
+								return fmt.Errorf("unable to find active running stream: %v", err)
+							}
+							ack, err := x.Client.RTMPForward(context.TODO(), &activestreamer.RTMPHost{
+								Addr: addr,
+							}, grpc.EmptyCallOption{})
+
+							if err != nil {
+								return fmt.Errorf("unable to start proxy: %v", err)
+							}
+							if ack.Success {
+								logger.Always("Success!")
+								return nil
+							}
+							return fmt.Errorf("error proxy: %s", ack.Message)
+
 							return nil
 						},
 					},

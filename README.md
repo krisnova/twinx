@@ -32,36 +32,14 @@ $ twinx stream start \
     "This is a live stream about how to hack the kernel to burn down capitalism"
 ```
 
-Use `twinx` to update the title and description on your Twitch channel and your YouTube live broadcast.
+Start an RTMP Relay. If no `host:port` is defined, `twinx` will select a port and listen on `localhost`.
 
 ```bash 
-$ # twinx <integration> update 
-$ twinx youtube update
-$ twinx twitch update
+$ twinx relay start <optional host:port>
+$ twinx relay start localhost:1719
 ```
 
-Use `twinx` to start a local `RTMP` router.
-This will allow your local OBS to stream to both YouTube and Twitch at the same time.
 
-```bash
-$ # Start a local proxy server
-$ twinx proxy start
-```
-
-Use `twinx` to start streaming in OBS via the new RTMP server.
-
-```bash 
-$ # Start streaming via OBS
-$ twinx obs start
-```
-
-Cleanup when you are finished.
-
-```bash 
-$ twinx obs stop
-$ twinx rtmp stop
-$ twinx stream stop
-```
 
 ## Configuration
 
@@ -110,3 +88,12 @@ Arch Linux dependencies
 ```
 protoc-gen-go protoc-gen-go-grpc
 ```
+
+#### RTMP Protocol Reference
+
+ - [Wikipedia Page](https://en.wikipedia.org/wiki/Real-Time_Messaging_Protocol)
+ - [How RTMP Works](https://ottverse.com/rtmp-real-time-messaging-protocol-encoding-streaming/)
+ - [What is RTMP](https://blog.pogrebnyak.info/what-is-rtmp-and-how-its-used-in-live-streaming/)
+ - [RTMP Spec](https://wwwimages2.adobe.com/content/dam/acom/en/devnet/rtmp/pdf/rtmp_specification_1.0.pdf)
+ - [NGINX RTMP Module Handshake C Source](https://github.com/arut/nginx-rtmp-module/blob/master/ngx_rtmp_handshake.c)
+ - [LiveGo](https://github.com/gwuhaolin/livego/tree/master/protocol/rtmp)

@@ -23,71 +23,20 @@
 //
 // ────────────────────────────────────────────────────────────────────────────
 
-syntax = "proto3";
+package twinx
 
-option go_package = "github.com/kris-nova/twinx/activestreamer";
+const (
+	RTMPLocalAddress = "localhost"
 
-package twinx;
+	RTMPProtocol string = "tcp"
 
-// [ActiveStreamer] A simple interprocess message queue between the client and the server
-service ActiveStreamer {
+	// RTMPBufferSizeOBSDefaultBytes is the default output buffer size used by OBS.
+	// This should be used for the simplest and smoothest use with OBS.
+	// This can be adjusted (and so should OBS!) if you are sure what you
+	// are doing, and have system resources to support your change.
+	RTMPBufferSizeOBSDefaultBytes int64 = 2500
 
-  // RTMP
-  rpc RTMPStartRelay (RTMPHost) returns (Ack) {}
-  rpc RTMPStopRelay (Null) returns (Ack) {}
-  rpc RTMPForward (RTMPHost) returns (Ack) {}
-
-  // Twitch
-  rpc SetTwitchMeta (StreamMeta) returns (Ack) {}
-
-  // YouTube
-  rpc SetYouTubeMeta (StreamMeta) returns (Ack) {}
-
-  // Stream Meta
-  rpc GetStreamMeta (ClientConfig) returns (StreamMeta) {}
-  rpc SetStreamMeta (StreamMeta) returns (Ack) {}
-
-  // Common
-  rpc GetMessage (ClientConfig) returns (Ack) {}
-  rpc SetLogger (LoggerConfig) returns (Ack) {}
-}
-
-message Null {
-}
-
-// RTMPHost is used to represent an RTMP Server to configure (either to listen, or send)
-message RTMPHost {
-  string addr = 1;
-  int64 bufferSize = 2;
-}
-
-// Ack is a generic response. Can be successful, or returns an error message.
-message Ack {
-  bool success = 1;
-  optional string message = 2;
-}
-
-message StreamMeta {
-  // Generic title of your stream
-  string title = 1;
-
-  // Generic description of your stream
-  string description = 2;
-
-  // Optional list of tags or keywords to use with various services
-  optional string tags = 3;
-}
-
-message ClientConfig {
-  // TODO add auth token here if we would like to lock down the gRPC service
-  optional string name = 1;
-}
-
-
-// LoggerConfig is a way to configure a logger with twinx
-message LoggerConfig {
-
-  // Path is the logger path on the local filesystem to send logs to.
-  string path = 1;
-}
-
+	// RTMPBufferSizeNovaDefaultBytes is my personal default buffer size for my
+	// streams. I run Arch btw.
+	RTMPBufferSizeNovaDefaultBytes int64 = 256
+)
