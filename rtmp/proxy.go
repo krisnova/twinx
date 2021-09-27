@@ -78,7 +78,7 @@ func NewRtmpRelay(playurl *string, publishurl *string) *RtmpRelay {
 }
 
 func (r *RtmpRelay) rcvPlayChunkStream() {
-	logger.Debug("rcvPlayRtmpMediaPacket connectClient.Read...")
+
 	for {
 		var rc ChunkStream
 
@@ -89,20 +89,75 @@ func (r *RtmpRelay) rcvPlayChunkStream() {
 		}
 		err := r.connectPlayClient.Read(&rc)
 
-		if err != nil && err == io.EOF {
-			break
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			logger.Warning("reading chunk from proxy server: %v", err)
 		}
-		//logger.Debug("connectPlayClient.Read return rc.TypeID=%v length=%d, err=%v", rc.TypeID, len(rc.Data), err)
+
+		// Here is the type implementation.
+		// This is defined https://en.wikipedia.org/wiki/Real-Time_Messaging_Protocol
+
+		//Type 0 - Clear Stream: Sent when the connection is established and carries no further data
+		//Type 1 - Clear the Buffer.
+		//Type 2 - Stream Dry.
+		//Type 3 - The client's buffer time. The third parameter holds the value in millisecond.
+		//Type 4 - Reset a stream.
+		//Type 6 - Ping the client from server. The second parameter is the current time.
+		//Type 7 - Pong reply from client. The second parameter is the time when the client receives the Ping.
+		//Type 8 - UDP Request.
+		//Type 9 - UDP Response.
+		//Type 10 - Bandwidth Limit.
+		//Type 11 - Bandwidth.
+		//Type 12 - Throttle Bandwidth.
+		//Type 13 - Stream Created.
+		//Type 14 - Stream Deleted.
+		//Type 15 - Set Read Access.
+		//Type 16 - Set Write Access.
+		//Type 17 - Stream Meta Request.
+		//Type 18 - Stream Meta Response.
+		//Type 19 - Get Segment Boundary.
+		//Type 20 - Set Segment Boundary.
+		//Type 21 - On Disconnect.
+		//Type 22 - Set Critical Link.
+		//Type 23 - Disconnect.
+		//Type 24 - Hash Update.
+		//Type 25 - Hash Timeout.
+		//Type 26 - Hash Request.
+		//Type 27 - Hash Response.
+		//Type 28 - Check Bandwidth.
+		//Type 29 - Set Audio Sample Access.
+		//Type 30 - Set Video Sample Access.
+		//Type 31 - Throttle Begin.
+		//Type 32 - Throttle End.
+		//Type 33 - DRM Notify.
+		//Type 34 - RTMFP Sync.
+		//Type 35 - Query IHello.
+		//Type 36 - Forward IHello.
+		//Type 37 - Redirect IHello.
+		//Type 38 - Notify EOF.
+		//Type 39 - Proxy Continue.
+		//Type 40 - Proxy Remove Upstream.
+		//Type 41 - RTMFP Set Keepalives.
+		//Type 46 - Segment Not Found.
 		switch rc.TypeID {
 		case 20, 17:
 			rr := bytes.NewReader(rc.Data)
 			vs, err := r.connectPlayClient.DecodeBatch(rr, amf.AMF0)
-
-			logger.Debug("rcvPlayRtmpMediaPacket: vs=%v, err=%v", vs, err)
+			if err != nil && err != io.EOF {
+				logger.Warning("error decoding batch chunk from proxy server: %v", err)
+			}
+			logger.Debug("Decoding message: %v", vs)
+			break
 		case 18:
-			logger.Debug("rcvPlayRtmpMediaPacket: metadata....")
+			logger.Debug("Chunk metadata received")
+			break
 		case 8, 9:
 			r.cs_chan <- rc
+			break
+		default:
+			logger.Warning("Unhandled type: %d", rc.TypeID)
 		}
 	}
 }
@@ -149,7 +204,7 @@ func (r *RtmpRelay) Start() error {
 	go r.rcvPlayChunkStream()
 	go r.sendPublishChunkStream()
 
-	logger.Info("Bridge Success [%s] -> [%s]", r.PlayUrl, r.PublishUrl)
+	logger.Success("Bridge Success! [%s] -> [%s]", r.PlayUrl, r.PublishUrl)
 
 	return nil
 }

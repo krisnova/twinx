@@ -520,34 +520,40 @@ func (connClient *ConnClient) DecodeBatch(r io.Reader, ver amf.Version) (ret []i
 	return vs, err
 }
 
+// readRespMsg will parse a message from a server
 func (connClient *ConnClient) readRespMsg() error {
 	var err error
 	var rc ChunkStream
 	for {
 		if err = connClient.conn.Read(&rc); err != nil {
-			return err
+			return fmt.Errorf("error reading message from server: %v", err)
 		}
 		if err != nil && err != io.EOF {
-			return err
+			return fmt.Errorf("error reading message from server [non-EOF]: %v", err)
 		}
 		switch rc.TypeID {
 		case 20, 17:
 			r := bytes.NewReader(rc.Data)
-			vs, _ := connClient.decoder.DecodeBatch(r, amf.AMF0)
+			vs, err := connClient.decoder.DecodeBatch(r, amf.AMF0)
+			if err != nil && err != io.EOF {
+				logger.Warning("Decoding batch: %v", err)
+			}
 
-			logger.Info("readRespMsg: vs=%v", vs)
+			//logger.Debug("Reading Message From Server: %v", vs)
 			for k, v := range vs {
+
+				//
 				switch v.(type) {
 				case string:
 					switch connClient.curcmdName {
 					case cmdConnect, cmdCreateStream:
 						if v.(string) != respResult {
-							return fmt.Errorf(v.(string))
+							return fmt.Errorf("unexpected connection/creating stream result: %s", v.(string))
 						}
 
 					case cmdPublish:
 						if v.(string) != onStatus {
-							return fmt.Errorf("onStatus command publish")
+							return fmt.Errorf("unexpected publish result: %s", v.(string))
 						}
 					}
 				case float64:
@@ -557,14 +563,14 @@ func (connClient *ConnClient) readRespMsg() error {
 
 						if k == 1 {
 							if id != connClient.transID {
-								return fmt.Errorf("id != transaction id")
+								return fmt.Errorf("unexpected ID from server expected [%d] actual [%d]", id, connClient.transID)
 							}
 						} else if k == 3 {
 							connClient.streamid = uint32(id)
 						}
 					case cmdPublish:
 						if int(v.(float64)) != 0 {
-							return fmt.Errorf("failed to publish stream on server - rejected")
+							return fmt.Errorf("unable to publish to server")
 						}
 					}
 				case amf.Object:
@@ -573,12 +579,12 @@ func (connClient *ConnClient) readRespMsg() error {
 					case cmdConnect:
 						code, ok := objmap["code"]
 						if ok && code.(string) != connectSuccess {
-							return fmt.Errorf("code != connectSuccess")
+							return fmt.Errorf("unable to connect: error code: %d", code)
 						}
 					case cmdPublish:
 						code, ok := objmap["code"]
 						if ok && code.(string) != publishStart {
-							return fmt.Errorf("code != publishStart")
+							return fmt.Errorf("unable to publish: error code: %d", code)
 						}
 					}
 				}
