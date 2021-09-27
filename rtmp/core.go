@@ -806,14 +806,15 @@ var (
 )
 
 var (
-	cmdConnect       = "connect"
-	cmdFcpublish     = "FCPublish"
-	cmdReleaseStream = "releaseStream"
-	cmdCreateStream  = "createStream"
-	cmdPublish       = "publish"
-	cmdFCUnpublish   = "FCUnpublish"
-	cmdDeleteStream  = "deleteStream"
-	cmdPlay          = "play"
+	cmdConnect         = "connect"
+	cmdFcpublish       = "FCPublish"
+	cmdReleaseStream   = "releaseStream"
+	cmdCreateStream    = "createStream"
+	cmdPublish         = "publish"
+	cmdFCUnpublish     = "FCUnpublish"
+	cmdDeleteStream    = "deleteStream"
+	cmdPlay            = "play"
+	cmdGetStreamLength = "getStreamLength"
 )
 
 type ConnectInfo struct {
@@ -924,6 +925,12 @@ func (connServer *ConnServer) releaseStream(vs []interface{}) error {
 }
 
 func (connServer *ConnServer) fcPublish(vs []interface{}) error {
+	return nil
+}
+
+func (connServer *ConnServer) getStreamLength(cur *ChunkStream) error {
+	//return connServer.writeMsg(cur.CSID, cur.StreamID,
+	//	"_result", connServer.transactionID, nil, connServer.streamID)
 	return nil
 }
 
@@ -1072,15 +1079,16 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 			}
 			connServer.done = true
 			connServer.isPublisher = false
-			logger.Info("handle play req done")
+			//logger.Info("Play request")
 		case cmdFcpublish:
 			connServer.fcPublish(vs)
 		case cmdReleaseStream:
 			connServer.releaseStream(vs)
 		case cmdFCUnpublish:
 		case cmdDeleteStream:
+		case cmdGetStreamLength:
 		default:
-			logger.Info("no support command=", vs[0].(string))
+			logger.Critical("Unknown command: %s", vs[0].(string))
 		}
 	}
 
@@ -1107,7 +1115,7 @@ func (connServer *ConnServer) ReadMsg() error {
 }
 
 func (connServer *ConnServer) IsPublisher() bool {
-	return false
+	return true
 	return connServer.isPublisher
 }
 

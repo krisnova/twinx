@@ -122,25 +122,19 @@ func (s *Server) Serve(listener net.Listener) (err error) {
 func (s *Server) handleConn(conn *Conn) error {
 	if err := conn.HandshakeServer(); err != nil {
 		conn.Close()
-		logger.Critical("handleConn HandshakeServer err: ", err)
+		logger.Critical("RTMP Handshake: %v", err)
 		return err
 	}
 	connServer := NewConnServer(conn)
 
 	if err := connServer.ReadMsg(); err != nil {
 		conn.Close()
-		logger.Critical("handleConn read msg err: ", err)
+		logger.Critical("RTMP Read Message: %v", err)
 		return err
 	}
 
 	appname, name, _ := connServer.GetInfo()
-
-	if ret := CheckAppName(appname); !ret {
-		err := fmt.Errorf("application name=%s is not configured", appname)
-		conn.Close()
-		logger.Critical("CheckAppName err: ", err)
-		return err
-	}
+	logger.Info("Application Key Name: %s", name)
 
 	//logger.Info("handleConn: IsPublisher=%v", connServer.IsPublisher())
 	if connServer.IsPublisher() {
@@ -168,7 +162,7 @@ func (s *Server) handleConn(conn *Conn) error {
 		}
 		reader := NewVirReader(connServer)
 		s.handler.HandleReader(reader)
-		logger.Info("new publisher: %+v", reader.Info())
+		logger.Info("New publisher: %s", reader.Info().URL)
 
 		if s.getter != nil {
 			writeType := reflect.TypeOf(s.getter)
@@ -478,6 +472,6 @@ func (v *VirReader) Info() (ret av.Info) {
 }
 
 func (v *VirReader) Close(err error) {
-	logger.Info("publisher ", v.Info(), "closed: "+err.Error())
+	logger.Warning("Connection closed: %v", err)
 	v.conn.Close(err)
 }

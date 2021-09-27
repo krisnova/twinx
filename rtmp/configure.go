@@ -116,7 +116,7 @@ func (r *RoomKeysType) GetKey(channel string) (newKey string, err error) {
 		return key.(string), nil
 	}
 	newKey, err = r.SetKey(channel)
-	logger.Info("[KEY] new channel [%s]: %s", channel, newKey)
+	logger.Info("New channel [%s]: %s", channel, newKey)
 	return
 }
 

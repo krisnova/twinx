@@ -55,7 +55,7 @@ func NewRtmpStream() *RtmpStream {
 
 func (rs *RtmpStream) HandleReader(r av.ReadCloser) {
 	info := r.Info()
-	logger.Info("HandleReader: info[%v]", info)
+	//logger.Info("HandleReader: info[%v]", info)
 
 	var stream *Stream
 	i, ok := rs.streams.Load(info.Key)
@@ -173,8 +173,6 @@ func (s *Stream) AddWriter(w av.WriteCloser) {
 	s.ws.Store(info.UID, pw)
 }
 
-/*检测本application下是否配置static_push,
-如果配置, 启动push远端的连接*/
 func (s *Stream) StartStaticPush() {
 	key := s.info.Key
 
@@ -191,21 +189,21 @@ func (s *Stream) StartStaticPush() {
 	streamname := key[index+1:]
 	appname := dscr[0]
 
-	logger.Info("StartStaticPush: current streamname=%s， appname=%s", streamname, appname)
+	//logger.Info("StartStaticPush: current streamname=%s， appname=%s", streamname, appname)
 	pushurllist, err := GetStaticPushList(appname)
 	if err != nil || len(pushurllist) < 1 {
-		logger.Info("StartStaticPush: GetStaticPushList error=%v", err)
+		logger.Info("Static Push: %v", err)
 		return
 	}
 
 	for _, pushurl := range pushurllist {
 		pushurl := pushurl + "/" + streamname
-		logger.Info("StartStaticPush: static pushurl=%s", pushurl)
+		//logger.Info("StartStaticPush: static pushurl=%s", pushurl)
 
 		staticpushObj := GetAndCreateStaticPushObject(pushurl)
 		if staticpushObj != nil {
 			if err := staticpushObj.Start(); err != nil {
-				logger.Info("StartStaticPush: staticpushObj.Start %s error=%v", pushurl, err)
+				logger.Info("StartStaticPush: staticpushObj.Start %s error= v", pushurl, err)
 			} else {
 				logger.Info("StartStaticPush: staticpushObj.Start %s ok", pushurl)
 			}
@@ -335,8 +333,6 @@ func (s *Stream) TransStart() {
 	s.isStart = true
 	var p av.Packet
 
-	logger.Info("TransStart: %v", s.info)
-
 	s.StartStaticPush()
 
 	for {
@@ -385,7 +381,7 @@ func (s *Stream) TransStop() {
 	logger.Info("TransStop: %s", s.info.Key)
 
 	if s.isStart && s.r != nil {
-		s.r.Close(fmt.Errorf("stop old"))
+		s.r.Close(fmt.Errorf("stopping existing stream"))
 	}
 
 	s.isStart = false
@@ -421,7 +417,7 @@ func (s *Stream) CheckAlive() (n int) {
 func (s *Stream) closeInter() {
 	if s.r != nil {
 		s.StopStaticPush()
-		logger.Info("[%v] publisher closed", s.r.Info())
+		logger.Warning("Publisher closed: %s", s.r.Info().UID)
 	}
 
 	s.ws.Range(func(key, val interface{}) bool {
