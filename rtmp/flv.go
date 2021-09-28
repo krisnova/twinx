@@ -29,11 +29,12 @@ import (
 	"fmt"
 )
 
-var (
-	ErrAvcEndSEQ = fmt.Errorf("avc end sequence")
-)
-
+// FLVDemuxer
+// Flash Video Demuxer
+// FLV is Flash Video and
+// is encoded in some RTMP streams
 type FLVDemuxer struct {
+	//
 }
 
 func NewFLVDemuxer() *FLVDemuxer {
@@ -59,7 +60,7 @@ func (d FLVDemuxer) Demux(p *Packet) error {
 	}
 	if tag.CodecID() == VIDEO_H264 &&
 		p.Data[0] == 0x17 && p.Data[1] == 0x02 {
-		return ErrAvcEndSEQ
+		return fmt.Errorf("demux error AVC end sequence")
 	}
 	p.Header = &tag
 	p.Data = p.Data[n:]

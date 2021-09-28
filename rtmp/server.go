@@ -40,8 +40,21 @@ import (
 )
 
 const (
-	maxQueueNum           = 1024
-	SAVE_STATICS_INTERVAL = 5000
+	// MaximumPacketQueueRecords
+	//
+	// Similar to how HTTP-based transmission protocols like
+	// HLS and DASH behave, RTMP too, breaks a multimedia
+	// stream into fragments that are usually:
+	//  - 64 bytes for audio
+	//  - 128 bytes for video
+	//
+	// The size of the fragments can be negotiated between the client and the server.
+	MaximumPacketQueueRecords int = 1024
+
+	// SaveStaticMediaTimeIntervalMilliseconds
+	//
+	// The time delay (in MS) between saving static media
+	SaveStaticMediaTimeIntervalMilliseconds int64 = 5000
 
 	ReadTimeout  int = 10
 	WriteTimeout int = 10
@@ -219,7 +232,7 @@ func NewVirWriter(conn StreamReadWriteCloser) *VirWriter {
 		Uid:         uid.NewId(),
 		conn:        conn,
 		RWBaser:     NewRWBaser(time.Second * time.Duration(WriteTimeout)),
-		packetQueue: make(chan *Packet, maxQueueNum),
+		packetQueue: make(chan *Packet, MaximumPacketQueueRecords),
 		WriteBWInfo: StaticsBW{0, 0, 0, 0, 0, 0, 0, 0},
 	}
 
@@ -245,7 +258,7 @@ func (v *VirWriter) SaveStatics(streamid uint32, length uint64, isVideoFlag bool
 
 	if v.WriteBWInfo.LastTimestamp == 0 {
 		v.WriteBWInfo.LastTimestamp = nowInMS
-	} else if (nowInMS - v.WriteBWInfo.LastTimestamp) >= SAVE_STATICS_INTERVAL {
+	} else if (nowInMS - v.WriteBWInfo.LastTimestamp) >= SaveStaticMediaTimeIntervalMilliseconds {
 		diffTimestamp := (nowInMS - v.WriteBWInfo.LastTimestamp) / 1000
 
 		v.WriteBWInfo.VideoSpeedInBytesperMS = (v.WriteBWInfo.VideoDatainBytes - v.WriteBWInfo.LastVideoDatainBytes) * 8 / uint64(diffTimestamp) / 1000
@@ -269,11 +282,11 @@ func (v *VirWriter) Check() {
 
 func (v *VirWriter) DropPacket(pktQue chan *Packet, info Info) {
 	logger.Critical("packet queue max [%+v]", info)
-	for i := 0; i < maxQueueNum-84; i++ {
+	for i := 0; i < MaximumPacketQueueRecords-84; i++ {
 		tmpPkt, ok := <-pktQue
 		// try to don't drop audio
 		if ok && tmpPkt.IsAudio {
-			if len(pktQue) > maxQueueNum-2 {
+			if len(pktQue) > MaximumPacketQueueRecords-2 {
 				logger.Info("drop audio pkt")
 				<-pktQue
 			} else {
@@ -288,7 +301,7 @@ func (v *VirWriter) DropPacket(pktQue chan *Packet, info Info) {
 			if ok && (videoPkt.IsSeq() || videoPkt.IsKeyFrame()) {
 				pktQue <- tmpPkt
 			}
-			if len(pktQue) > maxQueueNum-10 {
+			if len(pktQue) > MaximumPacketQueueRecords-10 {
 				logger.Info("drop video pkt")
 				<-pktQue
 			}
@@ -311,7 +324,7 @@ func (v *VirWriter) Write(p *Packet) (err error) {
 			err = fmt.Errorf("VirWriter has already been closed:%v", e)
 		}
 	}()
-	if len(v.packetQueue) >= maxQueueNum-24 {
+	if len(v.packetQueue) >= MaximumPacketQueueRecords-24 {
 		v.DropPacket(v.packetQueue, v.Info())
 	} else {
 		v.packetQueue <- p
@@ -410,7 +423,7 @@ func (v *VirReader) SaveStatics(streamid uint32, length uint64, isVideoFlag bool
 
 	if v.ReadBWInfo.LastTimestamp == 0 {
 		v.ReadBWInfo.LastTimestamp = nowInMS
-	} else if (nowInMS - v.ReadBWInfo.LastTimestamp) >= SAVE_STATICS_INTERVAL {
+	} else if (nowInMS - v.ReadBWInfo.LastTimestamp) >= SaveStaticMediaTimeIntervalMilliseconds {
 		diffTimestamp := (nowInMS - v.ReadBWInfo.LastTimestamp) / 1000
 
 		//log.Printf("now=%d, last=%d, diff=%d", nowInMS, v.ReadBWInfo.LastTimestamp, diffTimestamp)
