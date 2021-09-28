@@ -44,8 +44,6 @@ import (
 
 	twinxrtmp "github.com/kris-nova/twinx/rtmp"
 
-	"github.com/gwuhaolin/livego/av"
-
 	"github.com/kris-nova/twinx/activestreamer"
 
 	"google.golang.org/grpc"
@@ -198,7 +196,7 @@ type ActiveStreamerServer struct {
 	activestreamer.UnimplementedActiveStreamerServer
 	Local    *twinxrtmp.Addr
 	Remotes  map[string]*twinxrtmp.Addr
-	Handler  av.Handler
+	Service  *twinxrtmp.Service
 	Listener net.Listener
 }
 
@@ -231,8 +229,8 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("unable to start rtmp, already running")
 	}
 
-	stream := twinxrtmp.NewRtmpStream()
-	server := twinxrtmp.NewRtmpServer(stream, nil)
+	svc := twinxrtmp.NewService()
+	server := twinxrtmp.NewRtmpServer(svc, nil)
 
 	listener, err := net.Listen(twinxrtmp.DefaultProtocol, addr.Host())
 	if err != nil {
@@ -258,7 +256,7 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 
 	// This is called in New()
 	// go handler.CheckAlive()
-	a.Handler = stream
+	a.Service = svc
 
 	return &activestreamer.Ack{
 		Success: true,

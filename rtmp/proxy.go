@@ -47,7 +47,6 @@ import (
 
 	"github.com/kris-nova/logger"
 
-	"github.com/gwuhaolin/livego/av"
 	"github.com/gwuhaolin/livego/protocol/amf"
 )
 
@@ -187,13 +186,13 @@ func (r *RtmpRelay) Start() error {
 	r.connectPlayClient = NewConnClient()
 	r.connectPublishClient = NewConnClient()
 
-	err := r.connectPlayClient.Start(r.PlayUrl, av.PLAY)
+	err := r.connectPlayClient.Start(r.PlayUrl, PLAY)
 	if err != nil {
 		logger.Warning("Unable to connect [PLAY] %s %v", r.PlayUrl, err)
 		return err
 	}
 
-	err = r.connectPublishClient.Start(r.PublishUrl, av.PUBLISH)
+	err = r.connectPublishClient.Start(r.PublishUrl, PUBLISH)
 	if err != nil {
 		logger.Warning("Unable to connect [PLAY] %s %v", r.PublishUrl, err)
 		r.connectPlayClient.Close(nil)
@@ -221,7 +220,7 @@ func (r *RtmpRelay) Stop() {
 
 type StaticPush struct {
 	RtmpUrl       string
-	packet_chan   chan *av.Packet
+	packet_chan   chan *Packet
 	sndctrl_chan  chan string
 	connectClient *ConnClient
 	startflag     bool
@@ -301,7 +300,7 @@ func ReleaseStaticPushObject(rtmpurl string) {
 func NewStaticPush(rtmpurl string) *StaticPush {
 	return &StaticPush{
 		RtmpUrl:       rtmpurl,
-		packet_chan:   make(chan *av.Packet, 500),
+		packet_chan:   make(chan *Packet, 500),
 		sndctrl_chan:  make(chan string),
 		connectClient: nil,
 		startflag:     false,
@@ -338,7 +337,7 @@ func (s *StaticPush) Stop() {
 	s.startflag = false
 }
 
-func (s *StaticPush) WriteAvPacket(packet *av.Packet) {
+func (s *StaticPush) WriteAvPacket(packet *Packet) {
 	if !s.startflag {
 		return
 	}
@@ -346,7 +345,7 @@ func (s *StaticPush) WriteAvPacket(packet *av.Packet) {
 	s.packet_chan <- packet
 }
 
-func (s *StaticPush) sendPacket(p *av.Packet) {
+func (s *StaticPush) sendPacket(p *Packet) {
 	if !s.startflag {
 		return
 	}
@@ -361,12 +360,12 @@ func (s *StaticPush) sendPacket(p *av.Packet) {
 	//log.Printf("Static sendPacket: rtmpurl=%s, length=%d, streamid=%d",
 	//	s.RtmpUrl, len(p.Data), cs.StreamID)
 	if p.IsVideo {
-		cs.TypeID = av.TAG_VIDEO
+		cs.TypeID = TAG_VIDEO
 	} else {
 		if p.IsMetadata {
-			cs.TypeID = av.TAG_SCRIPTDATAAMF0
+			cs.TypeID = TAG_SCRIPTDATAAMF0
 		} else {
-			cs.TypeID = av.TAG_AUDIO
+			cs.TypeID = TAG_AUDIO
 		}
 	}
 

@@ -30,17 +30,15 @@ import (
 	"fmt"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/kris-nova/logger"
-
-	"github.com/gwuhaolin/livego/av"
 )
 
 var (
 	EmptyID = ""
 )
 
+<<<<<<< HEAD:rtmp/stream.go
 type RtmpStream struct {
 	streams *sync.Map //key
 }
@@ -112,20 +110,22 @@ func (rs *RtmpStream) CheckAlive() {
 	}
 }
 
+=======
+>>>>>>> 07a49c2 (more RTMP refactoring):rtmp/stream_legacy.go
 type Stream struct {
 	isStart bool
 	cache   *Cache
-	r       av.ReadCloser
+	r       ReadCloser
 	ws      *sync.Map
-	info    av.Info
+	info    Info
 }
 
 type PackWriterCloser struct {
 	init bool
-	w    av.WriteCloser
+	w    WriteCloser
 }
 
-func (p *PackWriterCloser) GetWriter() av.WriteCloser {
+func (p *PackWriterCloser) GetWriter() WriteCloser {
 	return p.w
 }
 
@@ -143,7 +143,7 @@ func (s *Stream) ID() string {
 	return EmptyID
 }
 
-func (s *Stream) GetReader() av.ReadCloser {
+func (s *Stream) GetReader() ReadCloser {
 	return s.r
 }
 
@@ -162,12 +162,12 @@ func (s *Stream) Copy(dst *Stream) {
 	})
 }
 
-func (s *Stream) AddReader(r av.ReadCloser) {
+func (s *Stream) AddReader(r ReadCloser) {
 	s.r = r
 	go s.TransStart()
 }
 
-func (s *Stream) AddWriter(w av.WriteCloser) {
+func (s *Stream) AddWriter(w WriteCloser) {
 	info := w.Info()
 	pw := &PackWriterCloser{w: w}
 	s.ws.Store(info.UID, pw)
@@ -292,7 +292,7 @@ func (s *Stream) IsSendStaticPush() bool {
 	return false
 }
 
-func (s *Stream) SendStaticPush(packet av.Packet) {
+func (s *Stream) SendStaticPush(packet Packet) {
 	key := s.info.Key
 
 	dscr := strings.Split(key, "/")
@@ -331,7 +331,7 @@ func (s *Stream) SendStaticPush(packet av.Packet) {
 
 func (s *Stream) TransStart() {
 	s.isStart = true
-	var p av.Packet
+	var p Packet
 
 	s.StartStaticPush()
 

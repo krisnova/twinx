@@ -46,8 +46,6 @@ import (
 
 	"github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/kris-nova/logger"
-
-	"github.com/gwuhaolin/livego/av"
 )
 
 type Cache struct {
@@ -66,16 +64,16 @@ func NewCache() *Cache {
 	}
 }
 
-func (cache *Cache) Write(p av.Packet) {
+func (cache *Cache) Write(p Packet) {
 	if p.IsMetadata {
 		cache.metadata.Write(&p)
 		return
 	} else {
 		if !p.IsVideo {
-			ah, ok := p.Header.(av.AudioPacketHeader)
+			ah, ok := p.Header.(AudioPacketHeader)
 			if ok {
-				if ah.SoundFormat() == av.SOUND_AAC &&
-					ah.AACPacketType() == av.AAC_SEQHDR {
+				if ah.SoundFormat() == SOUND_AAC &&
+					ah.AACPacketType() == AAC_SEQHDR {
 					cache.audioSeq.Write(&p)
 					return
 				} else {
@@ -84,7 +82,7 @@ func (cache *Cache) Write(p av.Packet) {
 			}
 
 		} else {
-			vh, ok := p.Header.(av.VideoPacketHeader)
+			vh, ok := p.Header.(VideoPacketHeader)
 			if ok {
 				if vh.IsSeq() {
 					cache.videoSeq.Write(&p)
@@ -99,7 +97,7 @@ func (cache *Cache) Write(p av.Packet) {
 	cache.gop.Write(&p)
 }
 
-func (cache *Cache) Send(w av.WriteCloser) error {
+func (cache *Cache) Send(w WriteCloser) error {
 	if err := cache.metadata.Send(w); err != nil {
 		return err
 	}
@@ -126,13 +124,13 @@ var (
 
 type array struct {
 	index   int
-	packets []*av.Packet
+	packets []*Packet
 }
 
 func newArray() *array {
 	ret := &array{
 		index:   0,
-		packets: make([]*av.Packet, 0, maxGOPCap),
+		packets: make([]*Packet, 0, maxGOPCap),
 	}
 	return ret
 }
@@ -142,7 +140,7 @@ func (array *array) reset() {
 	array.packets = array.packets[:0]
 }
 
-func (array *array) write(packet *av.Packet) error {
+func (array *array) write(packet *Packet) error {
 	if array.index >= maxGOPCap {
 		return ErrGopTooBig
 	}
@@ -151,7 +149,7 @@ func (array *array) write(packet *av.Packet) error {
 	return nil
 }
 
-func (array *array) send(w av.WriteCloser) error {
+func (array *array) send(w WriteCloser) error {
 	var err error
 	for i := 0; i < array.index; i++ {
 		packet := array.packets[i]
@@ -177,7 +175,7 @@ func NewGopCache(num int) *GopCache {
 	}
 }
 
-func (gopCache *GopCache) writeToArray(chunk *av.Packet, startNew bool) error {
+func (gopCache *GopCache) writeToArray(chunk *Packet, startNew bool) error {
 	var ginc *array
 	if startNew {
 		ginc = gopCache.gops[gopCache.nextindex]
@@ -197,10 +195,10 @@ func (gopCache *GopCache) writeToArray(chunk *av.Packet, startNew bool) error {
 	return nil
 }
 
-func (gopCache *GopCache) Write(p *av.Packet) {
+func (gopCache *GopCache) Write(p *Packet) {
 	var ok bool
 	if p.IsVideo {
-		vh := p.Header.(av.VideoPacketHeader)
+		vh := p.Header.(VideoPacketHeader)
 		if vh.IsKeyFrame() && !vh.IsSeq() {
 			ok = true
 		}
@@ -211,7 +209,7 @@ func (gopCache *GopCache) Write(p *av.Packet) {
 	}
 }
 
-func (gopCache *GopCache) sendTo(w av.WriteCloser) error {
+func (gopCache *GopCache) sendTo(w WriteCloser) error {
 	var err error
 	pos := (gopCache.nextindex + 1) % gopCache.count
 	for i := 0; i < gopCache.num; i++ {
@@ -228,7 +226,7 @@ func (gopCache *GopCache) sendTo(w av.WriteCloser) error {
 	return nil
 }
 
-func (gopCache *GopCache) Send(w av.WriteCloser) error {
+func (gopCache *GopCache) Send(w WriteCloser) error {
 	return gopCache.sendTo(w)
 }
 
@@ -251,19 +249,19 @@ func init() {
 
 type SpecialCache struct {
 	full bool
-	p    *av.Packet
+	p    *Packet
 }
 
 func NewSpecialCache() *SpecialCache {
 	return &SpecialCache{}
 }
 
-func (specialCache *SpecialCache) Write(p *av.Packet) {
+func (specialCache *SpecialCache) Write(p *Packet) {
 	specialCache.p = p
 	specialCache.full = true
 }
 
-func (specialCache *SpecialCache) Send(w av.WriteCloser) error {
+func (specialCache *SpecialCache) Send(w WriteCloser) error {
 	if !specialCache.full {
 		return nil
 	}
