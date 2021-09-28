@@ -34,25 +34,12 @@ import (
 	"github.com/kris-nova/logger"
 )
 
-var (
-	EmptyID = ""
-)
-
 type Stream struct {
 	isStart bool
 	cache   *Cache
 	r       ReadCloser
 	ws      *sync.Map
 	info    Info
-}
-
-type PackWriterCloser struct {
-	init bool
-	w    WriteCloser
-}
-
-func (p *PackWriterCloser) GetWriter() WriteCloser {
-	return p.w
 }
 
 func NewStream() *Stream {
@@ -66,7 +53,7 @@ func (s *Stream) ID() string {
 	if s.r != nil {
 		return s.r.Info().UID
 	}
-	return EmptyID
+	return ""
 }
 
 func (s *Stream) GetReader() ReadCloser {

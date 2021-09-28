@@ -26,85 +26,11 @@
 
 package rtmp
 
-import (
-	"sync"
-	"time"
-)
-
-// Service is the main RTMP active service.
-//
-// Multiple streams can be multiplexed over a single active service.
-// We track each of the subordinate streams here.
-type Service struct {
-
-	// mux is the concurrent safe hashmap used to track
-	// various subordinate streams.
-	mux *sync.Map
+type PackWriterCloser struct {
+	init bool
+	w    WriteCloser
 }
 
-// NewService will start a new RTMP service which streams can be added to later.
-func NewService() *Service {
-	svc := &Service{
-		mux: &sync.Map{},
-	}
-	go svc.CheckAlive()
-	return svc
-}
-
-func (svc *Service) HandleReader(r ReadCloser) {
-	info := r.Info()
-	//logger.Info("HandleReader: info[%v]", info)
-
-	var stream *Stream
-	i, ok := svc.mux.Load(info.Key)
-	if stream, ok = i.(*Stream); ok {
-		stream.TransStop()
-		id := stream.ID()
-		if id != "" && id != info.UID {
-			ns := NewStream()
-			stream.Copy(ns)
-			stream = ns
-			svc.mux.Store(info.Key, ns)
-		}
-	} else {
-		stream = NewStream()
-		svc.mux.Store(info.Key, stream)
-		stream.info = info
-	}
-	stream.AddReader(r)
-}
-
-func (svc *Service) HandleWriter(w WriteCloser) {
-	info := w.Info()
-	//logger.Info("HandleWriter: info[%v]", info)
-
-	var s *Stream
-	item, ok := svc.mux.Load(info.Key)
-	if !ok {
-		//logger.Info("Validating with cache")
-		//logger.Info("HandleWriter: not found create new info[%v]", info)
-		s = NewStream()
-		svc.mux.Store(info.Key, s)
-		s.info = info
-	} else {
-		s = item.(*Stream)
-		s.AddWriter(w)
-	}
-}
-
-func (svc *Service) GetStreams() *sync.Map {
-	return svc.mux
-}
-
-func (svc *Service) CheckAlive() {
-	for {
-		<-time.After(5 * time.Second)
-		svc.mux.Range(func(key, val interface{}) bool {
-			v := val.(*Stream)
-			if v.CheckAlive() == 0 {
-				svc.mux.Delete(key)
-			}
-			return true
-		})
-	}
+func (p *PackWriterCloser) GetWriter() WriteCloser {
+	return p.w
 }
