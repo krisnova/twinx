@@ -186,15 +186,15 @@ func (r *RtmpRelay) Start() error {
 	r.connectPlayClient = NewConnClient()
 	r.connectPublishClient = NewConnClient()
 
-	err := r.connectPlayClient.Start(r.PlayUrl, PLAY)
+	err := r.connectPlayClient.Start(r.PlayUrl, CommandPlay)
 	if err != nil {
 		logger.Warning("Unable to connect [PLAY] %s %v", r.PlayUrl, err)
 		return err
 	}
 
-	err = r.connectPublishClient.Start(r.PublishUrl, PUBLISH)
+	err = r.connectPublishClient.Start(r.PublishUrl, CommandPublish)
 	if err != nil {
-		logger.Warning("Unable to connect [PLAY] %s %v", r.PublishUrl, err)
+		logger.Warning("Unable to connect [PUBLISH] %s %v", r.PublishUrl, err)
 		r.connectPlayClient.Close(nil)
 		return err
 	}

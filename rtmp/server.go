@@ -64,11 +64,11 @@ func (c *Client) Dial(url string, method string) error {
 	if err := connClient.Start(url, method); err != nil {
 		return err
 	}
-	if method == PUBLISH {
+	if method == CommandPublish {
 		writer := NewVirWriter(connClient)
 		logger.Info("client Dial call NewVirWriter url=%s, method=%s", url, method)
 		c.handler.HandleWriter(writer)
-	} else if method == PLAY {
+	} else if method == CommandPlay {
 		reader := NewVirReader(connClient)
 		logger.Info("client Dial call NewVirReader url=%s, method=%s", url, method)
 		c.handler.HandleReader(reader)

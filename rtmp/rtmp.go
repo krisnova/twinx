@@ -56,62 +56,41 @@ const (
 
 	// letterBytePool is the pool of characters to generate a stream key from
 	letterBytePool string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	TAG_AUDIO                   uint32 = 8
+	TAG_VIDEO                   uint32 = 9
+	TAG_SCRIPTDATAAMF0          uint32 = 18
+	TAG_SCRIPTDATAAMF3          uint32 = 0xf
+	MetadatAMF0                 uint8  = 0x12
+	MetadataAMF3                uint8  = 0xf
+	SOUND_MP3                   uint8  = 2
+	SOUND_NELLYMOSER_16KHZ_MONO uint8  = 4
+	SOUND_NELLYMOSER_8KHZ_MONO  uint8  = 5
+	SOUND_NELLYMOSER            uint8  = 6
+	SOUND_ALAW                  uint8  = 7
+	SOUND_MULAW                 uint8  = 8
+	SOUND_AAC                   uint8  = 10
+	SOUND_SPEEX                 uint8  = 11
+	SOUND_5_5Khz                uint8  = 0
+	SOUND_11Khz                 uint8  = 1
+	SOUND_22Khz                 uint8  = 2
+	SOUND_44Khz                 uint8  = 3
+	SOUND_8BIT                  uint8  = 0
+	SOUND_16BIT                 uint8  = 1
+	SOUND_MONO                  uint8  = 0
+	SOUND_STEREO                uint8  = 1
+	AAC_SEQHDR                  uint8  = 0
+	AAC_RAW                     uint8  = 1
+	AVC_SEQHDR                  uint8  = 0
+	AVC_NALU                    uint8  = 1
+	AVC_EOS                     uint8  = 2
+	FRAME_KEY                   uint8  = 1
+	FRAME_INTER                 uint8  = 2
+	VIDEO_H264                  uint8  = 7
+	CommandPublish              string = "publish"
+	CommandPlay                 string = "play"
 )
 
-const (
-	TAG_AUDIO          = 8
-	TAG_VIDEO          = 9
-	TAG_SCRIPTDATAAMF0 = 18
-	TAG_SCRIPTDATAAMF3 = 0xf
-)
-
-const (
-	MetadatAMF0  = 0x12
-	MetadataAMF3 = 0xf
-)
-
-const (
-	SOUND_MP3                   = 2
-	SOUND_NELLYMOSER_16KHZ_MONO = 4
-	SOUND_NELLYMOSER_8KHZ_MONO  = 5
-	SOUND_NELLYMOSER            = 6
-	SOUND_ALAW                  = 7
-	SOUND_MULAW                 = 8
-	SOUND_AAC                   = 10
-	SOUND_SPEEX                 = 11
-
-	SOUND_5_5Khz = 0
-	SOUND_11Khz  = 1
-	SOUND_22Khz  = 2
-	SOUND_44Khz  = 3
-
-	SOUND_8BIT  = 0
-	SOUND_16BIT = 1
-
-	SOUND_MONO   = 0
-	SOUND_STEREO = 1
-
-	AAC_SEQHDR = 0
-	AAC_RAW    = 1
-)
-
-const (
-	AVC_SEQHDR = 0
-	AVC_NALU   = 1
-	AVC_EOS    = 2
-
-	FRAME_KEY   = 1
-	FRAME_INTER = 2
-
-	VIDEO_H264 = 7
-)
-
-var (
-	PUBLISH = "publish"
-	PLAY    = "play"
-)
-
-// Header can be converted to AudioHeaderInfo or VideoHeaderInfo
 type Packet struct {
 	IsAudio    bool
 	IsVideo    bool
