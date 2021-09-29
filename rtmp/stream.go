@@ -246,7 +246,7 @@ func (s *Stream) TransStart() {
 	s.isStart = true
 	var p Packet
 
-	s.StartStaticPush()
+	//s.StartStaticPush()
 
 	for {
 		if !s.isStart {
@@ -329,7 +329,7 @@ func (s *Stream) CheckAlive() (n int) {
 
 func (s *Stream) closeInter() {
 	if s.r != nil {
-		s.StopStaticPush()
+		//s.StopStaticPush()
 		logger.Warning("Publisher closed: %s", s.r.Info().UID)
 	}
 

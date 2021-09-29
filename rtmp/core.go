@@ -63,6 +63,33 @@ import (
 	"github.com/gwuhaolin/livego/utils/pool"
 )
 
+var (
+	HandshakeClientKey = []byte{
+		'G', 'e', 'n', 'u', 'i', 'n', 'e', ' ', 'A', 'd', 'o', 'b', 'e', ' ',
+		'F', 'l', 'a', 's', 'h', ' ', 'P', 'l', 'a', 'y', 'e', 'r', ' ',
+		'0', '0', '1',
+		0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1,
+		0x02, 0x9E, 0x7E, 0x57, 0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
+		0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
+	}
+	HandshakeServerKey = []byte{
+		'G', 'e', 'n', 'u', 'i', 'n', 'e', ' ', 'A', 'd', 'o', 'b', 'e', ' ',
+		'F', 'l', 'a', 's', 'h', ' ', 'M', 'e', 'd', 'i', 'a', ' ',
+		'S', 'e', 'r', 'v', 'e', 'r', ' ',
+		'0', '0', '1',
+		0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1,
+		0x02, 0x9E, 0x7E, 0x57, 0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
+		0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
+	}
+
+	HandshakeClientPartial30 []byte = HandshakeClientKey[:30]
+	HandshakeServerPartial36 []byte = HandshakeServerKey[:36]
+)
+
+const (
+	TimeoutDurationSeconds time.Duration = 5 * time.Second
+)
+
 const (
 
 	// Publish
@@ -97,8 +124,6 @@ const (
 	CommandNetStreamConnectSuccess = "NetConnection.Connect.Success"
 	CommandOnBWDone                = "CommandOnBWDone"
 )
-
-var ()
 
 type ChunkStream struct {
 	Format    uint32
@@ -1127,32 +1152,6 @@ func (connServer *ConnServer) Close(err error) {
 	connServer.conn.Close()
 }
 
-var (
-	timeout = 5 * time.Second
-)
-
-var (
-	hsClientFullKey = []byte{
-		'G', 'e', 'n', 'u', 'i', 'n', 'e', ' ', 'A', 'd', 'o', 'b', 'e', ' ',
-		'F', 'l', 'a', 's', 'h', ' ', 'P', 'l', 'a', 'y', 'e', 'r', ' ',
-		'0', '0', '1',
-		0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1,
-		0x02, 0x9E, 0x7E, 0x57, 0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
-		0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
-	}
-	hsServerFullKey = []byte{
-		'G', 'e', 'n', 'u', 'i', 'n', 'e', ' ', 'A', 'd', 'o', 'b', 'e', ' ',
-		'F', 'l', 'a', 's', 'h', ' ', 'M', 'e', 'd', 'i', 'a', ' ',
-		'S', 'e', 'r', 'v', 'e', 'r', ' ',
-		'0', '0', '1',
-		0xF0, 0xEE, 0xC2, 0x4A, 0x80, 0x68, 0xBE, 0xE8, 0x2E, 0x00, 0xD0, 0xD1,
-		0x02, 0x9E, 0x7E, 0x57, 0x6E, 0xEC, 0x5D, 0x2D, 0x29, 0x80, 0x6F, 0xAB,
-		0x93, 0xB8, 0xE6, 0x36, 0xCF, 0xEB, 0x31, 0xAE,
-	}
-	hsClientPartialKey = hsClientFullKey[:30]
-	hsServerPartialKey = hsServerFullKey[:36]
-)
-
 func hsMakeDigest(key []byte, src []byte, gap int) (dst []byte) {
 	h := hmac.New(sha256.New, key)
 	if gap <= 0 {
@@ -1223,17 +1222,17 @@ func (conn *Conn) HandshakeClient() (err error) {
 
 	C0[0] = 3
 	// > C0C1
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if _, err = conn.rw.Write(C0C1); err != nil {
 		return
 	}
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if err = conn.rw.Flush(); err != nil {
 		return
 	}
 
 	// < S0S1S2
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if _, err = io.ReadFull(conn.rw, S0S1S2); err != nil {
 		return
 	}
@@ -1246,7 +1245,7 @@ func (conn *Conn) HandshakeClient() (err error) {
 	}
 
 	// > C2
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if _, err = conn.rw.Write(C2); err != nil {
 		return
 	}
@@ -1270,11 +1269,11 @@ func (conn *Conn) HandshakeServer() (err error) {
 	S2 := S0S1S2[1536+1:]
 
 	// < C0C1
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if _, err = io.ReadFull(conn.rw, C0C1); err != nil {
 		return
 	}
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if C0[0] != 3 {
 		err = fmt.Errorf("rtmp: handshake version=%d invalid", C0[0])
 		return
@@ -1290,11 +1289,11 @@ func (conn *Conn) HandshakeServer() (err error) {
 	if cliver != 0 {
 		var ok bool
 		var digest []byte
-		if ok, digest = hsParse1(C1, hsClientPartialKey, hsServerFullKey); !ok {
+		if ok, digest = hsParse1(C1, HandshakeClientPartial30, HandshakeServerKey); !ok {
 			err = fmt.Errorf("rtmp: handshake server: C1 invalid")
 			return
 		}
-		hsCreate01(S0S1, srvtime, srvver, hsServerPartialKey)
+		hsCreate01(S0S1, srvtime, srvver, HandshakeServerPartial36)
 		hsCreate2(S2, digest)
 	} else {
 		copy(S1, C2)
@@ -1302,17 +1301,17 @@ func (conn *Conn) HandshakeServer() (err error) {
 	}
 
 	// > S0S1S2
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if _, err = conn.rw.Write(S0S1S2); err != nil {
 		return
 	}
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if err = conn.rw.Flush(); err != nil {
 		return
 	}
 
 	// < C2
-	conn.Conn.SetDeadline(time.Now().Add(timeout))
+	conn.Conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
 	if _, err = io.ReadFull(conn.rw, C2); err != nil {
 		return
 	}
