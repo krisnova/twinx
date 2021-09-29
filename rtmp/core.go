@@ -63,6 +63,43 @@ import (
 	"github.com/gwuhaolin/livego/utils/pool"
 )
 
+const (
+
+	// Publish
+	// RTMP Spec 7.2.2.6
+
+	PublishCommandLive   string = "live"
+	PublishCommandRecord string = "record"
+	PublishCommandAppend string = "append"
+)
+
+const (
+
+	// Control Commands
+	// RTMP Spec 5.4
+	// Protocol Control Messages
+
+	CommandConnect         string = "connect"
+	CommandReleaseStream   string = "releaseStream"
+	CommandCreateStream    string = "createStream"
+	CommandPlay            string = "play"
+	CommandPublish         string = "publish"
+	CommandDeleteStream    string = "deleteStream"
+	CommandGetStreamLength string = "getStreamLength"
+	CommandFCPublish       string = "FCPublish"
+	CommandFCUnpublish     string = "FCUnpublish"
+
+	CommandType_Result             = "_result"
+	CommandType_Error              = "_error"
+	CommandOnStatus                = "CommandOnStatus"
+	CommandNetStreamPublishStart   = "NetStream.Publish.Start"
+	CommandNetStreamPlayStart      = "NetStream.Play.Start"
+	CommandNetStreamConnectSuccess = "NetConnection.Connect.Success"
+	CommandOnBWDone                = "CommandOnBWDone"
+)
+
+var ()
+
 type ChunkStream struct {
 	Format    uint32
 	CSID      uint32
@@ -476,20 +513,6 @@ func (conn *Conn) SetRecorded() {
 	conn.Write(&ret)
 }
 
-var (
-	respResult     = "_result"
-	respError      = "_error"
-	onStatus       = "onStatus"
-	publishStart   = "NetStream.Publish.Start"
-	playStart      = "NetStream.Play.Start"
-	connectSuccess = "NetConnection.Connect.Success"
-	onBWDone       = "onBWDone"
-)
-
-var (
-//ErrFail = fmt.Errorf("Failed streaming!")
-)
-
 type ConnClient struct {
 	done       bool
 	transID    int
@@ -534,56 +557,32 @@ func (connClient *ConnClient) readRespMsg() error {
 		switch rc.TypeID {
 		case 20, 17:
 			r := bytes.NewReader(rc.Data)
-			vs, err := connClient.decoder.DecodeBatch(r, amf.AMF0)
+			rspMsgMap, err := connClient.decoder.DecodeBatch(r, amf.AMF0)
 			if err != nil && err != io.EOF {
 				logger.Warning("Decoding batch: %v", err)
 			}
 
-			//logger.Debug("Reading Message From Server: %v", vs)
-			for k, v := range vs {
+			logger.Debug("Reading raw message from server: %v", rspMsgMap)
 
-				//
+			for k, v := range rspMsgMap {
+				logger.Debug("respMap %v: %v", k, v)
+
 				switch v.(type) {
 				case string:
-					switch connClient.curcmdName {
-					case cmdConnect, cmdCreateStream:
-						if v.(string) != respResult {
-							return fmt.Errorf("unexpected connection/creating stream result: %s", v.(string))
-						}
-
-					case cmdPublish:
-						if v.(string) != onStatus {
-							return fmt.Errorf("unexpected publish result: %s", v.(string))
-						}
-					}
+					logger.Warning("Unimplemented type in readRespMsg")
 				case float64:
-					switch connClient.curcmdName {
-					case cmdConnect, cmdCreateStream:
-						id := int(v.(float64))
 
-						if k == 1 {
-							if id != connClient.transID {
-								return fmt.Errorf("unexpected ID from server expected [%d] actual [%d]", id, connClient.transID)
-							}
-						} else if k == 3 {
-							connClient.streamid = uint32(id)
-						}
-					case cmdPublish:
-						if int(v.(float64)) != 0 {
-							return fmt.Errorf("unable to publish to server")
-						}
-					}
 				case amf.Object:
 					objmap := v.(amf.Object)
 					switch connClient.curcmdName {
-					case cmdConnect:
+					case CommandConnect:
 						code, ok := objmap["code"]
-						if ok && code.(string) != connectSuccess {
+						if ok && code.(string) != CommandNetStreamConnectSuccess {
 							return fmt.Errorf("unable to connect: error code: %d", code)
 						}
-					case cmdPublish:
+					case CommandPublish:
 						code, ok := objmap["code"]
-						if ok && code.(string) != publishStart {
+						if ok && code.(string) != CommandNetStreamPublishStart {
 							return fmt.Errorf("unable to publish: error code: %d", code)
 						}
 					}
@@ -622,10 +621,10 @@ func (connClient *ConnClient) writeConnectMsg() error {
 	event["type"] = "nonprivate"
 	event["flashVer"] = "FMS.3.1"
 	event["tcUrl"] = connClient.tcurl
-	connClient.curcmdName = cmdConnect
+	connClient.curcmdName = CommandConnect
 
 	logger.Info("writeConnectMsg: connClient.transID=%d, event=%v", connClient.transID, event)
-	if err := connClient.writeMsg(cmdConnect, connClient.transID, event); err != nil {
+	if err := connClient.writeMsg(CommandConnect, connClient.transID, event); err != nil {
 		return err
 	}
 	return connClient.readRespMsg()
@@ -633,10 +632,10 @@ func (connClient *ConnClient) writeConnectMsg() error {
 
 func (connClient *ConnClient) writeCreateStreamMsg() error {
 	connClient.transID++
-	connClient.curcmdName = cmdCreateStream
+	connClient.curcmdName = CommandCreateStream
 
 	logger.Info("writeCreateStreamMsg: connClient.transID=%d", connClient.transID)
-	if err := connClient.writeMsg(cmdCreateStream, connClient.transID, nil); err != nil {
+	if err := connClient.writeMsg(CommandCreateStream, connClient.transID, nil); err != nil {
 		return err
 	}
 
@@ -652,8 +651,8 @@ func (connClient *ConnClient) writeCreateStreamMsg() error {
 
 func (connClient *ConnClient) writePublishMsg() error {
 	connClient.transID++
-	connClient.curcmdName = cmdPublish
-	if err := connClient.writeMsg(cmdPublish, connClient.transID, nil, connClient.title, publishLive); err != nil {
+	connClient.curcmdName = CommandPublish
+	if err := connClient.writeMsg(CommandPublish, connClient.transID, nil, connClient.title, PublishCommandLive); err != nil {
 		return err
 	}
 	return connClient.readRespMsg()
@@ -661,11 +660,11 @@ func (connClient *ConnClient) writePublishMsg() error {
 
 func (connClient *ConnClient) writePlayMsg() error {
 	connClient.transID++
-	connClient.curcmdName = cmdPlay
-	logger.Info("writePlayMsg: connClient.transID=%d, cmdPlay=%v, connClient.title=%v",
-		connClient.transID, cmdPlay, connClient.title)
+	connClient.curcmdName = CommandPlay
+	logger.Info("writePlayMsg: connClient.transID=%d, CommandPlay=%v, connClient.title=%v",
+		connClient.transID, CommandPlay, connClient.title)
 
-	if err := connClient.writeMsg(cmdPlay, 0, nil, connClient.title); err != nil {
+	if err := connClient.writeMsg(CommandPlay, 0, nil, connClient.title); err != nil {
 		return err
 	}
 	return connClient.readRespMsg()
@@ -795,28 +794,6 @@ func (connClient *ConnClient) Close(err error) {
 	connClient.conn.Close()
 }
 
-var (
-	publishLive   = "live"
-	publishRecord = "record"
-	publishAppend = "append"
-)
-
-var (
-	ErrReq = fmt.Errorf("req error")
-)
-
-var (
-	cmdConnect         = "connect"
-	cmdFcpublish       = "FCPublish"
-	cmdReleaseStream   = "releaseStream"
-	cmdCreateStream    = "createStream"
-	cmdPublish         = "publish"
-	cmdFCUnpublish     = "FCUnpublish"
-	cmdDeleteStream    = "deleteStream"
-	cmdPlay            = "play"
-	cmdGetStreamLength = "getStreamLength"
-)
-
 type ConnectInfo struct {
 	App            string `amf:"app" json:"app"`
 	Flashver       string `amf:"flashVer" json:"flashVer"`
@@ -898,7 +875,7 @@ func (connServer *ConnServer) connect(vs []interface{}) error {
 		case float64:
 			id := int(v.(float64))
 			if id != 1 {
-				return ErrReq
+				return fmt.Errorf("connect error")
 			}
 			connServer.transactionID = id
 		case amf.Object:
@@ -994,7 +971,7 @@ func (connServer *ConnServer) publishResp(cur *ChunkStream) error {
 	event["level"] = "status"
 	event["code"] = "NetStream.Publish.Start"
 	event["description"] = "Start publishing."
-	return connServer.writeMsg(cur.CSID, cur.StreamID, "onStatus", 0, nil, event)
+	return connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event)
 }
 
 func (connServer *ConnServer) playResp(cur *ChunkStream) error {
@@ -1005,28 +982,28 @@ func (connServer *ConnServer) playResp(cur *ChunkStream) error {
 	event["level"] = "status"
 	event["code"] = "NetStream.Play.Reset"
 	event["description"] = "Playing and resetting stream."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "onStatus", 0, nil, event); err != nil {
+	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
 		return err
 	}
 
 	event["level"] = "status"
 	event["code"] = "NetStream.Play.Start"
 	event["description"] = "Started playing stream."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "onStatus", 0, nil, event); err != nil {
+	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
 		return err
 	}
 
 	event["level"] = "status"
 	event["code"] = "NetStream.Data.Start"
 	event["description"] = "Started playing stream."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "onStatus", 0, nil, event); err != nil {
+	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
 		return err
 	}
 
 	event["level"] = "status"
 	event["code"] = "NetStream.Play.PublishNotify"
 	event["description"] = "Started playing notify."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "onStatus", 0, nil, event); err != nil {
+	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
 		return err
 	}
 	return connServer.conn.Flush()
@@ -1046,21 +1023,21 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 	switch vs[0].(type) {
 	case string:
 		switch vs[0].(string) {
-		case cmdConnect:
+		case CommandConnect:
 			if err = connServer.connect(vs[1:]); err != nil {
 				return err
 			}
 			if err = connServer.connectResp(c); err != nil {
 				return err
 			}
-		case cmdCreateStream:
+		case CommandCreateStream:
 			if err = connServer.createStream(vs[1:]); err != nil {
 				return err
 			}
 			if err = connServer.createStreamResp(c); err != nil {
 				return err
 			}
-		case cmdPublish:
+		case CommandPublish:
 			if err = connServer.publishOrPlay(vs[1:]); err != nil {
 				return err
 			}
@@ -1070,7 +1047,7 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 			connServer.done = true
 			connServer.isPublisher = true
 			logger.Info("Publish request complete")
-		case cmdPlay:
+		case CommandPlay:
 			if err = connServer.publishOrPlay(vs[1:]); err != nil {
 				return err
 			}
@@ -1080,13 +1057,13 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 			connServer.done = true
 			connServer.isPublisher = false
 			//logger.Info("Play request")
-		case cmdFcpublish:
+		case CommandFCPublish:
 			connServer.fcPublish(vs)
-		case cmdReleaseStream:
+		case CommandReleaseStream:
 			connServer.releaseStream(vs)
-		case cmdFCUnpublish:
-		case cmdDeleteStream:
-		case cmdGetStreamLength:
+		case CommandFCUnpublish:
+		case CommandDeleteStream:
+		case CommandGetStreamLength:
 		default:
 			logger.Critical("Unknown command: %s", vs[0].(string))
 		}

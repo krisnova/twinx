@@ -157,7 +157,7 @@ func (a *Addr) StreamURL() string {
 func generateKey() string {
 	b := make([]byte, DefaultGenerateKeyLength)
 	for i := range b {
-		b[i] = letterBytePool[rand.Intn(len(letterBytePool))]
+		b[i] = StreamKeyRandomBytePool[rand.Intn(len(StreamKeyRandomBytePool))]
 	}
 	return fmt.Sprintf("%s%s", DefaultGenerateKeyPrefix, string(b))
 }

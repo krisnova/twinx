@@ -53,9 +53,7 @@ const (
 	DefaultRTMPApp           string = "twinx"
 	DefaultGenerateKeyLength int    = 20
 	DefaultGenerateKeyPrefix string = "twinx_"
-
-	// letterBytePool is the pool of characters to generate a stream key from
-	letterBytePool string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	StreamKeyRandomBytePool  string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 	TAG_AUDIO                   uint32 = 8
 	TAG_VIDEO                   uint32 = 9
@@ -87,8 +85,6 @@ const (
 	FRAME_KEY                   uint8  = 1
 	FRAME_INTER                 uint8  = 2
 	VIDEO_H264                  uint8  = 7
-	CommandPublish              string = "publish"
-	CommandPlay                 string = "play"
 )
 
 type Packet struct {

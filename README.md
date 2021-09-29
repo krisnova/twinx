@@ -99,7 +99,7 @@ Note: We use `nginx-rtmp` instead of the module based package combinations.
 
 ```
 protoc-gen-go protoc-gen-go-grpc
-nginx-rtmp 
+nginx-rtmp
 ```
 
 #### RTMP Protocol Reference
