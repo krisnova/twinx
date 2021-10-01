@@ -243,6 +243,7 @@ func (s *Stream) SendStaticPush(packet Packet) {
 }
 
 func (s *Stream) TransStart() {
+	logger.Info("Starting stream transaction")
 	s.isStart = true
 	var p Packet
 

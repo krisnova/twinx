@@ -136,6 +136,7 @@ func (s *Server) handleConn(conn *Conn) error {
 		logger.Critical("RTMP Handshake: %v", err)
 		return err
 	}
+
 	connServer := NewConnServer(conn)
 
 	if err := connServer.ReadMsg(); err != nil {
@@ -145,51 +146,40 @@ func (s *Server) handleConn(conn *Conn) error {
 	}
 
 	appname, name, _ := connServer.GetInfo()
-	logger.Info("Application Key Name: %s", name)
+	logger.Debug("Client %s handshake success", appname)
 
-	//logger.Info("handleConn: IsPublisher=%v", connServer.IsPublisher())
-	if connServer.IsPublisher() {
-		//if Config.GetBool("rtmp_noauth") {
-		// Default rtmp_noauth
-		key, err := RoomKeys.GetKey(name)
-		if err != nil {
-			err := fmt.Errorf("Cannot create key err=%s", err.Error())
-			conn.Close()
-			logger.Critical("GetKey err: ", err)
-			return err
-		}
-		name = key
-		//}
-		channel, err := RoomKeys.GetChannel(name)
-		if err != nil {
-			err := fmt.Errorf("invalid key err=%s", err.Error())
-			conn.Close()
-			logger.Critical("CheckKey err: ", err)
-			return err
-		}
-		connServer.PublishInfo.Name = channel
-		if pushlist, ret := GetStaticPushUrlList(appname); ret && (pushlist != nil) {
-			logger.Info("GetStaticPushUrlList: %v", pushlist)
-		}
-		reader := NewVirReader(connServer)
-		s.handler.HandleReader(reader)
-		logger.Info("New publisher: %s", reader.Info().URL)
+	//if Config.GetBool("rtmp_noauth") {
+	// Default rtmp_noauth
+	key, err := RoomKeys.GetKey(name)
+	if err != nil {
+		err := fmt.Errorf("Cannot create key err=%s", err.Error())
+		conn.Close()
+		logger.Critical("GetKey err: ", err)
+		return err
+	}
+	name = key
+	//}
+	channel, err := RoomKeys.GetChannel(name)
+	if err != nil {
+		err := fmt.Errorf("invalid key err=%s", err.Error())
+		conn.Close()
+		logger.Critical("CheckKey err: ", err)
+		return err
+	}
+	connServer.PublishInfo.Name = channel
 
-		if s.getter != nil {
-			writeType := reflect.TypeOf(s.getter)
-			logger.Info("handleConn:writeType=%v", writeType)
-			writer := s.getter.GetWriter(reader.Info())
-			s.handler.HandleWriter(writer)
-		}
-		//if Config.GetBool("flv_archive") {
-		//	flvWriter := new(flv.FlvDvr)
-		//	s.handler.HandleWriter(flvWriter.GetWriter(reader.Info()))
-		//}
-	} else {
-		writer := NewVirWriter(connServer)
-		logger.Info("RTMP stream is now accessible: %s", writer.Info().URL)
+	reader := NewVirReader(connServer)
+	s.handler.HandleReader(reader)
+	logger.Info("New publisher: %s", reader.Info().URL)
+
+	if s.getter != nil {
+		writeType := reflect.TypeOf(s.getter)
+		logger.Info("Setting writeType: %v", writeType)
+		writer := s.getter.GetWriter(reader.Info())
 		s.handler.HandleWriter(writer)
 	}
+	//flvWriter := new(FlvDvr)
+	//s.handler.HandleWriter(flvWriter.GetWriter(reader.Info()))
 
 	return nil
 }
