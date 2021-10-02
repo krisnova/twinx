@@ -49,7 +49,6 @@ import (
 	"github.com/gwuhaolin/livego/utils/pio"
 
 	"github.com/gwuhaolin/livego/av"
-	"github.com/gwuhaolin/livego/utils/pool"
 )
 
 var (
@@ -76,10 +75,21 @@ var (
 )
 
 const (
-	TimeoutDurationSeconds time.Duration = 5 * time.Second
-)
 
-const (
+	// TimeoutDurationSeconds is the timeout used for all
+	// connection timeouts.
+	TimeoutDurationSeconds time.Duration = 5 * time.Second
+
+	// Chunk Size
+	// 5.4.1 Set Chunk Size
+	// The maximum chunk size defaults to 128 bytes, but the client or the
+	// server can change this value, and updates its peer using this
+	// message.
+
+	DefaultRTMPChunkSizeBytes uint32 = 128
+	DefaultWindowAckSize      uint32 = 2500000
+
+	DefaultMaximumPoolSizeBytes int = 512 * 1024
 
 	// Publish
 	// RTMP Spec 7.2.2.6
@@ -87,9 +97,6 @@ const (
 	PublishCommandLive   string = "live"
 	PublishCommandRecord string = "record"
 	PublishCommandAppend string = "append"
-)
-
-const (
 
 	// Control Commands
 	// RTMP Spec 5.4
@@ -112,29 +119,73 @@ const (
 	CommandNetStreamPlayStart      = "NetStream.Play.Start"
 	CommandNetStreamConnectSuccess = "NetConnection.Connect.Success"
 	CommandOnBWDone                = "CommandOnBWDone"
+
+	StreamBegin      uint32 = 0
+	StreamEOF        uint32 = 1
+	StreamDry        uint32 = 2
+	SetBufferLen     uint32 = 3
+	StreamIsRecorded uint32 = 4
+	PingRequest      uint32 = 6
+	PingResponse     uint32 = 7
 )
 
+// ChunkStream
+//
+// 5.1.
+//
+// The format of a message that can be split into chunks to support
+// multiplexing depends on a higher level protocol. The message format
+// SHOULD however contain the following fields which are necessary for
+// creating the chunks.
+//
 type ChunkStream struct {
+	// Timestamp of the message. This field can transport 4
+	// bytes.
+	Timestamp uint32
+
+	// Length of the message payload. If the message header cannot
+	// be elided, it should be included in the length. This field
+	// occupies 3 bytes in the chunk header.
+	Length uint32
+
+	// A range of type IDs are reserved for protocol control
+	// messages. These messages which propagate information are handled
+	// by both RTMP Chunk Stream protocol and the higher-level protocol.
+	// All other type IDs are available for use by the higher-level
+	// protocol, and treated as opaque values by RTMP Chunk Stream. In
+	// fact, nothing in RTMP Chunk Stream requires these values to be
+	// used as a type; all (non-protocol) messages could be of the same
+	// type, or the application could use this field to distinguish
+	// simultaneous tracks rather than types. This field occupies 1 byte
+	// in the chunk header.
+	TypeID uint32
+
+	// The message stream ID can be any arbitrary value.
+	// Different message streams multiplexed onto the same chunk stream
+	// are demultiplexed based on their message stream IDs. Beyond that,
+	// as far as RTMP Chunk Stream is concerned, this is an opaque value.
+	// This field occupies 4 bytes in the chunk header in little endian
+	// format.
+	StreamID uint32
+
+	// Data is the set of bytes in the Chunk. The chunk payload.
+	Data []byte
+
 	Format    uint32
 	CSID      uint32
-	Timestamp uint32
-	Length    uint32
-	TypeID    uint32
-	StreamID  uint32
 	timeDelta uint32
-	exted     bool
+	exited    bool
 	index     uint32
 	remain    uint32
 	got       bool
-	tmpFromat uint32
-	Data      []byte
+	tmpFormat uint32
 }
 
 func (chunkStream *ChunkStream) full() bool {
 	return chunkStream.got
 }
 
-func (chunkStream *ChunkStream) new(pool *pool.Pool) {
+func (chunkStream *ChunkStream) new(pool *Pool) {
 	chunkStream.got = false
 	chunkStream.index = 0
 	chunkStream.remain = chunkStream.Length
@@ -226,8 +277,8 @@ func (chunkStream *ChunkStream) writeChunk(w *ReadWriter, chunkSize int) error {
 
 }
 
-func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool *pool.Pool) error {
-	if chunkStream.remain != 0 && chunkStream.tmpFromat != 3 {
+func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool *Pool) error {
+	if chunkStream.remain != 0 && chunkStream.tmpFormat != 3 {
 		return fmt.Errorf("invalid remain = %d", chunkStream.remain)
 	}
 	switch chunkStream.CSID {
@@ -239,42 +290,42 @@ func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool 
 		chunkStream.CSID = id + 64
 	}
 
-	switch chunkStream.tmpFromat {
+	switch chunkStream.tmpFormat {
 	case 0:
-		chunkStream.Format = chunkStream.tmpFromat
+		chunkStream.Format = chunkStream.tmpFormat
 		chunkStream.Timestamp, _ = r.ReadUintBE(3)
 		chunkStream.Length, _ = r.ReadUintBE(3)
 		chunkStream.TypeID, _ = r.ReadUintBE(1)
 		chunkStream.StreamID, _ = r.ReadUintLE(4)
 		if chunkStream.Timestamp == 0xffffff {
 			chunkStream.Timestamp, _ = r.ReadUintBE(4)
-			chunkStream.exted = true
+			chunkStream.exited = true
 		} else {
-			chunkStream.exted = false
+			chunkStream.exited = false
 		}
 		chunkStream.new(pool)
 	case 1:
-		chunkStream.Format = chunkStream.tmpFromat
+		chunkStream.Format = chunkStream.tmpFormat
 		timeStamp, _ := r.ReadUintBE(3)
 		chunkStream.Length, _ = r.ReadUintBE(3)
 		chunkStream.TypeID, _ = r.ReadUintBE(1)
 		if timeStamp == 0xffffff {
 			timeStamp, _ = r.ReadUintBE(4)
-			chunkStream.exted = true
+			chunkStream.exited = true
 		} else {
-			chunkStream.exted = false
+			chunkStream.exited = false
 		}
 		chunkStream.timeDelta = timeStamp
 		chunkStream.Timestamp += timeStamp
 		chunkStream.new(pool)
 	case 2:
-		chunkStream.Format = chunkStream.tmpFromat
+		chunkStream.Format = chunkStream.tmpFormat
 		timeStamp, _ := r.ReadUintBE(3)
 		if timeStamp == 0xffffff {
 			timeStamp, _ = r.ReadUintBE(4)
-			chunkStream.exted = true
+			chunkStream.exited = true
 		} else {
-			chunkStream.exted = false
+			chunkStream.exited = false
 		}
 		chunkStream.timeDelta = timeStamp
 		chunkStream.Timestamp += timeStamp
@@ -283,13 +334,13 @@ func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool 
 		if chunkStream.remain == 0 {
 			switch chunkStream.Format {
 			case 0:
-				if chunkStream.exted {
+				if chunkStream.exited {
 					timestamp, _ := r.ReadUintBE(4)
 					chunkStream.Timestamp = timestamp
 				}
 			case 1, 2:
 				var timedet uint32
-				if chunkStream.exted {
+				if chunkStream.exited {
 					timedet, _ = r.ReadUintBE(4)
 				} else {
 					timedet = chunkStream.timeDelta
@@ -298,7 +349,7 @@ func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool 
 			}
 			chunkStream.new(pool)
 		} else {
-			if chunkStream.exted {
+			if chunkStream.exited {
 				b, err := r.Peek(4)
 				if err != nil {
 					return err
@@ -330,38 +381,18 @@ func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool 
 	return r.readError
 }
 
-const (
-	_ = iota
-	idSetChunkSize
-	idAbortMessage
-	idAck
-	idUserControlMessages
-	idWindowAckSize
-	idSetPeerBandwidth
-)
-
-func initControlMsg(id, size, value uint32) ChunkStream {
+func newChunkStream(typeID, length, payload uint32) ChunkStream {
 	ret := ChunkStream{
 		Format:   0,
 		CSID:     2,
-		TypeID:   id,
+		TypeID:   typeID,
 		StreamID: 0,
-		Length:   size,
-		Data:     make([]byte, size),
+		Length:   length,
+		Data:     make([]byte, length),
 	}
-	pio.PutU32BE(ret.Data[:size], value)
+	pio.PutU32BE(ret.Data[:length], payload)
 	return ret
 }
-
-const (
-	streamBegin      uint32 = 0
-	streamEOF        uint32 = 1
-	streamDry        uint32 = 2
-	setBufferLen     uint32 = 3
-	streamIsRecorded uint32 = 4
-	pingRequest      uint32 = 6
-	pingResponse     uint32 = 7
-)
 
 type ConnectInfo struct {
 	App            string `amf:"app" json:"app"`
@@ -499,4 +530,126 @@ func (rw *ReadWriter) WriteUintLE(v uint32, n int) error {
 		v = v >> 8
 	}
 	return nil
+}
+
+// MessageID is the main "Message stream ID" for each packet
+// sent over the RTMP protocol
+//
+// 3. Definitions
+// Message stream ID: Each message has an ID associated with it to
+// identify the message stream in which it is flowing.
+type MessageID uint32
+
+const (
+
+	// Protocol Control Messages
+	// 5.4
+
+	// 5.4.1 Set Chunk Size
+
+	SetChunkSizeMessage   string = "setChunkSize"
+	SetChunkSizeMessageID uint32 = 1
+
+	// 5.4.2 Abort Messages
+
+	AbortMessage   string = "abort"
+	AbortMessageID uint32 = 2
+
+	// 5.4.3. Acknowledgement
+
+	AcknowledgementMessage   string = "acknowledgement"
+	AcknowledgementMessageID uint32 = 3
+
+	// 5.4.4. Window Acknowledgement Size
+
+	WindowAcknowledgementSizeMessage   string = "windowAcknowledgementSize"
+	WindowAcknowledgementSizeMessageID uint32 = 5
+
+	// 5.4.5. Set Peer Bandwidth
+
+	SetPeerBandwidthMessage   string = "setPeerBandwidth"
+	SetPeerBandwidthMessageID uint32 = 6
+
+	// 6.2. User Control Messages
+
+	UserControlMessage   string = "userControl"
+	UserControlMessageID uint32 = 4
+
+	// RTMP Message Types
+	// 7 and 7.1
+
+	// 7.1.1 Command Message
+
+	CommandMessage       string = "command"
+	CommandMessageAMF3ID uint32 = 17
+	CommandMessageAMF0ID uint32 = 20
+
+	// 7.1.2 Data Message
+
+	DataMessage       string = "data"
+	DataMessageAMF3ID uint32 = 15
+	DataMessageAMF0ID uint32 = 18
+
+	// 7.1.3 Shared Object Message
+
+	SharedObjectMessage       string = "sharedObject"
+	SharedObjectMessageAMF3ID uint32 = 16
+	SharedObjectMessageAMF0ID uint32 = 19
+
+	// 7.1.4 Audio Message
+
+	AudioMessage   string = "audio"
+	AudioMessageID uint32 = 8
+
+	// 7.1.5 Video Message
+
+	VideoMessage   string = "video"
+	VideoMessageID uint32 = 9
+
+	// 7.1.6 Aggregate Message
+
+	AggregateMessage   string = "aggregate"
+	AggregateMessageID uint32 = 22
+
+	// UnknownMessageID should never happen, but we default
+	// all unknown message type IDs to this string
+	UnknownMessageID = "UNKNOWN"
+)
+
+// chunkTypeLabel will return the label for the type of chunk based on it's type ID.
+func typeIDString(chunk *ChunkStream) string {
+	return typeIDStringUint32(chunk.TypeID)
+}
+
+// chunkTypeIDLabel will return the label for the type ID of a given RTMP chunk.
+func typeIDStringUint32(id uint32) string {
+	switch id {
+	case SetChunkSizeMessageID:
+		return SetChunkSizeMessage
+	case AbortMessageID:
+		return AbortMessage
+	case AcknowledgementMessageID:
+		return AcknowledgementMessage
+	case WindowAcknowledgementSizeMessageID:
+		return WindowAcknowledgementSizeMessage
+	case SetPeerBandwidthMessageID:
+		return SetPeerBandwidthMessage
+	case UserControlMessageID:
+		return UserControlMessage
+	case CommandMessageAMF0ID, CommandMessageAMF3ID:
+		return CommandMessage
+	case DataMessageAMF0ID, DataMessageAMF3ID:
+		return DataMessage
+	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
+		return SharedObjectMessage
+	case AudioMessageID:
+		return AudioMessage
+	case VideoMessageID:
+		return VideoMessage
+	case AggregateMessageID:
+		return AggregateMessage
+	default:
+		return UnknownMessageID
+	}
+	return UnknownMessageID
 }

@@ -27,6 +27,7 @@
 package rtmp
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net"
 	"net/url"
@@ -130,6 +131,13 @@ func (s *Server) Serve(listener net.Listener) (err error) {
 	}
 }
 
+// handleConn is the entry point for every new client to
+// our RTMP server.
+//
+// If we call `twinx rtmp start` and create a server.
+// This is the place where all client connections will start.
+//
+// [localhost twinx] <- client.Conn
 func (s *Server) handleConn(conn *Conn) error {
 	if err := conn.HandshakeServer(); err != nil {
 		conn.Close()
@@ -137,47 +145,82 @@ func (s *Server) handleConn(conn *Conn) error {
 		return err
 	}
 
-	connServer := NewConnServer(conn)
+	srv := NewConnServer(conn)
+	for {
+		chunk, err := srv.ReadPacket()
+		if err != nil {
+			logger.Critical("reading chunk from client: %v", err)
+		}
+		// Now we have a chunk, let's respond!
+		logger.Debug("Message received from client: %s", typeIDString(chunk))
 
-	if err := connServer.ReadMsg(); err != nil {
-		conn.Close()
-		logger.Critical("RTMP Read Message: %v", err)
-		return err
+		switch chunk.TypeID {
+		case SetChunkSizeMessageID:
+			// 5.4.1. Set Chunk Size (1)
+			//conn.chunkSize = chunk.Length
+			//conn.ack(chunk.Length)
+			conn.remoteChunkSize = binary.BigEndian.Uint32(chunk.Data)
+			conn.ack(chunk.Length)
+		case AbortMessageID:
+			//return AbortMessage
+		case AcknowledgementMessageID:
+			//return AcknowledgementMessage
+		case WindowAcknowledgementSizeMessageID:
+			//return WindowAcknowledgementSizeMessage
+			conn.remoteWindowAckSize = binary.BigEndian.Uint32(chunk.Data)
+			conn.ack(chunk.Length)
+		case SetPeerBandwidthMessageID:
+			//return SetPeerBandwidthMessage
+		case UserControlMessageID:
+			//return UserControlMessage
+		case CommandMessageAMF0ID, CommandMessageAMF3ID:
+			//return CommandMessage
+		case DataMessageAMF0ID, DataMessageAMF3ID:
+			//return DataMessage
+		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
+			//return SharedObjectMessage
+		case AudioMessageID:
+			//return AudioMessage
+		case VideoMessageID:
+			//return VideoMessage
+		case AggregateMessageID:
+			//return AggregateMessage
+		default:
+			//return UnknownMessageID
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+
+		}
 	}
-
-	appname, name, _ := connServer.GetInfo()
-	logger.Debug("Client %s handshake success", appname)
 
 	//if Config.GetBool("rtmp_noauth") {
 	// Default rtmp_noauth
-	key, err := RoomKeys.GetKey(name)
-	if err != nil {
-		err := fmt.Errorf("Cannot create key err=%s", err.Error())
-		conn.Close()
-		logger.Critical("GetKey err: ", err)
-		return err
-	}
-	name = key
+	//key, err := RoomKeys.GetKey(name)
+	//if err != nil {
+	//	err := fmt.Errorf("Cannot create key err=%s", err.Error())
+	//	conn.Close()
+	//	logger.Critical("GetKey err: ", err)
+	//	return err
 	//}
-	channel, err := RoomKeys.GetChannel(name)
-	if err != nil {
-		err := fmt.Errorf("invalid key err=%s", err.Error())
-		conn.Close()
-		logger.Critical("CheckKey err: ", err)
-		return err
-	}
-	connServer.PublishInfo.Name = channel
+	//name = key
+	////}
+	//channel, err := RoomKeys.GetChannel(name)
+	//if err != nil {
+	//	err := fmt.Errorf("invalid key err=%s", err.Error())
+	//	conn.Close()
+	//	logger.Critical("CheckKey err: ", err)
+	//	return err
+	//}
 
-	reader := NewVirReader(connServer)
-	s.handler.HandleReader(reader)
-	logger.Info("New publisher: %s", reader.Info().URL)
+	//reader := NewVirReader(connServer)
+	//s.handler.HandleReader(reader)
+	//logger.Info("New publisher: %s", reader.Info().URL)
 
-	if s.getter != nil {
-		writeType := reflect.TypeOf(s.getter)
-		logger.Info("Setting writeType: %v", writeType)
-		writer := s.getter.GetWriter(reader.Info())
-		s.handler.HandleWriter(writer)
-	}
+	//if s.getter != nil {
+	//	writeType := reflect.TypeOf(s.getter)
+	//	logger.Info("Setting writeType: %v", writeType)
+	//	writer := s.getter.GetWriter(reader.Info())
+	//	s.handler.HandleWriter(writer)
+	//}
 	//flvWriter := new(FlvDvr)
 	//s.handler.HandleWriter(flvWriter.GetWriter(reader.Info()))
 

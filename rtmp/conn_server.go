@@ -72,6 +72,17 @@ func NewConnServer(conn *Conn) *ConnServer {
 	}
 }
 
+// ReadPacket will read the next packet of data from the client,
+// and will attempt to respond to the packet based on it's content and
+// the appropriate response per the RTMP spec.
+func (connServer *ConnServer) ReadPacket() (*ChunkStream, error) {
+	var chunk ChunkStream
+	if err := connServer.conn.Read(&chunk); err != nil {
+		return nil, fmt.Errorf("reading chunk from client: %v", err)
+	}
+	return &chunk, nil
+}
+
 func (connServer *ConnServer) writeMsg(csid, streamID uint32, args ...interface{}) error {
 	connServer.bytesw.Reset()
 	for _, v := range args {
@@ -299,25 +310,6 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 		}
 	}
 
-	return nil
-}
-
-func (connServer *ConnServer) ReadMsg() error {
-	var c ChunkStream
-	for {
-		if err := connServer.conn.Read(&c); err != nil {
-			return err
-		}
-		switch c.TypeID {
-		case 20, 17:
-			if err := connServer.handleCmdMsg(&c); err != nil {
-				return err
-			}
-		}
-		if connServer.done {
-			break
-		}
-	}
 	return nil
 }
 
