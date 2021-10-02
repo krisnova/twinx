@@ -250,9 +250,10 @@ func (connServer *ConnServer) playResp(cur *ChunkStream) error {
 	return connServer.conn.Flush()
 }
 
-func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
+func (connServer *ConnServer) messageCommand(c *ChunkStream) error {
 	amfType := amf.AMF0
-	if c.TypeID == 17 {
+	if c.TypeID == CommandMessageAMF3ID {
+		// Arithmetic to match AMF3 encoding
 		c.Data = c.Data[1:]
 	}
 	r := bytes.NewReader(c.Data)
@@ -260,7 +261,7 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 	if err != nil && err != io.EOF {
 		return err
 	}
-	logger.Debug("Raw Command Message from Client: %#v", vs)
+	//logger.Debug("Raw Command Message from Client: %#v", vs)
 	switch vs[0].(type) {
 	case string:
 		switch vs[0].(string) {
@@ -298,13 +299,8 @@ func (connServer *ConnServer) handleCmdMsg(c *ChunkStream) error {
 			connServer.done = true
 			connServer.isPublisher = false
 			//logger.Info("Play request")
-		case CommandFCPublish:
-			connServer.fcPublish(vs)
-		case CommandReleaseStream:
-			connServer.releaseStream(vs)
-		case CommandFCUnpublish:
-		case CommandDeleteStream:
-		case CommandGetStreamLength:
+		case CommandFCPublish, CommandReleaseStream, CommandGetStreamLength:
+			logger.Critical("Unknown command: %s", vs[0].(string))
 		default:
 			logger.Critical("Unknown command: %s", vs[0].(string))
 		}

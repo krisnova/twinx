@@ -124,9 +124,9 @@ func (s *Server) Serve(listener net.Listener) (err error) {
 			return
 		}
 		conn := NewConn(netconn, 4*1024)
-		logger.Info("Client connected!")
-		logger.Info("Remote : %s", conn.RemoteAddr().String())
-		logger.Info("Local  : %s", conn.LocalAddr().String())
+		logger.Info("New client connected")
+		logger.Info("   Remote : %s", conn.RemoteAddr().String())
+		logger.Info("   Local  : %s", conn.LocalAddr().String())
 		go s.handleConn(conn)
 	}
 }
@@ -174,7 +174,11 @@ func (s *Server) handleConn(conn *Conn) error {
 		case UserControlMessageID:
 			//return UserControlMessage
 		case CommandMessageAMF0ID, CommandMessageAMF3ID:
-			//return CommandMessage
+			// Handle the command message
+			//err := srv.messageCommand(chunk)
+			//if err != nil {
+			//	logger.Critical("command message: %v", err)
+			//}
 		case DataMessageAMF0ID, DataMessageAMF3ID:
 			//return DataMessage
 		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
@@ -191,38 +195,6 @@ func (s *Server) handleConn(conn *Conn) error {
 
 		}
 	}
-
-	//if Config.GetBool("rtmp_noauth") {
-	// Default rtmp_noauth
-	//key, err := RoomKeys.GetKey(name)
-	//if err != nil {
-	//	err := fmt.Errorf("Cannot create key err=%s", err.Error())
-	//	conn.Close()
-	//	logger.Critical("GetKey err: ", err)
-	//	return err
-	//}
-	//name = key
-	////}
-	//channel, err := RoomKeys.GetChannel(name)
-	//if err != nil {
-	//	err := fmt.Errorf("invalid key err=%s", err.Error())
-	//	conn.Close()
-	//	logger.Critical("CheckKey err: ", err)
-	//	return err
-	//}
-
-	//reader := NewVirReader(connServer)
-	//s.handler.HandleReader(reader)
-	//logger.Info("New publisher: %s", reader.Info().URL)
-
-	//if s.getter != nil {
-	//	writeType := reflect.TypeOf(s.getter)
-	//	logger.Info("Setting writeType: %v", writeType)
-	//	writer := s.getter.GetWriter(reader.Info())
-	//	s.handler.HandleWriter(writer)
-	//}
-	//flvWriter := new(FlvDvr)
-	//s.handler.HandleWriter(flvWriter.GetWriter(reader.Info()))
 
 	return nil
 }
