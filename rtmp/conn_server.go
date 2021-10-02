@@ -44,7 +44,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gwuhaolin/livego/av"
 	"github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/kris-nova/logger"
 )
@@ -75,232 +74,68 @@ func NewConnServer(conn *Conn) *ConnServer {
 // ReadPacket will read the next packet of data from the client,
 // and will attempt to respond to the packet based on it's content and
 // the appropriate response per the RTMP spec.
-func (connServer *ConnServer) ReadPacket() (*ChunkStream, error) {
+func (c *ConnServer) ReadPacket() (*ChunkStream, error) {
 	var chunk ChunkStream
-	if err := connServer.conn.Read(&chunk); err != nil {
+	if err := c.conn.Read(&chunk); err != nil {
 		return nil, fmt.Errorf("reading chunk from client: %v", err)
 	}
 	return &chunk, nil
 }
 
-func (connServer *ConnServer) writeMsg(csid, streamID uint32, args ...interface{}) error {
-	connServer.bytesw.Reset()
-	for _, v := range args {
-		if _, err := connServer.encoder.Encode(connServer.bytesw, v, amf.AMF0); err != nil {
-			return err
-		}
-	}
-	msg := connServer.bytesw.Bytes()
-	c := ChunkStream{
-		Format:    0,
-		CSID:      csid,
-		Timestamp: 0,
-		TypeID:    20,
-		StreamID:  streamID,
-		Length:    uint32(len(msg)),
-		Data:      msg,
-	}
-	connServer.conn.Write(&c)
-	return connServer.conn.Flush()
-}
-
-func (connServer *ConnServer) connect(vs []interface{}) error {
-	for _, v := range vs {
-		switch v.(type) {
-		case string:
-		case float64:
-			id := int(v.(float64))
-			if id != 1 {
-				return fmt.Errorf("connect error")
-			}
-			connServer.transactionID = id
-		case amf.Object:
-			obimap := v.(amf.Object)
-			if app, ok := obimap["app"]; ok {
-				connServer.ConnInfo.App = app.(string)
-			}
-			if flashVer, ok := obimap["flashVer"]; ok {
-				connServer.ConnInfo.Flashver = flashVer.(string)
-			}
-			if tcurl, ok := obimap["tcUrl"]; ok {
-				connServer.ConnInfo.TcUrl = tcurl.(string)
-			}
-			if encoding, ok := obimap["objectEncoding"]; ok {
-				connServer.ConnInfo.ObjectEncoding = int(encoding.(float64))
-			}
-		}
-	}
-	return nil
-}
-
-func (connServer *ConnServer) releaseStream(vs []interface{}) error {
-	return nil
-}
-
-func (connServer *ConnServer) fcPublish(vs []interface{}) error {
-	return nil
-}
-
-func (connServer *ConnServer) getStreamLength(cur *ChunkStream) error {
-	//return connServer.writeMsg(cur.CSID, cur.StreamID,
-	//	"_result", connServer.transactionID, nil, connServer.streamID)
-	return nil
-}
-
-func (connServer *ConnServer) connectResp(cur *ChunkStream) error {
-	c := connServer.conn.NewWindowAckSize(2500000)
-	connServer.conn.Write(&c)
-	c = connServer.conn.NewSetPeerBandwidth(2500000)
-	connServer.conn.Write(&c)
-	c = connServer.conn.NewSetChunkSize(uint32(1024))
-	connServer.conn.Write(&c)
-
-	resp := make(amf.Object)
-	resp["fmsVer"] = "FMS/3,0,1,123"
-	resp["capabilities"] = 31
-
-	event := make(amf.Object)
-	event["level"] = "status"
-	event["code"] = "NetConnection.Connect.Success"
-	event["description"] = "Connection succeeded."
-	event["objectEncoding"] = connServer.ConnInfo.ObjectEncoding
-	return connServer.writeMsg(cur.CSID, cur.StreamID, "_result", connServer.transactionID, resp, event)
-}
-
-func (connServer *ConnServer) createStream(vs []interface{}) error {
-	logger.Info("ConnServer: createStream")
-	for _, v := range vs {
-		switch v.(type) {
-		case string:
-		case float64:
-			connServer.transactionID = int(v.(float64))
-		case amf.Object:
-		}
-	}
-	return nil
-}
-
-func (connServer *ConnServer) createStreamResp(cur *ChunkStream) error {
-	logger.Info("ConnServer: createStreamResp")
-
-	return connServer.writeMsg(cur.CSID, cur.StreamID, "_result", connServer.transactionID, nil, connServer.streamID)
-}
-
-func (connServer *ConnServer) publishOrPlay(vs []interface{}) error {
-	for k, v := range vs {
-		switch v.(type) {
-		case string:
-			if k == 2 {
-				connServer.PublishInfo.Name = v.(string)
-			} else if k == 3 {
-				connServer.PublishInfo.Type = v.(string)
-			}
-		case float64:
-			id := int(v.(float64))
-			connServer.transactionID = id
-		case amf.Object:
-		}
-	}
-
-	return nil
-}
-
-func (connServer *ConnServer) publishResp(cur *ChunkStream) error {
-	logger.Info("ConnServer: publishResp")
-	event := make(amf.Object)
-	event["level"] = "status"
-	event["code"] = "NetStream.Publish.Start"
-	event["description"] = "Start publishing."
-	return connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event)
-}
-
-func (connServer *ConnServer) playResp(cur *ChunkStream) error {
-	logger.Info("ConnServer: playResp")
-	connServer.conn.SetRecorded()
-	connServer.conn.SetBegin()
-
-	event := make(amf.Object)
-	event["level"] = "status"
-	event["code"] = "NetStream.Play.Reset"
-	event["description"] = "Playing and resetting stream."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
-		return err
-	}
-
-	event["level"] = "status"
-	event["code"] = "NetStream.Play.Start"
-	event["description"] = "Started playing stream."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
-		return err
-	}
-
-	event["level"] = "status"
-	event["code"] = "NetStream.Data.Start"
-	event["description"] = "Started playing stream."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
-		return err
-	}
-
-	event["level"] = "status"
-	event["code"] = "NetStream.Play.PublishNotify"
-	event["description"] = "Started playing notify."
-	if err := connServer.writeMsg(cur.CSID, cur.StreamID, "CommandOnStatus", 0, nil, event); err != nil {
-		return err
-	}
-	return connServer.conn.Flush()
-}
-
-func (connServer *ConnServer) messageCommand(c *ChunkStream) error {
+func (c *ConnServer) messageCommand(packet *ChunkStream) error {
 	amfType := amf.AMF0
-	if c.TypeID == CommandMessageAMF3ID {
+	if packet.TypeID == CommandMessageAMF3ID {
 		// Arithmetic to match AMF3 encoding
-		c.Data = c.Data[1:]
+		amfType = amf.AMF3
+		packet.Data = packet.Data[1:]
 	}
-	r := bytes.NewReader(c.Data)
-	vs, err := connServer.decoder.DecodeBatch(r, amf.Version(amfType))
+	r := bytes.NewReader(packet.Data)
+	vs, err := c.decoder.DecodeBatch(r, amf.Version(amfType))
 	if err != nil && err != io.EOF {
 		return err
 	}
-	//logger.Debug("Raw Command Message from Client: %#v", vs)
+
+	logger.Debug("Raw Command Message from Client: %#v", vs)
+	// []interface {}{"connect", 1, amf.Object{"app":"twinx", "flashVer":"FMLE/3.0 (compatible; FMSc/1.0)", "swfUrl":"rtmp://localhost:1935/twinx", "tcUrl":"rtmp://localhost:1935/twinx", "type":"nonprivate"}}
+	// []interface {}{"releaseStream", 2, interface {}(nil), "1234"}
+	// []interface {}{"FCPublish", 3, interface {}(nil), "1234"}
+	// []interface {}{"createStream", 4, interface {}(nil)}
+	// []interface {}{"publish", 5, interface {}(nil), "1234", "live"}
 	switch vs[0].(type) {
 	case string:
 		switch vs[0].(string) {
 		case CommandConnect:
-			if err = connServer.connect(vs[1:]); err != nil {
+			if err = c.messageCommandConnect(vs[1:]); err != nil {
 				return err
 			}
-			if err = connServer.connectResp(c); err != nil {
+			if err = c.messageCommandConnectResponse(packet); err != nil {
 				return err
 			}
 		case CommandCreateStream:
-			if err = connServer.createStream(vs[1:]); err != nil {
+			if err = c.messageCommandCreateStream(vs[1:]); err != nil {
 				return err
 			}
-			if err = connServer.createStreamResp(c); err != nil {
+			if err = c.messageCommandCreateStreamResponse(packet); err != nil {
 				return err
 			}
 		case CommandPublish:
-			if err = connServer.publishOrPlay(vs[1:]); err != nil {
+			if err = c.messageCommandPlayPublish(vs[1:]); err != nil {
 				return err
 			}
-			if err = connServer.publishResp(c); err != nil {
+			if err = c.messageCommandPublishResponse(packet); err != nil {
 				return err
 			}
-			connServer.done = true
-			connServer.isPublisher = true
-			logger.Info("Publish complete!")
+			c.done = true
+			c.isPublisher = true
 		case CommandPlay:
-			if err = connServer.publishOrPlay(vs[1:]); err != nil {
+			if err = c.messageCommandPlayPublish(vs[1:]); err != nil {
 				return err
 			}
-			if err = connServer.playResp(c); err != nil {
+			if err = c.messageCommandPlayResponse(packet); err != nil {
 				return err
 			}
-			connServer.done = true
-			connServer.isPublisher = false
-			//logger.Info("Play request")
-		case CommandFCPublish, CommandReleaseStream, CommandGetStreamLength:
-			logger.Critical("Unknown command: %s", vs[0].(string))
+			c.done = true
+			c.isPublisher = false
 		default:
 			logger.Critical("Unknown command: %s", vs[0].(string))
 		}
@@ -309,38 +144,191 @@ func (connServer *ConnServer) messageCommand(c *ChunkStream) error {
 	return nil
 }
 
-func (connServer *ConnServer) IsPublisher() bool {
-	return true
-	return connServer.isPublisher
+const (
+	CommandConnectWellKnownID int = 1
+)
+
+func (c *ConnServer) messageCommandConnect(vs []interface{}) error {
+	for _, v := range vs {
+		switch v.(type) {
+		case string:
+		case float64:
+			id := int(v.(float64))
+			if id != CommandConnectWellKnownID {
+				// RTMP says that the ID should be 1
+				return fmt.Errorf("invalid typeID per RTMP protocol")
+			}
+			c.transactionID = id
+		case amf.Object:
+			objmap := v.(amf.Object)
+			if app, ok := objmap[ConnInfoKeyApp]; ok {
+				c.ConnInfo.App = app.(string)
+			}
+			if flashVer, ok := objmap[ConnInfoKeyFlashVer]; ok {
+				c.ConnInfo.FlashVer = flashVer.(string)
+			}
+			if tcurl, ok := objmap[ConnInfoKeyTcURL]; ok {
+				c.ConnInfo.TcUrl = tcurl.(string)
+			}
+			if encoding, ok := objmap[ConnInfoObjectEncoding]; ok {
+				c.ConnInfo.ObjectEncoding = int(encoding.(float64))
+			}
+		}
+	}
+	return nil
 }
 
-func (connServer *ConnServer) Write(c ChunkStream) error {
-	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
-		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
+func (c *ConnServer) messageCommandConnectResponse(packet *ChunkStream) error {
+	respPacket := c.conn.NewWindowAckSize(DefaultWindowAcknowledgementSizeBytes)
+	c.conn.Write(&respPacket)
+	respPacket = c.conn.NewSetPeerBandwidth(DefaultPeerBandwidthSizeBytes)
+	c.conn.Write(&respPacket)
+	respPacket = c.conn.NewSetChunkSize(DefaultRTMPChunkSizeBytesLarge)
+	c.conn.Write(&respPacket)
+
+	resp := make(amf.Object)
+	resp[ConnRespFMSVer] = DefaultServerFMSVersion
+	resp[ConnRespCapabilities] = 31
+
+	event := make(amf.Object)
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamConnectSuccess
+	event[ConnEventDescription] = "Connection succeeded."
+	event[ConnEventObjectEncoding] = c.ConnInfo.ObjectEncoding
+	return c.writeMsg(packet.CSID, packet.StreamID, CommandType_Result, c.transactionID, resp, event)
+}
+
+func (c *ConnServer) messageCommandCreateStream(vs []interface{}) error {
+	for _, v := range vs {
+		switch v.(type) {
+		case string:
+		case float64:
+			c.transactionID = int(v.(float64))
+		case amf.Object:
+		}
+	}
+	return nil
+}
+
+func (c *ConnServer) messageCommandCreateStreamResponse(cur *ChunkStream) error {
+	return c.writeMsg(cur.CSID, cur.StreamID, CommandType_Result, c.transactionID, nil, c.streamID)
+}
+
+// messageCommandPlayPublish will respond to both play and publish commands
+func (c *ConnServer) messageCommandPlayPublish(vs []interface{}) error {
+	for k, v := range vs {
+		switch v.(type) {
+		case string:
+			if k == 2 {
+				c.PublishInfo.Name = v.(string)
+			} else if k == 3 {
+				c.PublishInfo.Type = v.(string)
+			}
+		case float64:
+			id := int(v.(float64))
+			c.transactionID = id
+		case amf.Object:
+		}
+	}
+
+	return nil
+}
+
+func (c *ConnServer) messageCommandPublishResponse(cur *ChunkStream) error {
+	event := make(amf.Object)
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPublishStart
+	event[ConnEventDescription] = "Start publishing."
+	return c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event)
+}
+
+func (c *ConnServer) messageCommandPlayResponse(cur *ChunkStream) error {
+	c.conn.SetRecorded()
+	c.conn.SetBegin()
+
+	event := make(amf.Object)
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPlayReset
+	event[ConnEventDescription] = "Playing and resetting stream."
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+		return err
+	}
+
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPlayStart
+	event[ConnEventDescription] = "Started playing stream."
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+		return err
+	}
+
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamDataStart
+	event[ConnEventDescription] = "Started playing stream."
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+		return err
+	}
+
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPublishNotify
+	event[ConnEventDescription] = "Started playing notify."
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+		return err
+	}
+	return c.conn.Flush()
+}
+
+func (c *ConnServer) IsPublisher() bool {
+	return c.isPublisher
+}
+
+func (c *ConnServer) Write(packet ChunkStream) error {
+	if packet.TypeID == TAG_SCRIPTDATAAMF0 ||
+		packet.TypeID == TAG_SCRIPTDATAAMF3 {
 		var err error
-		if c.Data, err = amf.MetaDataReform(c.Data, amf.DEL); err != nil {
+		if packet.Data, err = amf.MetaDataReform(packet.Data, amf.DEL); err != nil {
 			return err
 		}
-		c.Length = uint32(len(c.Data))
+		packet.Length = uint32(len(packet.Data))
 	}
-	return connServer.conn.Write(&c)
+	return c.conn.Write(&packet)
 }
 
-func (connServer *ConnServer) Flush() error {
-	return connServer.conn.Flush()
+func (c *ConnServer) Flush() error {
+	return c.conn.Flush()
 }
 
-func (connServer *ConnServer) Read(c *ChunkStream) (err error) {
-	return connServer.conn.Read(c)
+func (c *ConnServer) Read(packet *ChunkStream) (err error) {
+	return c.conn.Read(packet)
 }
 
-func (connServer *ConnServer) GetInfo() (app string, name string, url string) {
-	app = connServer.ConnInfo.App
-	name = connServer.PublishInfo.Name
-	url = connServer.ConnInfo.TcUrl + "/" + connServer.PublishInfo.Name
+func (c *ConnServer) GetInfo() (app string, name string, url string) {
+	app = c.ConnInfo.App
+	name = c.PublishInfo.Name
+	url = c.ConnInfo.TcUrl + "/" + c.PublishInfo.Name
 	return
 }
 
-func (connServer *ConnServer) Close(err error) {
-	connServer.conn.Close()
+func (c *ConnServer) Close(err error) {
+	c.conn.Close()
+}
+
+func (c *ConnServer) writeMsg(csid, streamID uint32, args ...interface{}) error {
+	c.bytesw.Reset()
+	for _, v := range args {
+		if _, err := c.encoder.Encode(c.bytesw, v, amf.AMF0); err != nil {
+			return err
+		}
+	}
+	msg := c.bytesw.Bytes()
+	packet := ChunkStream{
+		Format:    0,
+		CSID:      csid,
+		Timestamp: 0,
+		TypeID:    20,
+		StreamID:  streamID,
+		Length:    uint32(len(msg)),
+		Data:      msg,
+	}
+	c.conn.Write(&packet)
+	return c.conn.Flush()
 }

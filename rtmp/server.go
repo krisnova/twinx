@@ -134,7 +134,6 @@ func (s *Server) Serve(listener net.Listener) (err error) {
 // handleConn is the entry point for every new client to
 // our RTMP server.
 //
-// If we call `twinx rtmp start` and create a server.
 // This is the place where all client connections will start.
 //
 // [localhost twinx] <- client.Conn
@@ -145,13 +144,12 @@ func (s *Server) handleConn(conn *Conn) error {
 		return err
 	}
 
-	srv := NewConnServer(conn)
+	connSrv := NewConnServer(conn)
 	for {
-		chunk, err := srv.ReadPacket()
+		chunk, err := connSrv.ReadPacket()
 		if err != nil {
 			logger.Critical("reading chunk from client: %v", err)
 		}
-		// Now we have a chunk, let's respond!
 		logger.Debug("Message received from client: %s", typeIDString(chunk))
 
 		switch chunk.TypeID {
@@ -175,10 +173,10 @@ func (s *Server) handleConn(conn *Conn) error {
 			//return UserControlMessage
 		case CommandMessageAMF0ID, CommandMessageAMF3ID:
 			// Handle the command message
-			//err := srv.messageCommand(chunk)
-			//if err != nil {
-			//	logger.Critical("command message: %v", err)
-			//}
+			err := connSrv.messageCommand(chunk)
+			if err != nil {
+				logger.Critical("command message: %v", err)
+			}
 		case DataMessageAMF0ID, DataMessageAMF3ID:
 			//return DataMessage
 		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:

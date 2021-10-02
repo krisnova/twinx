@@ -87,9 +87,12 @@ const (
 	// message.
 
 	DefaultRTMPChunkSizeBytes uint32 = 128
-	DefaultWindowAckSize      uint32 = 2500000
-
+	DefaultRTMPChunkSizeBytesLarge uint32 = DefaultRTMPChunkSizeBytes * 64
+	DefaultWindowAcknowledgementSizeBytes      uint32 = 2500000
+	DefaultPeerBandwidthSizeBytes      uint32 = 2500000
 	DefaultMaximumPoolSizeBytes int = 512 * 1024
+
+	DefaultServerFMSVersion string = "FMS/3,0,1,123"
 
 	// Publish
 	// RTMP Spec 7.2.2.6
@@ -116,7 +119,10 @@ const (
 	CommandType_Error              = "_error"
 	CommandOnStatus                = "CommandOnStatus"
 	CommandNetStreamPublishStart   = "NetStream.Publish.Start"
+	CommandNetStreamPublishNotify  = "NetStream.Publish.Notify"
 	CommandNetStreamPlayStart      = "NetStream.Play.Start"
+	CommandNetStreamPlayReset      = "NetStream.Play.Reset"
+	CommandNetStreamDataStart      = "NetStream.Data.Start"
 	CommandNetStreamConnectSuccess = "NetConnection.Connect.Success"
 	CommandOnBWDone                = "CommandOnBWDone"
 
@@ -394,9 +400,51 @@ func newChunkStream(typeID, length, payload uint32) ChunkStream {
 	return ret
 }
 
+// ConnectInfo is the RTMP spec's parameters of the key value pairs passed
+// during a connect command message
+//
+// The following is the description of the name-value pairs used in Command
+//                      Object of the connect command.
+//   +-----------+--------+-----------------------------+----------------+
+//   | Property  |  Type  |        Description          | Example Value  |
+//   +-----------+--------+-----------------------------+----------------+
+//   |   app     | String | The Server application name |    testapp     |
+//   |           |        | the client is connected to. |                |
+//   +-----------+--------+-----------------------------+----------------+
+//   | flashver  | String | Flash Player version. It is |    FMSc/1.0    |
+//   |           |        | the same string as returned |                |
+//   |           |        | by the ApplicationScript    |                |
+//   |           |        | getversion () function.     |                |
+//   +-----------+--------+-----------------------------+----------------+
+//   |  swfUrl   | String | URL of the source SWF file  | file://C:/     |
+//   |           |        | making the connection.      | FlvPlayer.swf  |
+//   +-----------+--------+-----------------------------+----------------+
+//   |  tcUrl    | String | URL of the Server.          | rtmp://local   |
+//   |           |        | It has the following format.| host:1935/test |
+//   |           |        | protocol://servername:port/ | app/instance1  |
+//   |           |        | appName/appInstance         |                |
+//   +-----------+--------+-----------------------------+----------------+
+//   |  fpad     | Boolean| True if proxy is being used.| true or false  |
+//   +-----------+--------+-----------------------------+----------------+
+//   |audioCodecs| Number | Indicates what audio codecs | SUPPORT_SND    |
+//   |           |        | the client supports.        | _MP3           |
+//   +-----------+--------+-----------------------------+----------------+
+//   |videoCodecs| Number | Indicates what video codecs | SUPPORT_VID    |
+//   |           |        | are supported.              | _SORENSON      |
+//   +-----------+--------+-----------------------------+----------------+
+//   |videoFunct-| Number | Indicates what special video| SUPPORT_VID    |
+//   |ion        |        | functions are supported.    | _CLIENT_SEEK   |
+//   +-----------+--------+-----------------------------+----------------+
+//   |  pageUrl  | String | URL of the web page from    | http://        |
+//   |           |        | where the SWF file was      | somehost/      |
+//   |           |        | loaded.                     | sample.html    |
+//   +-----------+--------+-----------------------------+----------------+
+//   | object    | Number | AMF encoding method.        |     AMF3       |
+//   | Encoding  |        |                             |                |
+//   +-----------+--------+-----------------------------+----------------+
 type ConnectInfo struct {
 	App            string `amf:"app" json:"app"`
-	Flashver       string `amf:"flashVer" json:"flashVer"`
+	FlashVer       string `amf:"flashVer" json:"flashVer"`
 	SwfUrl         string `amf:"swfUrl" json:"swfUrl"`
 	TcUrl          string `amf:"tcUrl" json:"tcUrl"`
 	Fpad           bool   `amf:"fpad" json:"fpad"`
@@ -407,17 +455,38 @@ type ConnectInfo struct {
 	ObjectEncoding int    `amf:"objectEncoding" json:"objectEncoding"`
 }
 
-type ConnectResp struct {
+const (
+
+	ConnInfoKeyApp string = "app"
+	ConnInfoKeyTcURL string = "tcUrl"
+	ConnInfoKeyFlashVer string = "flashVer"
+	ConnInfoObjectEncoding string = "objectEncoding"
+)
+
+type ConnResp struct {
 	FMSVer       string `amf:"fmsVer"`
 	Capabilities int    `amf:"capabilities"`
 }
 
-type ConnectEvent struct {
+const (
+	ConnRespFMSVer string = "fmsVer"
+	ConnRespCapabilities string = "capabilities"
+)
+
+type ConnEvent struct {
 	Level          string `amf:"level"`
 	Code           string `amf:"code"`
 	Description    string `amf:"description"`
 	ObjectEncoding int    `amf:"objectEncoding"`
 }
+
+const (
+	ConnEventLevel string = "level"
+	ConnEventCode string = "code"
+	ConnEventDescription string = "description"
+	ConnEventObjectEncoding string = "objectEncoding"
+	ConnEventStatus string = "status"
+)
 
 type PublishInfo struct {
 	Name string
