@@ -104,6 +104,13 @@ func (conn *Conn) Read(c *ChunkStream) error {
 		}
 	}
 
+	// RTMP Can update chunk size so let's just check
+	if c.TypeID == SetChunkSizeMessageID {
+		conn.remoteChunkSize = binary.BigEndian.Uint32(c.Data)
+	} else if c.TypeID == WindowAcknowledgementSizeMessageID {
+		conn.remoteWindowAckSize = binary.BigEndian.Uint32(c.Data)
+	}
+
 	// We should now have a complete chunk.
 	return nil
 }

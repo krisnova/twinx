@@ -7,6 +7,8 @@ require (
 	github.com/gwuhaolin/livego v0.0.0-20210706022523-a6543920e7e9
 	github.com/kris-nova/logger v0.2.2
 	github.com/nicklaw5/helix v1.25.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
+	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf
 	google.golang.org/api v0.57.0
@@ -17,6 +19,7 @@ require (
 require (
 	cloud.google.com/go v0.94.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
 	github.com/go-redis/redis/v7 v7.2.0 // indirect
 	github.com/golang-jwt/jwt v3.2.1+incompatible // indirect
@@ -30,8 +33,8 @@ require (
 	github.com/kr/text v0.1.0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
-	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml v1.2.0 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
@@ -50,6 +53,7 @@ require (
 	google.golang.org/genproto v0.0.0-20210921142501-181ce0d877f6 // indirect
 	gopkg.in/ini.v1 v1.51.0 // indirect
 	gopkg.in/yaml.v2 v2.2.4 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
 
 replace github.com/gwuhaolin/livego => github.com/kris-nova/livego v0.0.0-20210926130939-59394b01b622

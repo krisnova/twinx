@@ -3,7 +3,7 @@ package uid
 import (
 	"encoding/base64"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/satori/go.uuid"
 )
 
 func NewId() string {
