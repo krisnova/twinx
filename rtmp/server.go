@@ -79,12 +79,12 @@ func (c *Client) Dial(url string, method string) error {
 		return err
 	}
 	if method == CommandPublish {
-		writer := NewVirWriter(connClient)
-		logger.Info("client Dial call NewVirWriter url=%s, method=%s", url, method)
+		writer := NewVirtualWriter(connClient)
+		logger.Info("client Dial call NewVirtualWriter url=%s, method=%s", url, method)
 		c.handler.HandleWriter(writer)
 	} else if method == CommandPlay {
-		reader := NewVirReader(connClient)
-		logger.Info("client Dial call NewVirReader url=%s, method=%s", url, method)
+		reader := NewVirtualReader(connClient)
+		logger.Info("client Dial call NewVirtualReader url=%s, method=%s", url, method)
 		c.handler.HandleReader(reader)
 		if c.getter != nil {
 			writer := c.getter.GetWriter(reader.Info())
@@ -99,13 +99,13 @@ func (c *Client) GetHandle() Handler {
 }
 
 type Server struct {
-	handler Handler
+	service *Service
 	getter  GetWriter
 }
 
-func NewRtmpServer(h Handler, getter GetWriter) *Server {
+func NewRtmpServer(svc *Service, getter GetWriter) *Server {
 	return &Server{
-		handler: h,
+		service: svc,
 		getter:  getter,
 	}
 }
@@ -145,13 +145,17 @@ func (s *Server) handleConn(conn *Conn) error {
 	}
 
 	connSrv := NewConnServer(conn)
+	//logger.Debug("Stream ID: %d", connSrv.streamID)
+	logger.Debug("Transaction ID: %d", connSrv.transactionID)
 
 	for {
 		if connSrv.IsPublisher() {
 			// Once we are connected plumb the stream through
-			//reader := NewVirReader(connSrv)
-			//s.handler.HandleReader(reader)
-			//return nil
+			//logger.Debug("Stream ID: %d", connSrv.streamID)
+			logger.Debug("Transaction ID: %d", connSrv.transactionID)
+			reader := NewVirtualReader(connSrv)
+			s.service.HandleReader(reader)
+			break
 		}
 		chunk, err := connSrv.ReadPacket()
 		if err != nil {
@@ -203,6 +207,9 @@ func (s *Server) handleConn(conn *Conn) error {
 		}
 	}
 
+	writer := NewVirtualWriter(connSrv)
+	s.service.HandleWriter(writer)
+
 	return nil
 }
 
@@ -230,7 +237,7 @@ type StaticsBW struct {
 	LastTimestamp int64
 }
 
-type VirWriter struct {
+type VirtualWriter struct {
 	Uid    string
 	closed bool
 	RWBaser
@@ -239,8 +246,8 @@ type VirWriter struct {
 	WriteBWInfo StaticsBW
 }
 
-func NewVirWriter(conn StreamReadWriteCloser) *VirWriter {
-	ret := &VirWriter{
+func NewVirtualWriter(conn StreamReadWriteCloser) *VirtualWriter {
+	ret := &VirtualWriter{
 		Uid:         uid.NewId(),
 		conn:        conn,
 		RWBaser:     NewRWBaser(time.Second * time.Duration(WriteTimeout)),
@@ -258,7 +265,7 @@ func NewVirWriter(conn StreamReadWriteCloser) *VirWriter {
 	return ret
 }
 
-func (v *VirWriter) SaveStatics(streamid uint32, length uint64, isVideoFlag bool) {
+func (v *VirtualWriter) SaveStatics(streamid uint32, length uint64, isVideoFlag bool) {
 	nowInMS := int64(time.Now().UnixNano() / 1e6)
 
 	v.WriteBWInfo.StreamId = streamid
@@ -282,7 +289,7 @@ func (v *VirWriter) SaveStatics(streamid uint32, length uint64, isVideoFlag bool
 	}
 }
 
-func (v *VirWriter) Check() {
+func (v *VirtualWriter) Check() {
 	var c ChunkStream
 	for {
 		if err := v.conn.Read(&c); err != nil {
@@ -292,7 +299,7 @@ func (v *VirWriter) Check() {
 	}
 }
 
-func (v *VirWriter) DropPacket(pktQue chan *Packet, info Info) {
+func (v *VirtualWriter) DropPacket(pktQue chan *Packet, info Info) {
 	logger.Critical("packet queue max [%+v]", info)
 	for i := 0; i < MaximumPacketQueueRecords-84; i++ {
 		tmpPkt, ok := <-pktQue
@@ -324,16 +331,16 @@ func (v *VirWriter) DropPacket(pktQue chan *Packet, info Info) {
 }
 
 //
-func (v *VirWriter) Write(p *Packet) (err error) {
+func (v *VirtualWriter) Write(p *Packet) (err error) {
 	err = nil
 
 	if v.closed {
-		err = fmt.Errorf("VirWriter closed")
+		err = fmt.Errorf("VirtualWriter closed")
 		return
 	}
 	defer func() {
 		if e := recover(); e != nil {
-			err = fmt.Errorf("VirWriter has already been closed:%v", e)
+			err = fmt.Errorf("VirtualWriter has already been closed:%v", e)
 		}
 	}()
 	if len(v.packetQueue) >= MaximumPacketQueueRecords-24 {
@@ -345,7 +352,7 @@ func (v *VirWriter) Write(p *Packet) (err error) {
 	return
 }
 
-func (v *VirWriter) SendPacket() error {
+func (v *VirtualWriter) SendPacket() error {
 	Flush := reflect.ValueOf(v.conn).MethodByName("Flush")
 	var cs ChunkStream
 	for {
@@ -383,7 +390,7 @@ func (v *VirWriter) SendPacket() error {
 	}
 }
 
-func (v *VirWriter) Info() (ret Info) {
+func (v *VirtualWriter) Info() (ret Info) {
 	ret.UID = v.Uid
 	_, _, URL := v.conn.GetInfo()
 	ret.URL = URL
@@ -396,7 +403,7 @@ func (v *VirWriter) Info() (ret Info) {
 	return
 }
 
-func (v *VirWriter) Close(err error) {
+func (v *VirtualWriter) Close(err error) {
 	logger.Warning("Client connection closed: %v", err)
 	if !v.closed {
 		close(v.packetQueue)
@@ -405,7 +412,7 @@ func (v *VirWriter) Close(err error) {
 	v.conn.Close(err)
 }
 
-type VirReader struct {
+type VirtualReader struct {
 	Uid string
 	RWBaser
 	demuxer    *FLVDemuxer
@@ -413,8 +420,8 @@ type VirReader struct {
 	ReadBWInfo StaticsBW
 }
 
-func NewVirReader(conn StreamReadWriteCloser) *VirReader {
-	return &VirReader{
+func NewVirtualReader(conn StreamReadWriteCloser) *VirtualReader {
+	return &VirtualReader{
 		Uid:        uid.NewId(),
 		conn:       conn,
 		RWBaser:    NewRWBaser(time.Second * time.Duration(WriteTimeout)),
@@ -423,7 +430,7 @@ func NewVirReader(conn StreamReadWriteCloser) *VirReader {
 	}
 }
 
-func (v *VirReader) SaveStatics(streamid uint32, length uint64, isVideoFlag bool) {
+func (v *VirtualReader) SaveStatics(streamid uint32, length uint64, isVideoFlag bool) {
 	nowInMS := int64(time.Now().UnixNano() / 1e6)
 
 	v.ReadBWInfo.StreamId = streamid
@@ -448,7 +455,7 @@ func (v *VirReader) SaveStatics(streamid uint32, length uint64, isVideoFlag bool
 	}
 }
 
-func (v *VirReader) Read(p *Packet) (err error) {
+func (v *VirtualReader) Read(p *Packet) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Warning("rtmp read packet panic: ", r)
@@ -482,7 +489,7 @@ func (v *VirReader) Read(p *Packet) (err error) {
 	return err
 }
 
-func (v *VirReader) Info() (ret Info) {
+func (v *VirtualReader) Info() (ret Info) {
 	ret.UID = v.Uid
 	_, _, URL := v.conn.GetInfo()
 	ret.URL = URL
@@ -494,7 +501,7 @@ func (v *VirReader) Info() (ret Info) {
 	return
 }
 
-func (v *VirReader) Close(err error) {
+func (v *VirtualReader) Close(err error) {
 	logger.Warning("Connection closed: %v", err)
 	v.conn.Close(err)
 }

@@ -29,6 +29,8 @@ package rtmp
 import (
 	"sync"
 	"time"
+
+	"github.com/kris-nova/logger"
 )
 
 // Service is the main RTMP active service.
@@ -52,8 +54,9 @@ func NewService() *Service {
 }
 
 func (svc *Service) HandleReader(r ReadCloser) {
+	// Note: r.Info().Key is secret material
 	info := r.Info()
-	//logger.Info("HandleReader: info[%v]", info)
+	logger.Info("Loading reader for stream: %s", info.UID)
 
 	var stream *Stream
 	i, ok := svc.mux.Load(info.Key)
@@ -68,21 +71,25 @@ func (svc *Service) HandleReader(r ReadCloser) {
 		}
 	} else {
 		stream = NewStream()
+		logger.Info("Starting new stream: %s", info.UID)
 		svc.mux.Store(info.Key, stream)
 		stream.info = info
 	}
+
 	stream.AddReader(r)
+	go stream.TransactionStart()
 }
 
 func (svc *Service) HandleWriter(w WriteCloser) {
+	// Note: r.Info().Key is secret material
 	info := w.Info()
-	//logger.Info("HandleWriter: info[%v]", info)
+	logger.Info("Loading writer for stream: %s", info.UID)
 
 	var s *Stream
 	item, ok := svc.mux.Load(info.Key)
 	if !ok {
-		//logger.Info("Validating with cache")
-		//logger.Info("HandleWriter: not found create new info[%v]", info)
+		logger.Info("Validating with cache")
+		logger.Info("HandleWriter: not found create new info[%v]", info)
 		s = NewStream()
 		svc.mux.Store(info.Key, s)
 		s.info = info

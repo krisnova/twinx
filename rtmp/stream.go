@@ -77,7 +77,6 @@ func (s *Stream) Copy(dst *Stream) {
 
 func (s *Stream) AddReader(r ReadCloser) {
 	s.r = r
-	go s.TransStart()
 }
 
 func (s *Stream) AddWriter(w WriteCloser) {
@@ -242,7 +241,7 @@ func (s *Stream) SendStaticPush(packet Packet) {
 	}
 }
 
-func (s *Stream) TransStart() {
+func (s *Stream) TransactionStart() {
 	logger.Info("Starting stream transaction")
 	s.isStart = true
 	var p Packet
@@ -255,6 +254,7 @@ func (s *Stream) TransStart() {
 			return
 		}
 		err := s.r.Read(&p)
+
 		if err != nil {
 			s.closeInter()
 			s.isStart = false
