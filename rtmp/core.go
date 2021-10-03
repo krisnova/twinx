@@ -358,7 +358,7 @@ func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool 
 			if chunkStream.exited {
 				b, err := r.Peek(4)
 				if err != nil {
-					return err
+					return TestableEOFError
 				}
 				tmpts := binary.BigEndian.Uint32(b)
 				if tmpts == chunkStream.Timestamp {

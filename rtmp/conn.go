@@ -83,7 +83,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	for {
 		h, err := conn.rw.ReadUintBE(1)
 		if err != nil {
-			return TestableEOFError
+			//return TestableEOFError
 		}
 		format := h >> 6
 		csid := h & 0x3f
@@ -97,7 +97,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 
 		err = cs.readChunk(conn.rw, conn.remoteChunkSize, conn.pool)
 		if err != nil {
-			return err
+			return TestableEOFError
 		}
 
 		conn.chunks[csid] = cs

@@ -174,7 +174,7 @@ func TestSetChunksize(t *testing.T) {
 	at.Equal(len(c.Data), 307)
 
 	// 设置chunksize
-	// EN: Set Chunksize
+	// EN: SetChunksize
 	chunkBuf := []byte{0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x96}
 	conn.rw = NewReadWriter(bytes.NewBuffer(chunkBuf), 1024)
