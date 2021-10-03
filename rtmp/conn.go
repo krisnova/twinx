@@ -41,7 +41,7 @@ package rtmp
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"net"
 	"time"
 )
@@ -72,6 +72,10 @@ func NewConn(c net.Conn, bufferSize int) *Conn {
 	}
 }
 
+var (
+	TestableEOFError = errors.New("reading bytes from client: EOF")
+)
+
 func (conn *Conn) Read(c *ChunkStream) error {
 	// Read big endian bytes from the conn until we build a complete
 	// chunk based on the chunk stream length and the chunk
@@ -79,7 +83,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	for {
 		h, err := conn.rw.ReadUintBE(1)
 		if err != nil {
-			return fmt.Errorf("reading bytes from client: %v", err)
+			return TestableEOFError
 		}
 		format := h >> 6
 		csid := h & 0x3f
@@ -104,7 +108,8 @@ func (conn *Conn) Read(c *ChunkStream) error {
 		}
 	}
 
-	// RTMP Can update chunk size so let's just check
+	// RTMP Can update chunk size so let's just check.
+	// This is also required for our tests.
 	if c.TypeID == SetChunkSizeMessageID {
 		conn.remoteChunkSize = binary.BigEndian.Uint32(c.Data)
 	} else if c.TypeID == WindowAcknowledgementSizeMessageID {
@@ -112,6 +117,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	}
 
 	// We should now have a complete chunk.
+
 	return nil
 }
 
@@ -189,7 +195,7 @@ func (conn *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {
 	return ret
 }
 
-func (conn *Conn) SetBegin() {
+func (conn *Conn) messageUserControlStreamBegin() {
 	ret := conn.userControlMsg(StreamBegin, 4)
 	for i := 0; i < 4; i++ {
 		ret.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)

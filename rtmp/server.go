@@ -149,36 +149,40 @@ func (s *Server) handleConn(conn *Conn) error {
 	for {
 		if connSrv.IsPublisher() {
 			// Once we are connected plumb the stream through
-			reader := NewVirReader(connSrv)
-			s.handler.HandleReader(reader)
-			return nil
+			//reader := NewVirReader(connSrv)
+			//s.handler.HandleReader(reader)
+			//return nil
 		}
 		chunk, err := connSrv.ReadPacket()
 		if err != nil {
 			logger.Critical("reading chunk from client: %v", err)
 		}
-		logger.Debug("Message received from client: %s", typeIDString(chunk))
+		//logger.Debug("Message received from client: %s", typeIDString(chunk))
 
 		switch chunk.TypeID {
 		case SetChunkSizeMessageID:
 			// 5.4.1. Set Chunk Size (1)
-			//conn.chunkSize = chunk.Length
-			//conn.ack(chunk.Length)
-			conn.remoteChunkSize = binary.BigEndian.Uint32(chunk.Data)
+			logger.Info("Message: SetChunkSize")
+			chunkSize := binary.BigEndian.Uint32(chunk.Data)
+			logger.Info("   Setting remoteChunkSize: %d", chunkSize)
+			conn.remoteChunkSize = chunkSize
 			conn.ack(chunk.Length)
 		case AbortMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case AcknowledgementMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case WindowAcknowledgementSizeMessageID:
-			conn.remoteWindowAckSize = binary.BigEndian.Uint32(chunk.Data)
-			conn.ack(chunk.Length)
+			logger.Info("Message: WindowAcknowledgementSize")
+			ackSize := binary.BigEndian.Uint32(chunk.Data)
+			logger.Info("   Setting windowAcknowledgementSize: %d", ackSize)
+			conn.remoteWindowAckSize = ackSize
 		case SetPeerBandwidthMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case UserControlMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case CommandMessageAMF0ID, CommandMessageAMF3ID:
 			// Handle the command message
+			// Note: There are sub-command messages logged in the next method
 			err := connSrv.messageCommand(chunk)
 			if err != nil {
 				logger.Critical("command message: %v", err)

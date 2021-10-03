@@ -96,7 +96,7 @@ func (c *ConnServer) messageCommand(packet *ChunkStream) error {
 		return err
 	}
 
-	logger.Debug("Raw Command Message from Client: %#v", vs)
+	//logger.Debug("   Raw Command Message from Client: %#v", vs)
 	// []interface {}{"connect", 1, amf.Object{"app":"twinx", "flashVer":"FMLE/3.0 (compatible; FMSc/1.0)", "swfUrl":"rtmp://localhost:1935/twinx", "tcUrl":"rtmp://localhost:1935/twinx", "type":"nonprivate"}}
 	// []interface {}{"releaseStream", 2, interface {}(nil), "1234"}
 	// []interface {}{"FCPublish", 3, interface {}(nil), "1234"}
@@ -106,34 +106,42 @@ func (c *ConnServer) messageCommand(packet *ChunkStream) error {
 	case string:
 		switch vs[0].(string) {
 		case CommandConnect:
+			logger.Info("Command: %s ", CommandConnect)
 			if err = c.messageCommandConnect(vs[1:]); err != nil {
 				return err
 			}
+			logger.Info("   Response: connect")
 			if err = c.messageCommandConnectResponse(packet); err != nil {
 				return err
 			}
 			c.isConnected = true
 		case CommandCreateStream:
+			logger.Info("Command: %s", CommandCreateStream)
 			if err = c.messageCommandCreateStream(vs[1:]); err != nil {
 				return err
 			}
+			logger.Info("   Response: createStream")
 			if err = c.messageCommandCreateStreamResponse(packet); err != nil {
 				return err
 			}
 			c.isConnected = true
 		case CommandPublish:
+			logger.Info("Command: %s", CommandPublish)
 			if err = c.messageCommandPlayPublish(vs[1:]); err != nil {
 				return err
 			}
+			logger.Info("   Response: publish")
 			if err = c.messageCommandPublishResponse(packet); err != nil {
 				return err
 			}
 			c.isConnected = true
 			c.isPublisher = true
 		case CommandPlay:
+			logger.Info("Command: %s", CommandPlay)
 			if err = c.messageCommandPlayPublish(vs[1:]); err != nil {
 				return err
 			}
+			logger.Info("   Response: play")
 			if err = c.messageCommandPlayResponse(packet); err != nil {
 				return err
 			}
@@ -238,10 +246,7 @@ func (c *ConnServer) messageCommandPlayPublish(vs []interface{}) error {
 }
 
 func (c *ConnServer) messageCommandPublishResponse(cur *ChunkStream) error {
-	c.conn.SetBegin()
-	//logger.Info("SetBegin()")
-	////reader := NewVirReader(connSrv)
-	////s.handler.HandleReader(reader)
+	c.conn.messageUserControlStreamBegin()
 	event := make(amf.Object)
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPublishStart
@@ -251,7 +256,7 @@ func (c *ConnServer) messageCommandPublishResponse(cur *ChunkStream) error {
 
 func (c *ConnServer) messageCommandPlayResponse(cur *ChunkStream) error {
 	c.conn.SetRecorded()
-	c.conn.SetBegin()
+	c.conn.messageUserControlStreamBegin()
 
 	event := make(amf.Object)
 	event[ConnEventLevel] = ConnEventStatus

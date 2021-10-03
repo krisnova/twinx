@@ -34,7 +34,6 @@ import (
 
 	"github.com/kris-nova/logger"
 
-	"github.com/gwuhaolin/livego/configure"
 	"github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/gwuhaolin/livego/utils/pio"
 	"github.com/gwuhaolin/livego/utils/uid"
@@ -393,7 +392,7 @@ func (f *FlvDvr) GetWriter(info Info) WriteCloser {
 		return nil
 	}
 
-	flvDir := configure.Config.GetString("flv_dir")
+	flvDir := "UNSET"
 
 	err := os.MkdirAll(path.Join(flvDir, paths[0]), 0755)
 	if err != nil {

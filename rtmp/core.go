@@ -86,11 +86,11 @@ const (
 	// server can change this value, and updates its peer using this
 	// message.
 
-	DefaultRTMPChunkSizeBytes uint32 = 128
-	DefaultRTMPChunkSizeBytesLarge uint32 = DefaultRTMPChunkSizeBytes * 64
-	DefaultWindowAcknowledgementSizeBytes      uint32 = 2500000
-	DefaultPeerBandwidthSizeBytes      uint32 = 2500000
-	DefaultMaximumPoolSizeBytes int = 512 * 1024
+	DefaultRTMPChunkSizeBytes             uint32 = 128
+	DefaultRTMPChunkSizeBytesLarge        uint32 = DefaultRTMPChunkSizeBytes * 64
+	DefaultWindowAcknowledgementSizeBytes uint32 = 2500000
+	DefaultPeerBandwidthSizeBytes         uint32 = 2500000
+	DefaultMaximumPoolSizeBytes           int    = 512 * 1024
 
 	DefaultServerFMSVersion string = "FMS/3,0,1,123"
 
@@ -456,10 +456,9 @@ type ConnectInfo struct {
 }
 
 const (
-
-	ConnInfoKeyApp string = "app"
-	ConnInfoKeyTcURL string = "tcUrl"
-	ConnInfoKeyFlashVer string = "flashVer"
+	ConnInfoKeyApp         string = "app"
+	ConnInfoKeyTcURL       string = "tcUrl"
+	ConnInfoKeyFlashVer    string = "flashVer"
 	ConnInfoObjectEncoding string = "objectEncoding"
 )
 
@@ -469,7 +468,7 @@ type ConnResp struct {
 }
 
 const (
-	ConnRespFMSVer string = "fmsVer"
+	ConnRespFMSVer       string = "fmsVer"
 	ConnRespCapabilities string = "capabilities"
 )
 
@@ -481,11 +480,11 @@ type ConnEvent struct {
 }
 
 const (
-	ConnEventLevel string = "level"
-	ConnEventCode string = "code"
-	ConnEventDescription string = "description"
+	ConnEventLevel          string = "level"
+	ConnEventCode           string = "code"
+	ConnEventDescription    string = "description"
 	ConnEventObjectEncoding string = "objectEncoding"
-	ConnEventStatus string = "status"
+	ConnEventStatus         string = "status"
 )
 
 type PublishInfo struct {
