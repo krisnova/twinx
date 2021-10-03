@@ -145,7 +145,14 @@ func (s *Server) handleConn(conn *Conn) error {
 	}
 
 	connSrv := NewConnServer(conn)
+
 	for {
+		if connSrv.IsPublisher() {
+			// Once we are connected plumb the stream through
+			reader := NewVirReader(connSrv)
+			s.handler.HandleReader(reader)
+			return nil
+		}
 		chunk, err := connSrv.ReadPacket()
 		if err != nil {
 			logger.Critical("reading chunk from client: %v", err)
@@ -160,17 +167,16 @@ func (s *Server) handleConn(conn *Conn) error {
 			conn.remoteChunkSize = binary.BigEndian.Uint32(chunk.Data)
 			conn.ack(chunk.Length)
 		case AbortMessageID:
-			//return AbortMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case AcknowledgementMessageID:
-			//return AcknowledgementMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case WindowAcknowledgementSizeMessageID:
-			//return WindowAcknowledgementSizeMessage
 			conn.remoteWindowAckSize = binary.BigEndian.Uint32(chunk.Data)
 			conn.ack(chunk.Length)
 		case SetPeerBandwidthMessageID:
-			//return SetPeerBandwidthMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case UserControlMessageID:
-			//return UserControlMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case CommandMessageAMF0ID, CommandMessageAMF3ID:
 			// Handle the command message
 			err := connSrv.messageCommand(chunk)
@@ -178,17 +184,16 @@ func (s *Server) handleConn(conn *Conn) error {
 				logger.Critical("command message: %v", err)
 			}
 		case DataMessageAMF0ID, DataMessageAMF3ID:
-			//return DataMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
-			//return SharedObjectMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case AudioMessageID:
-			//return AudioMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case VideoMessageID:
-			//return VideoMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		case AggregateMessageID:
-			//return AggregateMessage
+			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 		default:
-			//return UnknownMessageID
 			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
 
 		}

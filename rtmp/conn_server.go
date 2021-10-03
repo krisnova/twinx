@@ -52,6 +52,7 @@ type ConnServer struct {
 	done          bool
 	streamID      int
 	isPublisher   bool
+	isConnected   bool
 	conn          *Conn
 	transactionID int
 	ConnInfo      ConnectInfo
@@ -111,6 +112,7 @@ func (c *ConnServer) messageCommand(packet *ChunkStream) error {
 			if err = c.messageCommandConnectResponse(packet); err != nil {
 				return err
 			}
+			c.isConnected = true
 		case CommandCreateStream:
 			if err = c.messageCommandCreateStream(vs[1:]); err != nil {
 				return err
@@ -118,6 +120,7 @@ func (c *ConnServer) messageCommand(packet *ChunkStream) error {
 			if err = c.messageCommandCreateStreamResponse(packet); err != nil {
 				return err
 			}
+			c.isConnected = true
 		case CommandPublish:
 			if err = c.messageCommandPlayPublish(vs[1:]); err != nil {
 				return err
@@ -125,7 +128,7 @@ func (c *ConnServer) messageCommand(packet *ChunkStream) error {
 			if err = c.messageCommandPublishResponse(packet); err != nil {
 				return err
 			}
-			c.done = true
+			c.isConnected = true
 			c.isPublisher = true
 		case CommandPlay:
 			if err = c.messageCommandPlayPublish(vs[1:]); err != nil {
@@ -210,8 +213,8 @@ func (c *ConnServer) messageCommandCreateStream(vs []interface{}) error {
 	return nil
 }
 
-func (c *ConnServer) messageCommandCreateStreamResponse(cur *ChunkStream) error {
-	return c.writeMsg(cur.CSID, cur.StreamID, CommandType_Result, c.transactionID, nil, c.streamID)
+func (c *ConnServer) messageCommandCreateStreamResponse(packet *ChunkStream) error {
+	return c.writeMsg(packet.CSID, packet.StreamID, CommandType_Result, c.transactionID, nil, c.streamID)
 }
 
 // messageCommandPlayPublish will respond to both play and publish commands
@@ -235,11 +238,15 @@ func (c *ConnServer) messageCommandPlayPublish(vs []interface{}) error {
 }
 
 func (c *ConnServer) messageCommandPublishResponse(cur *ChunkStream) error {
+	c.conn.SetBegin()
+	//logger.Info("SetBegin()")
+	////reader := NewVirReader(connSrv)
+	////s.handler.HandleReader(reader)
 	event := make(amf.Object)
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPublishStart
 	event[ConnEventDescription] = "Start publishing."
-	return c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event)
+	return c.writeMsg(cur.CSID, cur.StreamID, CommandType_Result, 0, nil, event)
 }
 
 func (c *ConnServer) messageCommandPlayResponse(cur *ChunkStream) error {
@@ -275,6 +282,10 @@ func (c *ConnServer) messageCommandPlayResponse(cur *ChunkStream) error {
 		return err
 	}
 	return c.conn.Flush()
+}
+
+func (c *ConnServer) IsConnected() bool {
+	return c.isConnected
 }
 
 func (c *ConnServer) IsPublisher() bool {
