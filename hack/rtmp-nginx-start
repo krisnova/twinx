@@ -26,7 +26,7 @@
 HERE="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 cd ${HERE}
 
-echo "rtmp://localhost:1945/twinx"
+echo "rtmp://localhost:1935/twinx"
 echo "Nginx Proxy listening..."
 
 sudo -E nginx -c ${HERE}/etc/nginx.conf

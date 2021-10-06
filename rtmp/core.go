@@ -115,9 +115,10 @@ const (
 	CommandFCPublish       string = "FCPublish"
 	CommandFCUnpublish     string = "FCUnpublish"
 
+	//CommandOnStatus                = "CommandOnStatus"
 	CommandType_Result             = "_result"
 	CommandType_Error              = "_error"
-	CommandOnStatus                = "CommandOnStatus"
+	CommandType_OnStatus           = "onStatus"
 	CommandNetStreamPublishStart   = "NetStream.Publish.Start"
 	CommandNetStreamPublishNotify  = "NetStream.Publish.Notify"
 	CommandNetStreamPlayStart      = "NetStream.Play.Start"

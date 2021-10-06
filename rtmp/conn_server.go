@@ -251,7 +251,7 @@ func (c *ConnServer) messageCommandPublishResponse(cur *ChunkStream) error {
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPublishStart
 	event[ConnEventDescription] = "Start publishing."
-	return c.writeMsg(cur.CSID, cur.StreamID, CommandType_Result, 0, nil, event)
+	return c.writeMsg(cur.CSID, cur.StreamID, CommandType_OnStatus, 0, nil, event)
 }
 
 func (c *ConnServer) messageCommandPlayResponse(cur *ChunkStream) error {
@@ -262,28 +262,28 @@ func (c *ConnServer) messageCommandPlayResponse(cur *ChunkStream) error {
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPlayReset
 	event[ConnEventDescription] = "Playing and resetting stream."
-	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandType_OnStatus, 0, nil, event); err != nil {
 		return err
 	}
 
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPlayStart
 	event[ConnEventDescription] = "Started playing stream."
-	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandType_OnStatus, 0, nil, event); err != nil {
 		return err
 	}
 
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamDataStart
 	event[ConnEventDescription] = "Started playing stream."
-	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandType_OnStatus, 0, nil, event); err != nil {
 		return err
 	}
 
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPublishNotify
 	event[ConnEventDescription] = "Started playing notify."
-	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandOnStatus, 0, nil, event); err != nil {
+	if err := c.writeMsg(cur.CSID, cur.StreamID, CommandType_OnStatus, 0, nil, event); err != nil {
 		return err
 	}
 	return c.conn.Flush()
