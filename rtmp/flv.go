@@ -367,7 +367,7 @@ func (writer *FLVWriter) Wait() {
 	}
 }
 
-func (writer *FLVWriter) Close(error) {
+func (writer *FLVWriter) Close() {
 	if writer.closedWriter {
 		return
 	}

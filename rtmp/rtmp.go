@@ -146,7 +146,7 @@ type Alive interface {
 
 type Closer interface {
 	Info() Info
-	Close(error)
+	Close()
 }
 
 type CalcTime interface {

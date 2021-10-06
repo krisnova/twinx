@@ -67,6 +67,7 @@ type ConnClient struct {
 	encoder    *amf.Encoder
 	decoder    *amf.Decoder
 	bytesw     *bytes.Buffer
+	Addr       *Addr
 }
 
 func NewConnClient() *ConnClient {
@@ -78,182 +79,165 @@ func NewConnClient() *ConnClient {
 	}
 }
 
-func (connClient *ConnClient) DecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
-	vs, err := connClient.decoder.DecodeBatch(r, ver)
+func (cc *ConnClient) DecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
+	vs, err := cc.decoder.DecodeBatch(r, ver)
 	return vs, err
 }
 
-// readRespMsg will parse a message from a server
-func (connClient *ConnClient) readRespMsg() error {
-	var err error
-	var rc ChunkStream
+func (cc *ConnClient) readRespMsg() error {
+
+	var x ChunkStream
 	for {
-		if err = connClient.conn.Read(&rc); err != nil {
-			return fmt.Errorf("error reading message from server: %v", err)
+		if err := cc.conn.Read(&x); err != nil {
+			return err
 		}
-		if err != nil && err != io.EOF {
-			return fmt.Errorf("error reading message from server [non-EOF]: %v", err)
-		}
-		switch rc.TypeID {
 
-		//Command Message (20, 17)
-		// Command messages carry the AMF-encoded commands between the client
-		// and the server. These messages have been assigned message type value
-		// of 20 for AMF0 encoding and message type value of 17 for AMF3
-		// encoding. These messages are sent to perform some operations like
-		// connect, createStream, publish, play, pause on the peer. Command
-		// messages like onstatus, result etc. are used to inform the sender
-		// about the status of the requested commands. A command message
-		// consists of command name, transaction ID, and command object that
-		// contains related parameters. A client or a server can request Remote
-		// Procedure Calls (RPC) over streams that are communicated using the
-		// command messages to the peer.
-		case 20, 17:
-			r := bytes.NewReader(rc.Data)
-			rspMsgMap, err := connClient.decoder.DecodeBatch(r, amf.AMF0)
+		switch x.TypeID {
+		case SetChunkSizeMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case AbortMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case AcknowledgementMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case WindowAcknowledgementSizeMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case SetPeerBandwidthMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case UserControlMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case CommandMessageAMF0ID, CommandMessageAMF3ID:
+			xReader := bytes.NewReader(x.Data)
+			values, err := cc.decoder.DecodeBatch(xReader, amf.AMF0)
 			if err != nil && err != io.EOF {
-				logger.Warning("Decoding batch: %v", err)
+				return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.Addr.SafeURL(), err)
 			}
-
-			logger.Debug("Reading raw message from server: %v", rspMsgMap)
-
-			for k, v := range rspMsgMap {
-				logger.Debug("respMap %v: %v", k, v)
-
+			for _, v := range values {
 				switch v.(type) {
 				case string:
-					logger.Warning("Unimplemented type in readRespMsg")
 				case float64:
-
 				case amf.Object:
-					objmap := v.(amf.Object)
-					switch connClient.curcmdName {
+					// Todo unmarshal this into ConnEvent
+					entity := v.(amf.Object)
+					switch cc.curcmdName {
 					case CommandConnect:
-						code, ok := objmap["code"]
+						code, ok := entity[ConnEventCode]
 						if ok && code.(string) != CommandNetStreamConnectSuccess {
 							return fmt.Errorf("unable to connect: error code: %d", code)
 						}
 					case CommandPublish:
-						code, ok := objmap["code"]
+						code, ok := entity[ConnEventCode]
 						if ok && code.(string) != CommandNetStreamPublishStart {
 							return fmt.Errorf("unable to publish: error code: %d", code)
 						}
 					}
 				}
 			}
-			break
-		//Data Message (18, 15)
-		// The client or the server sends this message to send Metadata or any
-		// user data to the peer. Metadata includes details about the
-		// data(audio, video etc.) like creation time, duration, theme and so
-		// on. These messages have been assigned message type value of 18 for
-		// AMF0 and message type value of 15 for AMF3.
-		case 18, 15:
-			break
-		//7.1.3. Shared Object Message (19, 16)
-		case 19, 16:
-			break
-		//7.1.4. Audio Message (8)
-		case 8:
-			break
-		//7.1.5. Video Message (9)
-		case 9:
-			break
+
+		case DataMessageAMF0ID, DataMessageAMF3ID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case AudioMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case VideoMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		case AggregateMessageID:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+		default:
+			logger.Critical("unsupported messageID: %s", typeIDString(&x))
 		}
 	}
 }
 
-func (connClient *ConnClient) writeMsg(args ...interface{}) error {
-	connClient.bytesw.Reset()
+func (cc *ConnClient) writeMsg(args ...interface{}) error {
+	cc.bytesw.Reset()
 	for _, v := range args {
-		if _, err := connClient.encoder.Encode(connClient.bytesw, v, amf.AMF0); err != nil {
+		if _, err := cc.encoder.Encode(cc.bytesw, v, amf.AMF0); err != nil {
 			return err
 		}
 	}
-	msg := connClient.bytesw.Bytes()
+	msg := cc.bytesw.Bytes()
 	c := ChunkStream{
 		Format:    0,
 		CSID:      3,
 		Timestamp: 0,
 		TypeID:    20,
-		StreamID:  connClient.streamid,
+		StreamID:  cc.streamid,
 		Length:    uint32(len(msg)),
 		Data:      msg,
 	}
-	connClient.conn.Write(&c)
-	return connClient.conn.Flush()
+	cc.conn.Write(&c)
+	return cc.conn.Flush()
 }
 
-func (connClient *ConnClient) writeConnectMsg() error {
+func (cc *ConnClient) writeConnectMsg() error {
 	event := make(amf.Object)
-	event["app"] = connClient.app
+	event["app"] = cc.app
 	event["type"] = "nonprivate"
 	event["flashVer"] = "FMS.3.1"
-	event["tcUrl"] = connClient.tcurl
-	connClient.curcmdName = CommandConnect
+	event["tcUrl"] = cc.tcurl
+	cc.curcmdName = CommandConnect
 
-	logger.Info("writeConnectMsg: connClient.transID=%d, event=%v", connClient.transID, event)
-	if err := connClient.writeMsg(CommandConnect, connClient.transID, event); err != nil {
+	//logger.Info("writeConnectMsg: cc.transID=%d, event=%v", cc.transID, event)
+	if err := cc.writeMsg(CommandConnect, cc.transID, event); err != nil {
 		return err
 	}
-	return connClient.readRespMsg()
+	return cc.readRespMsg()
 }
 
-func (connClient *ConnClient) writeCreateStreamMsg() error {
-	connClient.transID++
-	connClient.curcmdName = CommandCreateStream
+func (cc *ConnClient) writeCreateStreamMsg() error {
+	cc.transID++
+	cc.curcmdName = CommandCreateStream
 
-	logger.Info("writeCreateStreamMsg: connClient.transID=%d", connClient.transID)
-	if err := connClient.writeMsg(CommandCreateStream, connClient.transID, nil); err != nil {
+	//logger.Info("writeCreateStreamMsg: cc.transID=%d", cc.transID)
+	if err := cc.writeMsg(CommandCreateStream, cc.transID, nil); err != nil {
 		return err
 	}
 
-	err := connClient.readRespMsg()
+	err := cc.readRespMsg()
 	if err == nil {
 		return nil
 	}
 
-	logger.Info("writeCreateStreamMsg readRespMsg err=%v", err)
+	//logger.Info("writeCreateStreamMsg readRespMsg err=%v", err)
 	return err
 
 }
 
-func (connClient *ConnClient) writePublishMsg() error {
-	connClient.transID++
-	connClient.curcmdName = CommandPublish
-	if err := connClient.writeMsg(CommandPublish, connClient.transID, nil, connClient.title, PublishCommandLive); err != nil {
+func (cc *ConnClient) writePublishMsg() error {
+	cc.transID++
+	cc.curcmdName = CommandPublish
+	if err := cc.writeMsg(CommandPublish, cc.transID, nil, cc.title, PublishCommandLive); err != nil {
 		return err
 	}
-	return connClient.readRespMsg()
+	return cc.readRespMsg()
 }
 
-func (connClient *ConnClient) writePlayMsg() error {
-	connClient.transID++
-	connClient.curcmdName = CommandPlay
-	logger.Info("writePlayMsg: connClient.transID=%d, CommandPlay=%v, connClient.title=%v",
-		connClient.transID, CommandPlay, connClient.title)
+func (cc *ConnClient) writePlayMsg() error {
+	cc.transID++
+	cc.curcmdName = CommandPlay
 
-	if err := connClient.writeMsg(CommandPlay, 0, nil, connClient.title); err != nil {
+	if err := cc.writeMsg(CommandPlay, 0, nil, cc.title); err != nil {
 		return err
 	}
-	return connClient.readRespMsg()
+	return cc.readRespMsg()
 }
 
-func (connClient *ConnClient) Start(url string, method string) error {
+func (cc *ConnClient) Start(url string, method string) error {
 	u, err := neturl.Parse(url)
 	if err != nil {
 		return err
 	}
-	connClient.url = url
+	cc.url = url
 	path := strings.TrimLeft(u.Path, "/")
 	ps := strings.SplitN(path, "/", 2)
 	if len(ps) != 2 {
 		return fmt.Errorf("u path err: %s", path)
 	}
-	connClient.app = ps[0]
-	connClient.title = ps[1]
-	connClient.query = u.RawQuery
-	connClient.tcurl = "rtmp://" + u.Host + "/" + connClient.app
+	cc.app = ps[0]
+	cc.title = ps[1]
+	cc.query = u.RawQuery
+	cc.tcurl = "rtmp://" + u.Host + "/" + cc.app
 	port := ":1935"
 	host := u.Host
 	localIP := ":0"
@@ -267,7 +251,7 @@ func (connClient *ConnClient) Start(url string, method string) error {
 	}
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		logger.Warning("look up host IP: %v", err)
+		//logger.Warning("look up host IP: %v", err)
 		return err
 	}
 	remoteIP = ips[rand.Intn(len(ips))].String()
@@ -277,50 +261,50 @@ func (connClient *ConnClient) Start(url string, method string) error {
 
 	local, err := net.ResolveTCPAddr("tcp", localIP)
 	if err != nil {
-		logger.Warning("Proxy (local) resolve TCP addr: %v", err)
+		//logger.Warning("Proxy (local) resolve TCP addr: %v", err)
 		return err
 	}
 	remote, err := net.ResolveTCPAddr("tcp", remoteIP)
 	if err != nil {
-		logger.Warning("Proxy (remote) resolve TCP addr: %v", err)
+		//logger.Warning("Proxy (remote) resolve TCP addr: %v", err)
 		return err
 	}
 	conn, err := net.DialTCP("tcp", local, remote)
 	if err != nil {
-		logger.Critical("Bridging proxy connection from local -> remote %v", err)
+		//logger.Critical("Bridging proxy connection from local -> remote %v", err)
 		return err
 	}
 
-	//logger.Info("Connection")
-	logger.Info("connection:", "local:", conn.LocalAddr(), "remote:", conn.RemoteAddr())
+	////logger.Info("Connection")
+	//logger.Info("connection:", "local:", conn.LocalAddr(), "remote:", conn.RemoteAddr())
 
-	connClient.conn = NewConn(conn, 4*1024)
+	cc.conn = NewConn(conn, 4*1024)
 
-	if err := connClient.conn.HandshakeClient(); err != nil {
-		logger.Warning("[RTMP] Handshake", err)
+	if err := cc.conn.HandshakeClient(); err != nil {
+		//logger.Warning("[RTMP] Handshake", err)
 		return err
 	}
-	logger.Debug("[RTMP] Handshake")
+	//logger.Debug("[RTMP] Handshake")
 
-	if err := connClient.writeConnectMsg(); err != nil {
-		logger.Warning("[RTMP] Connecting", err)
+	if err := cc.writeConnectMsg(); err != nil {
+		//logger.Warning("[RTMP] Connecting", err)
 		return err
 	}
-	logger.Debug("[RTMP] Connecting")
+	//logger.Debug("[RTMP] Connecting")
 
-	if err := connClient.writeCreateStreamMsg(); err != nil {
-		logger.Warning("[RTMP] Creating Stream", err)
+	if err := cc.writeCreateStreamMsg(); err != nil {
+		//logger.Warning("[RTMP] Creating Stream", err)
 		return err
 	}
-	logger.Debug("[RTMP] Creating Stream")
+	//logger.Debug("[RTMP] Creating Stream")
 
-	logger.Info("Method control: %s %s %s", method, av.PUBLISH, av.PLAY)
+	//logger.Info("Method control: %s %s %s", method, av.PUBLISH, av.PLAY)
 	if method == av.PUBLISH {
-		if err := connClient.writePublishMsg(); err != nil {
+		if err := cc.writePublishMsg(); err != nil {
 			return err
 		}
 	} else if method == av.PLAY {
-		if err := connClient.writePlayMsg(); err != nil {
+		if err := cc.writePlayMsg(); err != nil {
 			return err
 		}
 	}
@@ -328,7 +312,7 @@ func (connClient *ConnClient) Start(url string, method string) error {
 	return nil
 }
 
-func (connClient *ConnClient) Write(c ChunkStream) error {
+func (cc *ConnClient) Write(c ChunkStream) error {
 	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
 		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
 		var err error
@@ -337,28 +321,28 @@ func (connClient *ConnClient) Write(c ChunkStream) error {
 		}
 		c.Length = uint32(len(c.Data))
 	}
-	return connClient.conn.Write(&c)
+	return cc.conn.Write(&c)
 }
 
-func (connClient *ConnClient) Flush() error {
-	return connClient.conn.Flush()
+func (cc *ConnClient) Flush() error {
+	return cc.conn.Flush()
 }
 
-func (connClient *ConnClient) Read(c *ChunkStream) (err error) {
-	return connClient.conn.Read(c)
+func (cc *ConnClient) Read(c *ChunkStream) (err error) {
+	return cc.conn.Read(c)
 }
 
-func (connClient *ConnClient) GetInfo() (app string, name string, url string) {
-	app = connClient.app
-	name = connClient.title
-	url = connClient.url
+func (cc *ConnClient) GetInfo() (app string, name string, url string) {
+	app = cc.app
+	name = cc.title
+	url = cc.url
 	return
 }
 
-func (connClient *ConnClient) GetStreamId() uint32 {
-	return connClient.streamid
+func (cc *ConnClient) GetStreamId() uint32 {
+	return cc.streamid
 }
 
-func (connClient *ConnClient) Close(err error) {
-	connClient.conn.Close()
+func (cc *ConnClient) Close() {
+	cc.conn.Close()
 }

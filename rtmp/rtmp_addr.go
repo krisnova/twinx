@@ -147,7 +147,13 @@ func (a *Addr) Host() string {
 	return a.host
 }
 
-// StreamURL is a resolvable stream URL that can be played, published, or relayed.
+// SafeURL will log the StreamURL() without the key.
+//  rtmp://localhost:1935/app/[obfuscated]
+func (a *Addr) SafeURL() string {
+	return fmt.Sprintf("%s://%s/%s", a.scheme, a.host, a.app)
+}
+
+// StreamURL is a resolvable stream URL that can be played, published, or proxied.
 //  rtmp://localhost:1935/app/key
 func (a *Addr) StreamURL() string {
 	return fmt.Sprintf("%s://%s/%s/%s", a.scheme, a.host, a.app, a.key)

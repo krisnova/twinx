@@ -247,7 +247,7 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 
 	// Run the server in a go routine
 	go func() {
-		logger.Debug("RTMP net.listen TCP %s", addr.Host())
+		logger.Debug("Starting RTMP Server: net.Listen() TCP %s", addr.Host())
 		err = server.Serve(listener)
 		if err != nil {
 			logger.Critical(err.Error())
@@ -303,14 +303,14 @@ func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("unable to start rtmp relay, local server notrunning")
 	}
 
-	logger.Debug("Starting RTMP proxy %s -> %s", a.Local.StreamURL(), addr.StreamURL())
-	relay := twinxrtmp.NewRtmpRelay(S(a.Local.StreamURL()), S(addr.StreamURL()))
+	// play -> publish
+	proxy := twinxrtmp.NewRTMPProxy(a.Local, addr)
 
 	// Cache
 	a.Remotes[addr.StreamURL()] = addr
 
 	go func() {
-		err := relay.Start()
+		err := proxy.Start()
 		if err != nil {
 			logger.Critical("starting RTMP proxy: %v", err)
 		}

@@ -40,3 +40,6 @@ sudo twinx stream start "Title" "Description"
 
 echo "Serving..."
 sudo twinx rtmp start
+
+echo "Proxying..."
+sudo twinx rtmp proxy rtmp://newyork.restream.io/live/${RESTREAM_KEY}

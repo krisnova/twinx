@@ -74,16 +74,16 @@ func NewRtmpClient(h Handler, getter GetWriter) *Client {
 }
 
 func (c *Client) Dial(url string, method string) error {
-	connClient := NewConnClient()
-	if err := connClient.Start(url, method); err != nil {
+	cc := NewConnClient()
+	if err := cc.Start(url, method); err != nil {
 		return err
 	}
 	if method == CommandPublish {
-		writer := NewVirtualWriter(connClient)
+		writer := NewVirtualWriter(cc)
 		logger.Info("client Dial call NewVirtualWriter url=%s, method=%s", url, method)
 		c.handler.HandleWriter(writer)
 	} else if method == CommandPlay {
-		reader := NewVirtualReader(connClient)
+		reader := NewVirtualReader(cc)
 		logger.Info("client Dial call NewVirtualReader url=%s, method=%s", url, method)
 		c.handler.HandleReader(reader)
 		if c.getter != nil {
@@ -153,56 +153,81 @@ func (s *Server) handleConn(conn *Conn) error {
 			// Once we are connected plumb the stream through
 			logger.Debug("Stream ID: %d", connSrv.streamID)
 			logger.Debug("Transaction ID: %d", connSrv.transactionID)
+
+			// **************************************
+			// Hér vera drekar
+			// **************************************
+			//
+			// So here is where I am temporarily
+			// stopping my refactoring of this server
+			// code.
+			//
+			// Ideally we do NOT have to "break" here.
+			// We can clean our code up by having
+			// the client responses funnel through
+			// this main code point.
+			//
+			// The underlying implementation is how
+			// we manage multiplexing onto the various
+			// internal memory pools for each stream.
+			//
+			// Although I WANT to refactor this.
+			// I will not be refactoring this right
+			// now.
+			//
+			// **************************************
 			reader := NewVirtualReader(connSrv)
 			s.service.HandleReader(reader)
+
+			// TODO: Do NOT break here
 			break
 		}
-		chunk, err := connSrv.ReadPacket()
+		x, err := connSrv.ReadPacket()
 		if err != nil {
 			logger.Critical("reading chunk from client: %v", err)
 		}
 		//logger.Debug("Message received from client: %s", typeIDString(chunk))
 
-		switch chunk.TypeID {
+		switch x.TypeID {
 		case SetChunkSizeMessageID:
 			// 5.4.1. Set Chunk Size (1)
 			logger.Info("Message: SetChunkSize")
-			chunkSize := binary.BigEndian.Uint32(chunk.Data)
+			chunkSize := binary.BigEndian.Uint32(x.Data)
 			logger.Info("   Setting remoteChunkSize: %d", chunkSize)
 			conn.remoteChunkSize = chunkSize
-			conn.ack(chunk.Length)
+			conn.ack(x.Length)
 		case AbortMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case AcknowledgementMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case WindowAcknowledgementSizeMessageID:
 			logger.Info("Message: WindowAcknowledgementSize")
-			ackSize := binary.BigEndian.Uint32(chunk.Data)
+			ackSize := binary.BigEndian.Uint32(x.Data)
 			logger.Info("   Setting windowAcknowledgementSize: %d", ackSize)
 			conn.remoteWindowAckSize = ackSize
 		case SetPeerBandwidthMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case UserControlMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case CommandMessageAMF0ID, CommandMessageAMF3ID:
 			// Handle the command message
 			// Note: There are sub-command messages logged in the next method
-			err := connSrv.messageCommand(chunk)
+			err := connSrv.messageCommand(x)
 			if err != nil {
 				logger.Critical("command message: %v", err)
 			}
 		case DataMessageAMF0ID, DataMessageAMF3ID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case AudioMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case VideoMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case AggregateMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		default:
-			logger.Critical("unsupported messageID: %s", typeIDString(chunk))
+			logger.Critical("unsupported messageID: %s", typeIDString(x))
 
 		}
 	}
@@ -219,7 +244,7 @@ type GetInfo interface {
 
 type StreamReadWriteCloser interface {
 	GetInfo
-	Close(error)
+	Close()
 	Write(ChunkStream) error
 	Read(c *ChunkStream) error
 }
@@ -293,7 +318,7 @@ func (v *VirtualWriter) Check() {
 	var c ChunkStream
 	for {
 		if err := v.conn.Read(&c); err != nil {
-			v.Close(err)
+			v.Close()
 			return
 		}
 	}
@@ -403,13 +428,12 @@ func (v *VirtualWriter) Info() (ret Info) {
 	return
 }
 
-func (v *VirtualWriter) Close(err error) {
-	logger.Warning("Client connection closed: %v", err)
+func (v *VirtualWriter) Close() {
 	if !v.closed {
 		close(v.packetQueue)
 	}
 	v.closed = true
-	v.conn.Close(err)
+	v.conn.Close()
 }
 
 type VirtualReader struct {
@@ -502,7 +526,6 @@ func (v *VirtualReader) Info() (ret Info) {
 	return
 }
 
-func (v *VirtualReader) Close(err error) {
-	logger.Warning("Connection closed: %v", err)
-	v.conn.Close(err)
+func (v *VirtualReader) Close() {
+	v.conn.Close()
 }

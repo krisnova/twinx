@@ -324,7 +324,7 @@ func (c *ConnServer) GetInfo() (app string, name string, url string) {
 	return
 }
 
-func (c *ConnServer) Close(err error) {
+func (c *ConnServer) Close() {
 	c.conn.Close()
 }
 
