@@ -90,7 +90,7 @@ const (
 	DefaultRTMPChunkSizeBytesLarge        uint32 = DefaultRTMPChunkSizeBytes * 64
 	DefaultWindowAcknowledgementSizeBytes uint32 = 2500000
 	DefaultPeerBandwidthSizeBytes         uint32 = 2500000
-	DefaultMaximumPoolSizeBytes           int    = 512 * 1024
+	DefaultMaximumPoolSizeBytes           int    = 1024 * 1024 * 512
 
 	DefaultServerFMSVersion string = "FMS/3,0,1,123"
 
@@ -105,6 +105,20 @@ const (
 	// RTMP Spec 5.4
 	// Protocol Control Messages
 
+	// 7.1.1. Command Message (20, 17)
+	//
+	// Command messages carry the AMF-encoded commands between the client
+	// and the server. These messages have been assigned message type value
+	// of 20 for AMF0 encoding and message type value of 17 for AMF3
+	// encoding. These messages are sent to perform some operations like
+	// connect, createStream, publish, play, pause on the peer. Command
+	// messages like onstatus, result etc. are used to inform the sender
+	// about the status of the requested commands. A command message
+	// consists of command name, transaction ID, and command object that
+	// contains related parameters. A client or a server can request Remote
+	// Procedure Calls (RPC) over streams that are communicated using the
+	// command messages to the peer.
+
 	CommandConnect         string = "connect"
 	CommandReleaseStream   string = "releaseStream"
 	CommandCreateStream    string = "createStream"
@@ -115,10 +129,23 @@ const (
 	CommandFCPublish       string = "FCPublish"
 	CommandFCUnpublish     string = "FCUnpublish"
 
-	//CommandOnStatus                = "CommandOnStatus"
-	CommandType_Result             = "_result"
-	CommandType_Error              = "_error"
-	CommandType_OnStatus           = "onStatus"
+	// 7.1.1. Command Message (20, 17)
+	//
+	// Command message responses.
+	//
+	// These are used to inform the sender about the status of the requested commands.
+
+	CommandType_Result  = "_result"
+	CommandType_Error   = "_error"
+	CommandTypeOnStatus = "onStatus"
+
+	// 7.2.2. NetStream Commands
+	//
+	// The NetStream defines the channel through which the streaming audio,
+	// video, and data messages can flow over the NetConnection that
+	// connects the client to the server. A NetConnection object can
+	// support multiple NetStreams for multiple data streams.
+
 	CommandNetStreamPublishStart   = "NetStream.Publish.Start"
 	CommandNetStreamPublishNotify  = "NetStream.Publish.Notify"
 	CommandNetStreamPlayStart      = "NetStream.Play.Start"

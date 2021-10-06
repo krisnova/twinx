@@ -151,7 +151,7 @@ func (s *Server) handleConn(conn *Conn) error {
 	for {
 		if connSrv.IsPublisher() {
 			// Once we are connected plumb the stream through
-			//logger.Debug("Stream ID: %d", connSrv.streamID)
+			logger.Debug("Stream ID: %d", connSrv.streamID)
 			logger.Debug("Transaction ID: %d", connSrv.transactionID)
 			reader := NewVirtualReader(connSrv)
 			s.service.HandleReader(reader)
@@ -207,18 +207,18 @@ func (s *Server) handleConn(conn *Conn) error {
 		}
 	}
 
-	writer := NewVirtualWriter(connSrv)
-	s.service.HandleWriter(writer)
+	//writer := NewVirtualWriter(connSrv)
+	//s.service.HandleWriter(writer)
 
 	return nil
 }
 
-type GetInFo interface {
+type GetInfo interface {
 	GetInfo() (string, string, string)
 }
 
 type StreamReadWriteCloser interface {
-	GetInFo
+	GetInfo
 	Close(error)
 	Write(ChunkStream) error
 	Read(c *ChunkStream) error
@@ -456,9 +456,10 @@ func (v *VirtualReader) SaveStatics(streamid uint32, length uint64, isVideoFlag 
 }
 
 func (v *VirtualReader) Read(p *Packet) (err error) {
+
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Warning("rtmp read packet panic: ", r)
+			logger.Critical("Recovered panic: ", r)
 		}
 	}()
 

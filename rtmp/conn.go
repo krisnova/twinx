@@ -44,6 +44,8 @@ import (
 	"errors"
 	"net"
 	"time"
+
+	"github.com/kris-nova/logger"
 )
 
 type Conn struct {
@@ -77,6 +79,17 @@ var (
 )
 
 func (conn *Conn) Read(c *ChunkStream) error {
+
+	// RTMP Can update chunk size so let's just check.
+	// This is also required for our tests.
+	if c.TypeID == SetChunkSizeMessageID {
+		chunkSize := binary.BigEndian.Uint32(c.Data)
+		logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
+		conn.remoteChunkSize = chunkSize
+	} else if c.TypeID == WindowAcknowledgementSizeMessageID {
+		conn.remoteWindowAckSize = binary.BigEndian.Uint32(c.Data)
+	}
+
 	// Read big endian bytes from the conn until we build a complete
 	// chunk based on the chunk stream length and the chunk
 	// headers.
@@ -94,7 +107,6 @@ func (conn *Conn) Read(c *ChunkStream) error {
 		}
 		cs.tmpFormat = format
 		cs.CSID = csid
-
 		err = cs.readChunk(conn.rw, conn.remoteChunkSize, conn.pool)
 		if err != nil {
 			return TestableEOFError
@@ -112,7 +124,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	// This is also required for our tests.
 	if c.TypeID == SetChunkSizeMessageID {
 		chunkSize := binary.BigEndian.Uint32(c.Data)
-		//logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
+		logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
 		conn.remoteChunkSize = chunkSize
 	} else if c.TypeID == WindowAcknowledgementSizeMessageID {
 		conn.remoteWindowAckSize = binary.BigEndian.Uint32(c.Data)
