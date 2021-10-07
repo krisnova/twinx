@@ -48,6 +48,7 @@ import (
 const (
 	DefaultProtocol          string = "tcp"
 	DefaultLocalHost         string = "localhost"
+	DefaultLo                string = "127.0.0.1"
 	DefaultLocalPort         string = "1935"
 	DefaultScheme            string = "rtmp"
 	DefaultRTMPApp           string = "twinx"

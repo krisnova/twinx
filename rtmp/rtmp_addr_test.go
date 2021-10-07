@@ -80,6 +80,14 @@ func TestAddrs(t *testing.T) {
 		if err != nil {
 			t.Errorf("happyCase error %v", err)
 		}
+		if actual == nil {
+			t.Errorf("nil actual")
+			t.FailNow()
+		}
+		if expected == nil {
+			t.Errorf("nil expected")
+			t.FailNow()
+		}
 		if !assertAddrs(actual, expected) {
 			t.Errorf("Expected: %+v", expected)
 			t.Errorf("Actual: %+v", actual)
