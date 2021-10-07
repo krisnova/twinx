@@ -29,20 +29,32 @@ version=$(shell git rev-parse HEAD)
 
 # Global release version.
 # Change this to bump the build version!
-version="0.3.1"
+version   = "0.0.1"
+bin_twinx = "twinx"
+bin_rtmp  = "twinx-rtmp"
 
-compile: generate ## Compile for the local architecture ⚙
-	@echo "Compiling..."
-	# Note: Bypassing the init() function in gwuhaolin/livego
+compile: generate compile-rtmp ## Compile for the local architecture ⚙
+	@echo "Compiling ${bin_twinx}..."
 	go build \
-		-ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" \
-		-ldflags "-X 'github.com/gwuhaolin/livego/configure.BypassInit=true'" \
-		-o twinx \
+		-ldflags "-X github.com/kris-nova/twinx.CompileTimeVersion=$(version)" \
+		-o bin/${bin_twinx} \
 		cmd/*.go
 
-install: ## Install your twinx 🎉
+compile-rtmp: ## Compile the RTMP tool for the local architecture ⚙
+	@echo "Compiling ${bin_twinx}..."
+	go build \
+		-ldflags "-X github.com/kris-nova/twinx/rtmp.CompileTimeVersion=$(version)" \
+		-o bin/${bin_rtmp} \
+		rtmp/cmd/*.go
+
+install: ## Install your ${bin_twinx} 🎉
 	@echo "Installing..."
-	cp twinx /usr/local/bin/twinx
+	cp bin/twinx /usr/local/bin/twinx
+
+install-rtmp: ## Install your ${bin_twinx} 🎉
+	@echo "Installing gortmp..."
+	cp bin/gortmp /usr/local/bin/gortmp
+
 
 generate: ## Will generate Go code from .proto files in /api
 	@echo "Generating..."
@@ -60,19 +72,16 @@ test: ## 🤓 Test is used to test
 
 clean: ## Clean your artifacts 🧼
 	@echo "Cleaning..."
-	rm -rf release
-	rm -rf embed_*
-	rm -rf twinx
-	rm -rf app
-	rm -rf out/*
+	rm -v bin/twinx
+	rm -v bin/gortmp
 
 release: ## Make the binaries for a GitHub release 📦
 	mkdir -p release
-	GOOS="linux" GOARCH="amd64" go build -ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" -o release/twinx-linux-amd64 cmd/*.go
-	GOOS="linux" GOARCH="arm" go build -ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" -o release/twinx-linux-arm cmd/*.go
-	GOOS="linux" GOARCH="arm64" go build -ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" -o release/twinx-linux-arm64 cmd/*.go
-	GOOS="linux" GOARCH="386" go build -ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" -o release/twinx-linux-386 cmd/*.go
-	GOOS="darwin" GOARCH="amd64" go build -ldflags "-X 'github.com/kris-nova/twinx.Version=$(version)'" -o release/twinx-darwin-amd64 cmd/*.go
+	GOOS="linux" GOARCH="amd64" go build -ldflags "-X 'github.com/kris-nova/twinx.CompileFlagVersion=$(version)'" -o release/twinx-linux-amd64 cmd/*.go
+	GOOS="linux" GOARCH="arm" go build -ldflags "-X 'github.com/kris-nova/twinx.CompileFlagVersion=$(version)'" -o release/twinx-linux-arm cmd/*.go
+	GOOS="linux" GOARCH="arm64" go build -ldflags "-X 'github.com/kris-nova/twinx.CompileFlagVersion=$(version)'" -o release/twinx-linux-arm64 cmd/*.go
+	GOOS="linux" GOARCH="386" go build -ldflags "-X 'github.com/kris-nova/twinx.CompileFlagVersion=$(version)'" -o release/twinx-linux-386 cmd/*.go
+	GOOS="darwin" GOARCH="amd64" go build -ldflags "-X 'github.com/kris-nova/twinx.CompileFlagVersion=$(version)'" -o release/twinx-darwin-amd64 cmd/*.go
 
 
 .PHONY: help

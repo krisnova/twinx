@@ -83,7 +83,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 
 	// cli assumes "-v" for version.
 	// override that here
-	cli.VersionFlag = &cli.BoolFlag{
+	cli.VersionFlag = &cli.StringFlag{
 		Name:    "version",
 		Aliases: []string{"V"},
 		Usage:   "Print the version",
@@ -94,11 +94,10 @@ func RunWithOptions(opt *RuntimeOptions) error {
 	// ********************************************************
 
 	app := &cli.App{
-		Name: "twinx",
-		//HelpName:  "A twitch focused command line tool for producing, archiving and managing live stream content. Built for Linux.",
+		Name:      "twinx",
 		Usage:     "Framework for developing video production automation tasks.",
 		UsageText: ``,
-		Version:   twinx.Version,
+		//Version:   twinx.CompileFlagVersion,
 		Action: func(context *cli.Context) error {
 			cli.ShowSubcommandHelp(context)
 			return nil
