@@ -59,23 +59,22 @@ type InternalProxyControlMessage int
 // Will proxy a publish client stream as a play client
 // stream to a configured endpoint.
 type RTMPProxy struct {
-	playClient     *ConnClient
-	playAddr       *URLAddr
-	publishClient  *ConnClient
-	publishAddr    *URLAddr
+	playClient    *ConnClient
+	playAddr      *URLAddr
+	publishClient *ConnClient
+	publishAddr   *URLAddr
+
 	chunkStreamCh  chan ChunkStream
 	proxyMessageCh chan InternalProxyControlMessage
 	isStreaming    bool
 }
 
-func NewRTMPProxy(play, publish *URLAddr) *RTMPProxy {
+func NewRTMPProxy(play, publish *ConnClient) *RTMPProxy {
 	return &RTMPProxy{
-		playAddr:       play,
-		publishAddr:    publish,
+		playClient:     play,
+		publishClient:  publish,
 		chunkStreamCh:  make(chan ChunkStream, DefaultRTMPChunkSizeBytes*500),
 		proxyMessageCh: make(chan InternalProxyControlMessage),
-		playClient:     nil,
-		publishClient:  nil,
 		isStreaming:    false,
 	}
 }
@@ -150,9 +149,6 @@ func (r *RTMPProxy) txChunkStreamPublish() {
 			r.publishClient.Write(rc)
 		case ctl := <-r.proxyMessageCh:
 			if ctl == StopProxy {
-				//logger.Info("Proxy stop received. Stopping.")
-				//logger.Info("Stopping play(%s)", r.playAddr.SafeURL())
-				logger.Info("Stopping publish(%s)", r.publishAddr.SafeURL())
 				r.publishClient.Close()
 				return
 			}
@@ -162,22 +158,26 @@ func (r *RTMPProxy) txChunkStreamPublish() {
 
 // Start will start proxying packets from one client to another
 func (r *RTMPProxy) Start() error {
+	if r.publishClient == nil {
+		return errors.New("missing publish client")
+	}
+	if r.playClient == nil {
+		return errors.New("missing play client")
+	}
 	if r.isStreaming {
 		return errors.New("proxy already streaming")
 	}
 
 	// [ Play Client Connection ]
-	r.playClient = NewConnClient()
-	err := r.playClient.StartPlay(r.playAddr)
+	err := r.playClient.Play()
 	defer r.playClient.Close()
 	if err != nil {
 		return fmt.Errorf("play(%s) --> [twinx proxy]: %v", r.playAddr.SafeURL(), err)
 	}
 
-	// [ Play Client Connection ]
-	r.publishClient = NewConnClient()
-	err = r.publishClient.StartPublish(r.publishAddr)
-	defer r.playClient.Close()
+	// [ Publish Client Connection ]
+	err = r.publishClient.Publish()
+	defer r.publishClient.Close()
 	if err != nil {
 		return fmt.Errorf("[twinx proxy] --> publish(%s): %v", r.playAddr.SafeURL(), err)
 	}

@@ -41,6 +41,7 @@ package rtmp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 
@@ -54,7 +55,7 @@ type ConnClient struct {
 	urladdr *URLAddr
 
 	method     ClientMethod
-	done       bool
+	connected  bool
 	transID    int
 	url        string
 	tcurl      string
@@ -75,6 +76,60 @@ func NewConnClient() *ConnClient {
 		encoder: &amf.Encoder{},
 		decoder: &amf.Decoder{},
 	}
+}
+
+func (cc *ConnClient) Dial(address string) error {
+	urlAddr, err := NewURLAddr(address)
+	if err != nil {
+		return fmt.Errorf("client dial: %v", err)
+	}
+	conn, err := urlAddr.NewConn()
+	if err != nil {
+		return fmt.Errorf("new conn from addr: %v", err)
+	}
+	cc.conn = conn
+	return nil
+}
+
+func (cc *ConnClient) Publish() error {
+	cc.method = ClientMethodPublish
+	err := cc.connect()
+	if err != nil {
+		return err
+	}
+	if err := cc.writePublishMsg(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cc *ConnClient) Play() error {
+	cc.method = ClientMethodPlay
+	err := cc.connect()
+	if err != nil {
+		return err
+	}
+	if err := cc.writePlayMsg(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cc *ConnClient) connect() error {
+	if cc.connected {
+		return errors.New("already connected")
+	}
+	if err := cc.conn.HandshakeClient(); err != nil {
+		return err
+	}
+	if err := cc.writeConnectMsg(); err != nil {
+		return err
+	}
+	if err := cc.writeCreateStreamMsg(); err != nil {
+		return err
+	}
+	cc.connected = true
+	return nil
 }
 
 func (cc *ConnClient) DecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
@@ -215,52 +270,6 @@ func (cc *ConnClient) writePlayMsg() error {
 		return err
 	}
 	return cc.readRespMsg()
-}
-
-func (cc *ConnClient) StartPublish(addr *URLAddr) error {
-	cc.method = ClientMethodPublish
-	conn, err := addr.NewConn()
-	if err != nil {
-		return fmt.Errorf("new conn from addr: %v", err)
-	}
-	cc.conn = conn
-
-	if err := cc.conn.HandshakeClient(); err != nil {
-		return err
-	}
-	if err := cc.writeConnectMsg(); err != nil {
-		return err
-	}
-	if err := cc.writeCreateStreamMsg(); err != nil {
-		return err
-	}
-	if err := cc.writePublishMsg(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (cc *ConnClient) StartPlay(addr *URLAddr) error {
-	cc.method = ClientMethodPlay
-	conn, err := addr.NewConn()
-	if err != nil {
-		return fmt.Errorf("new conn from addr: %v", err)
-	}
-	cc.conn = conn
-	if err := cc.conn.HandshakeClient(); err != nil {
-		return err
-	}
-	if err := cc.writeConnectMsg(); err != nil {
-		return err
-	}
-	if err := cc.writeCreateStreamMsg(); err != nil {
-		return err
-	}
-	if err := cc.writePlayMsg(); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (cc *ConnClient) Write(c ChunkStream) error {

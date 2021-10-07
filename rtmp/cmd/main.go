@@ -51,6 +51,12 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+var (
+
+	// clientPlay can be opted in to a client.Play() instead of default client.Publish()
+	clientPlay bool = false
+)
+
 func main() {
 	twinx.PrintBanner()
 
@@ -90,8 +96,23 @@ func main() {
 				Name:    "client",
 				Aliases: []string{"c"},
 				Usage:   "Start a client that can send client (publish) streams.",
+				Flags: []cli.Flag{
+					// Default publish (This is what OBS does)
+					&cli.BoolFlag{
+						Name:        "play",
+						Destination: &clientPlay,
+					},
+				},
 				Action: func(c *cli.Context) error {
-					return RunClient()
+					args := c.Args()
+					if args.Len() != 1 {
+						return errors.New("usage: twinx-rtmp server <bind-addr>")
+					}
+					raw := args.First()
+					if clientPlay {
+						return RunClientPlay(raw)
+					}
+					return RunClientPublish(raw)
 				},
 			},
 			{
@@ -99,7 +120,13 @@ func main() {
 				Aliases: []string{"p"},
 				Usage:   "Start a proxy server that can accept client (publish) streams and proxy to remote (play) streams.",
 				Action: func(c *cli.Context) error {
-					return RunProxy()
+					args := c.Args()
+					if args.Len() != 2 {
+						return errors.New("usage: twinx-rtmp proxy <play-addr> <publish-addr>")
+					}
+					play := args.Get(0)
+					publish := args.Get(1)
+					return RunProxy(play, publish)
 				},
 			},
 		},
@@ -115,7 +142,7 @@ func main() {
 
 func RunServer(raw string) error {
 	rtmpServer := rtmp.NewServer()
-	rtmpListener, err := rtmp.Listen(rtmp.DefaultProtocol, raw)
+	rtmpListener, err := rtmp.Listen(raw)
 	if err != nil {
 		return err
 	}
@@ -123,10 +150,36 @@ func RunServer(raw string) error {
 	return nil
 }
 
-func RunClient() error {
-	return nil
+func RunClientPlay(raw string) error {
+	rtmpClient := rtmp.NewClient()
+	err := rtmpClient.Dial(raw)
+	if err != nil {
+		return err
+	}
+	return rtmpClient.Play()
 }
 
-func RunProxy() error {
-	return nil
+func RunClientPublish(raw string) error {
+	rtmpClient := rtmp.NewClient()
+	err := rtmpClient.Dial(raw)
+	if err != nil {
+		return err
+	}
+	return rtmpClient.Publish()
+}
+
+func RunProxy(play, publish string) error {
+	playClient := rtmp.NewClient()
+	err := playClient.Dial(play)
+	if err != nil {
+		return err
+	}
+
+	publishClient := rtmp.NewClient()
+	err = publishClient.Dial(publish)
+	if err != nil {
+		return err
+	}
+	rtmpProxy := rtmp.NewRTMPProxy(playClient.Client(), publishClient.Client())
+	return rtmpProxy.Start()
 }

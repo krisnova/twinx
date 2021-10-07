@@ -47,12 +47,12 @@ func newFromNetListener(l net.Listener) (*Listener, error) {
 	}, nil
 }
 
-func Listen(network string, address string) (*Listener, error) {
+func Listen(address string) (*Listener, error) {
 	addr, err := NewURLAddr(address)
 	if err != nil {
 		return nil, fmt.Errorf("rtmp URL addr: %v", err)
 	}
-	listener, err := net.Listen(network, address)
+	listener, err := net.Listen(DefaultProtocol, address)
 	if err != nil {
 		return nil, fmt.Errorf("rtmp listen: %v", err)
 	}

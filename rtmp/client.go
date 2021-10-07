@@ -26,51 +26,32 @@
 
 package rtmp
 
-import (
-	"fmt"
-)
-
 type Client struct {
-	handler Handler
-	getter  GetWriter
+	conn *ConnClient
 }
 
-func NewRtmpClient(h Handler, getter GetWriter) *Client {
-	return &Client{
-		handler: h,
-		getter:  getter,
-	}
+func NewClient() *Client {
+	return &Client{}
 }
 
-func (c *Client) Connect(urladdr *URLAddr, method ClientMethod) error {
-	cc := NewConnClient()
-	switch method {
-
-	// Connect Publish
-	case ClientMethodPublish:
-		if err := cc.StartPublish(urladdr); err != nil {
-			return fmt.Errorf("publish dial %s: %v", urladdr.SafeURL(), err)
-		}
-		writer := NewVirtualWriter(cc)
-		c.handler.HandleWriter(writer)
-
-	// Connect Play
-	case ClientMethodPlay:
-		if err := cc.StartPublish(urladdr); err != nil {
-			return fmt.Errorf("play dial %s: %v", urladdr.SafeURL(), err)
-		}
-		reader := NewVirtualReader(cc)
-		c.handler.HandleReader(reader)
-		if c.getter != nil {
-			writer := c.getter.GetWriter(reader.Info())
-			c.handler.HandleWriter(writer)
-		}
-	default:
-		return fmt.Errorf("unsupported client method method: %s", method)
+func (c *Client) Dial(address string) error {
+	clientConn := NewConnClient()
+	err := clientConn.Dial(address)
+	if err != nil {
+		return err
 	}
+	c.conn = clientConn
 	return nil
 }
 
-func (c *Client) GetHandle() Handler {
-	return c.handler
+func (c *Client) Play() error {
+	return c.conn.Play()
+}
+
+func (c *Client) Publish() error {
+	return c.conn.Play()
+}
+
+func (c *Client) Client() *ConnClient {
+	return c.conn
 }

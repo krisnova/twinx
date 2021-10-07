@@ -73,7 +73,7 @@ func NewServer() *Server {
 }
 
 func (s *Server) ListenAndServe(raw string) error {
-	l, err := Listen(DefaultProtocol, raw)
+	l, err := Listen(raw)
 	if err != nil {
 		return err
 	}
