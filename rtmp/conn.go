@@ -70,14 +70,9 @@ type Conn struct {
 	chunks              map[uint32]ChunkStream
 }
 
-func NewConnFromURLAddr(urladdr *URLAddr) (*Conn, error) {
-	c, err := net.Dial(DefaultProtocol, urladdr.Host())
-	if err != nil {
-		return nil, err
-	}
+func NewConnFromNetConn(c net.Conn) *Conn {
 	conn := &Conn{
 		Conn:                c,
-		URLAddr:             *urladdr,
 		chunkSize:           DefaultRTMPChunkSizeBytes,
 		remoteChunkSize:     DefaultRTMPChunkSizeBytes,
 		windowAckSize:       DefaultWindowAcknowledgementSizeBytes,
@@ -86,6 +81,16 @@ func NewConnFromURLAddr(urladdr *URLAddr) (*Conn, error) {
 		rw:                  NewReadWriter(c, DefaultConnBufferSizeBytes),
 		chunks:              make(map[uint32]ChunkStream),
 	}
+	return conn
+}
+
+func NewConnFromURLAddr(urladdr *URLAddr) (*Conn, error) {
+	c, err := net.Dial(DefaultProtocol, urladdr.Host())
+	if err != nil {
+		return nil, err
+	}
+	conn := NewConnFromNetConn(c)
+	conn.URLAddr = *urladdr
 	return conn, nil
 }
 

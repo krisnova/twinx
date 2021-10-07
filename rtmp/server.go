@@ -63,13 +63,11 @@ const (
 
 type Server struct {
 	service *Service
-	getter  GetWriter
 }
 
-func NewRtmpServer(svc *Service, getter GetWriter) *Server {
+func NewRtmpServer(svc *Service) *Server {
 	return &Server{
 		service: svc,
-		getter:  getter,
 	}
 }
 

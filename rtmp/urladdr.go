@@ -141,7 +141,11 @@ func NewURLAddr(raw string) (*URLAddr, error) {
 	// Grab the port
 	rawHost, port, err := net.SplitHostPort(a.host)
 	if err != nil {
-		return nil, fmt.Errorf("split host port: %v", err)
+		if strings.Contains(err.Error(), "missing port in address") {
+			port = DefaultLocalPort
+		} else {
+			return nil, fmt.Errorf("split host port: %v", err)
+		}
 	}
 	portInt, err := strconv.Atoi(port)
 	if err != nil {

@@ -230,7 +230,7 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 	}
 
 	svc := twinxrtmp.NewService()
-	server := twinxrtmp.NewRtmpServer(svc, nil)
+	server := twinxrtmp.NewRtmpServer(svc)
 
 	listener, err := net.Listen(twinxrtmp.DefaultProtocol, addr.Host())
 	if err != nil {
