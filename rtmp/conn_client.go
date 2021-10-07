@@ -54,6 +54,9 @@ import (
 )
 
 type ConnClient struct {
+	conn    *Conn
+	urladdr *URLAddr
+
 	done       bool
 	transID    int
 	url        string
@@ -63,11 +66,9 @@ type ConnClient struct {
 	query      string
 	curcmdName string
 	streamid   uint32
-	conn       *Conn
 	encoder    *amf.Encoder
 	decoder    *amf.Decoder
 	bytesw     *bytes.Buffer
-	Addr       *Addr
 }
 
 func NewConnClient() *ConnClient {
@@ -109,7 +110,7 @@ func (cc *ConnClient) readRespMsg() error {
 			xReader := bytes.NewReader(x.Data)
 			values, err := cc.decoder.DecodeBatch(xReader, amf.AMF0)
 			if err != nil && err != io.EOF {
-				return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.Addr.SafeURL(), err)
+				return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.urladdr.SafeURL(), err)
 			}
 			for _, v := range values {
 				switch v.(type) {

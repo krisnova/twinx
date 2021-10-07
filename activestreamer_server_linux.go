@@ -194,15 +194,15 @@ func SPointer(s string) *string {
 
 type ActiveStreamerServer struct {
 	activestreamer.UnimplementedActiveStreamerServer
-	Local    *twinxrtmp.Addr
-	Remotes  map[string]*twinxrtmp.Addr
+	Local    *twinxrtmp.URLAddr
+	Remotes  map[string]*twinxrtmp.URLAddr
 	Service  *twinxrtmp.Service
 	Listener net.Listener
 }
 
 func NewActiveStreamerServer() *ActiveStreamerServer {
 	return &ActiveStreamerServer{
-		Remotes: make(map[string]*twinxrtmp.Addr),
+		Remotes: make(map[string]*twinxrtmp.URLAddr),
 	}
 }
 
@@ -254,8 +254,6 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 		}
 	}()
 
-	// This is called in New()
-	// go handler.CheckAlive()
 	a.Service = svc
 
 	return &activestreamer.Ack{

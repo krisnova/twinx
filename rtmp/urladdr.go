@@ -47,8 +47,9 @@ import (
 	"strings"
 )
 
-// Addr is a flexible RTMP address member that resembles url.URL.
-type Addr struct {
+// URLAddr is a flexible RTMP address member that resembles url.URL.
+type URLAddr struct {
+	url.URL
 	net.Addr
 
 	// raw can be any string, which we hope we can turn
@@ -71,7 +72,7 @@ type Addr struct {
 	key string
 }
 
-func NewAddr(raw string) (*Addr, error) {
+func NewAddr(raw string) (*URLAddr, error) {
 	var scheme, host, app, key string
 
 	url, err := url.Parse(raw)
@@ -129,7 +130,7 @@ func NewAddr(raw string) (*Addr, error) {
 		key = generateKey()
 	}
 
-	a := &Addr{
+	a := &URLAddr{
 		raw:    raw,
 		scheme: scheme,
 		host:   host,
@@ -153,6 +154,7 @@ func NewAddr(raw string) (*Addr, error) {
 			Port: portInt,
 			Zone: "", // Only support IPv4 for now
 		}
+		a.URL = *url
 		return a, nil
 	}
 	ips, err := net.LookupIP(a.host)
@@ -176,6 +178,7 @@ func NewAddr(raw string) (*Addr, error) {
 		Port: portInt,
 		Zone: "", // Only support IPv4 for now
 	}
+	a.URL = *url
 	return a, nil
 }
 
@@ -187,19 +190,19 @@ func NewAddr(raw string) (*Addr, error) {
 //   :
 // We should see
 //   localhost:1935
-func (a *Addr) Host() string {
+func (a *URLAddr) Host() string {
 	return a.host
 }
 
 // SafeURL will log the StreamURL() without the key.
 //  rtmp://localhost:1935/app/[obfuscated]
-func (a *Addr) SafeURL() string {
+func (a *URLAddr) SafeURL() string {
 	return fmt.Sprintf("%s://%s/%s", a.scheme, a.host, a.app)
 }
 
 // StreamURL is a resolvable stream URL that can be played, published, or proxied.
 //  rtmp://localhost:1935/app/key
-func (a *Addr) StreamURL() string {
+func (a *URLAddr) StreamURL() string {
 	return fmt.Sprintf("%s://%s/%s/%s", a.scheme, a.host, a.app, a.key)
 }
 
@@ -213,26 +216,26 @@ func generateKey() string {
 }
 
 // Scheme should always return DefaultScheme "rtmp://"
-func (a *Addr) Scheme() string {
+func (a *URLAddr) Scheme() string {
 	return a.scheme
 }
 
 // Key should return the stream key for this instance of *rtmp.Addr
 // All instances will generate a key if one is not provided.
-func (a *Addr) Key() string {
+func (a *URLAddr) Key() string {
 	return a.key
 }
 
 // App will return the first parameter of the path.
 // Such as rtmp://host:port/app/key
-func (a *Addr) App() string {
+func (a *URLAddr) App() string {
 	return a.app
 }
 
-func (a *Addr) Network() string {
+func (a *URLAddr) Network() string {
 	return a.Addr.Network()
 }
 
-func (a *Addr) String() string {
+func (a *URLAddr) String() string {
 	return a.Addr.String()
 }

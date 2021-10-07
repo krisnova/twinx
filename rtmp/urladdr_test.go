@@ -42,34 +42,34 @@ import "testing"
 
 func TestAddrs(t *testing.T) {
 
-	happyCases := map[string]*Addr{
-		"rtmp://localhost:1935/twinx/1234": &Addr{
+	happyCases := map[string]*URLAddr{
+		"rtmp://localhost:1935/twinx/1234": &URLAddr{
 			host:   "localhost:1935",
 			scheme: "rtmp",
 			app:    "twinx",
 			key:    "1234",
 		},
-		"": &Addr{
+		"": &URLAddr{
 			host:   "localhost:1935",
 			scheme: "rtmp",
 			app:    "twinx",
 		},
-		"localhost": &Addr{
+		"localhost": &URLAddr{
 			host:   "localhost:1935",
 			scheme: "rtmp",
 			app:    "twinx",
 		},
-		"rtmp://localhost": &Addr{
+		"rtmp://localhost": &URLAddr{
 			host:   "localhost:1935",
 			scheme: "rtmp",
 			app:    "twinx",
 		},
-		"rtmp://localhost:1313": &Addr{
+		"rtmp://localhost:1313": &URLAddr{
 			host:   "localhost:1313",
 			scheme: "rtmp",
 			app:    "twinx",
 		},
-		"rtmp://localhost:1313/beeps/boops": &Addr{
+		"rtmp://localhost:1313/beeps/boops": &URLAddr{
 			host:   "localhost:1313",
 			scheme: "rtmp",
 			app:    "beeps",
@@ -107,7 +107,7 @@ func TestAddrs(t *testing.T) {
 
 }
 
-func assertAddrs(a, b *Addr) bool {
+func assertAddrs(a, b *URLAddr) bool {
 	if a == nil || b == nil {
 		return false
 	}
@@ -123,7 +123,7 @@ func assertAddrs(a, b *Addr) bool {
 	return true
 }
 
-func assertKeys(a, b *Addr) bool {
+func assertKeys(a, b *URLAddr) bool {
 	if a.key != b.key {
 		return false
 	}

@@ -48,7 +48,8 @@ import (
 
 type Conn struct {
 	net.Conn
-	addr                *Addr
+	urladdr *URLAddr
+
 	chunkSize           uint32
 	remoteChunkSize     uint32
 	windowAckSize       uint32
