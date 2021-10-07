@@ -57,8 +57,6 @@ import (
 // Both ConnClient and ConnServer are extensions of base Conn
 type Conn struct {
 	net.Conn
-	URLAddr
-
 	chunkSize           uint32
 	remoteChunkSize     uint32
 	windowAckSize       uint32
@@ -70,7 +68,7 @@ type Conn struct {
 	chunks              map[uint32]ChunkStream
 }
 
-func NewConnFromNetConn(c net.Conn) *Conn {
+func NewConn(c net.Conn) *Conn {
 	conn := &Conn{
 		Conn:                c,
 		chunkSize:           DefaultRTMPChunkSizeBytes,
@@ -82,24 +80,6 @@ func NewConnFromNetConn(c net.Conn) *Conn {
 		chunks:              make(map[uint32]ChunkStream),
 	}
 	return conn
-}
-
-func NewConnFromURLAddr(urladdr *URLAddr) (*Conn, error) {
-	c, err := net.Dial(DefaultProtocol, urladdr.Host())
-	if err != nil {
-		return nil, err
-	}
-	conn := NewConnFromNetConn(c)
-	conn.URLAddr = *urladdr
-	return conn, nil
-}
-
-func NewConn(raw string) (*Conn, error) {
-	urladdr, err := NewURLAddr(raw)
-	if err != nil {
-		return nil, err
-	}
-	return NewConnFromURLAddr(urladdr)
 }
 
 var (

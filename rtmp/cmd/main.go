@@ -39,7 +39,10 @@
 package main
 
 import (
+	"errors"
 	"os"
+
+	"github.com/kris-nova/twinx/rtmp"
 
 	"github.com/kris-nova/twinx"
 
@@ -73,8 +76,14 @@ func main() {
 				Name:    "server",
 				Aliases: []string{"s"},
 				Usage:   "Start a server that can accept client (play/publish) streams.",
+				Flags:   []cli.Flag{},
 				Action: func(c *cli.Context) error {
-					return RunServer()
+					args := c.Args()
+					if args.Len() != 1 {
+						return errors.New("usage: twinx-rtmp server <bind-addr>")
+					}
+					raw := args.First()
+					return RunServer(raw)
 				},
 			},
 			{
@@ -104,7 +113,13 @@ func main() {
 	os.Exit(0)
 }
 
-func RunServer() error {
+func RunServer(raw string) error {
+	rtmpServer := rtmp.NewServer()
+	rtmpListener, err := rtmp.Listen(rtmp.DefaultProtocol, raw)
+	if err != nil {
+		return err
+	}
+	rtmpServer.Serve(rtmpListener)
 	return nil
 }
 

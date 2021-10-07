@@ -62,47 +62,54 @@ const (
 )
 
 type Server struct {
-	service *Service
+	service  *Service
+	listener *Listener
 }
 
-func NewRtmpServer(svc *Service) *Server {
+func NewServer() *Server {
 	return &Server{
-		service: svc,
+		service: NewService(),
 	}
 }
 
-func (s *Server) Serve(listener net.Listener) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Critical("rtmp serve panic: ", r)
-		}
-	}()
+func (s *Server) ListenAndServe(raw string) error {
+	l, err := Listen(DefaultProtocol, raw)
+	if err != nil {
+		return err
+	}
+	return s.Serve(l)
+}
 
+func (s *Server) Serve(listener net.Listener) error {
+	logger.Info("Listening %s...", s.listener.addr.SafeURL())
+
+	// Translate a Go net.Listener to an RTMP net.Listener
+	var concrete *Listener
+	if l, ok := listener.(*Listener); !ok {
+		l, err := newFromNetListener(listener)
+		if err != nil {
+			return fmt.Errorf("creating RTMP listener: %v", err)
+		}
+		concrete = l
+	} else {
+		concrete = l
+	}
+	s.listener = concrete
 	for {
-		var netConn net.Conn
-		netConn, err = listener.Accept()
+		clientConn, err := s.listener.Accept()
 		if err != nil {
-			return
+			return fmt.Errorf("client conn accept: %v", err)
 		}
-		local := netConn.LocalAddr()
-		conn, err := NewConn(local.String())
-		if err != nil {
-			return err
-		}
-		logger.Info("New client connected")
-		logger.Info("   Remote : %s", conn.RemoteAddr().String())
-		logger.Info("   Local  : %s", conn.LocalAddr().String())
-		go s.handleConn(conn)
+		go s.handleConn(clientConn)
 	}
+	return nil
 }
 
-// handleConn is the entry point for every new client to
-// our RTMP server.
-//
-// This is the place where all client connections will start.
-//
-// [localhost twinx] <- client.Conn
-func (s *Server) handleConn(conn *Conn) error {
+func (s *Server) handleConn(netConn net.Conn) error {
+
+	// Translate net.Conn -> rtmp.Conn
+	conn := NewConn(netConn)
+
 	if err := conn.HandshakeServer(); err != nil {
 		conn.Close()
 		logger.Critical("RTMP Handshake: %v", err)

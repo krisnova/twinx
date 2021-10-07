@@ -219,7 +219,7 @@ func (cc *ConnClient) writePlayMsg() error {
 
 func (cc *ConnClient) StartPublish(addr *URLAddr) error {
 	cc.method = ClientMethodPublish
-	conn, err := NewConnFromURLAddr(addr)
+	conn, err := addr.NewConn()
 	if err != nil {
 		return fmt.Errorf("new conn from addr: %v", err)
 	}
@@ -243,7 +243,7 @@ func (cc *ConnClient) StartPublish(addr *URLAddr) error {
 
 func (cc *ConnClient) StartPlay(addr *URLAddr) error {
 	cc.method = ClientMethodPlay
-	conn, err := NewConnFromURLAddr(addr)
+	conn, err := addr.NewConn()
 	if err != nil {
 		return fmt.Errorf("new conn from addr: %v", err)
 	}

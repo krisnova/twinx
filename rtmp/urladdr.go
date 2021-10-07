@@ -243,3 +243,16 @@ func (a *URLAddr) Network() string {
 func (a *URLAddr) String() string {
 	return a.Addr.String()
 }
+
+func (a *URLAddr) NewNetConn() (net.Conn, error) {
+	return net.Dial(DefaultProtocol, a.StreamURL())
+}
+
+func (a *URLAddr) NewConn() (*Conn, error) {
+	netConn, err := a.NewNetConn()
+	if err != nil {
+		return nil, err
+	}
+	conn := NewConn(netConn)
+	return conn, nil
+}

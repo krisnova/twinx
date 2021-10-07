@@ -42,7 +42,7 @@ import (
 	"syscall"
 	"time"
 
-	twinxrtmp "github.com/kris-nova/twinx/rtmp"
+	rtmp "github.com/kris-nova/twinx/rtmp"
 
 	"github.com/kris-nova/twinx/activestreamer"
 
@@ -194,32 +194,27 @@ func SPointer(s string) *string {
 
 type ActiveStreamerServer struct {
 	activestreamer.UnimplementedActiveStreamerServer
-	Local    *twinxrtmp.URLAddr
-	Remotes  map[string]*twinxrtmp.URLAddr
-	Service  *twinxrtmp.Service
-	Listener net.Listener
+	Local    *rtmp.URLAddr
+	Remotes  map[string]*rtmp.URLAddr
+	Listener *rtmp.Listener
+	Server   rtmp.Server
 }
 
 func NewActiveStreamerServer() *ActiveStreamerServer {
 	return &ActiveStreamerServer{
-		Remotes: make(map[string]*twinxrtmp.URLAddr),
+		Remotes: make(map[string]*rtmp.URLAddr),
 	}
 }
 
 func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
 
-	addr, err := twinxrtmp.NewURLAddr(r.Addr)
+	addr, err := rtmp.NewURLAddr(r.Addr)
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
 			Message: S("invalid RTMP addr"),
 		}, fmt.Errorf("invalid RTPM addr: %v", err)
 	}
-
-	//logger.Debug(addr.Scheme())
-	//logger.Debug(addr.Host())
-	//logger.Debug(addr.App())
-	//logger.Debug(addr.Key())
 
 	// Ensure no host has been started
 	if a.Local != nil {
@@ -229,10 +224,10 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("unable to start rtmp, already running")
 	}
 
-	svc := twinxrtmp.NewService()
-	server := twinxrtmp.NewRtmpServer(svc)
+	// Start the server
 
-	listener, err := net.Listen(twinxrtmp.DefaultProtocol, addr.Host())
+	rServer := rtmp.NewServer()
+	rListener, err := rtmp.Listen(rtmp.DefaultRTMPApp, addr.StreamURL())
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
@@ -243,18 +238,15 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 	// Cache the local server
 	//logger.Debug("Caching local RTMP server")
 	a.Local = addr
-	a.Listener = listener
+	a.Listener = rListener
 
 	// Run the server in a go routine
 	go func() {
-		logger.Debug("Starting RTMP Server: net.Listen() TCP %s", addr.Host())
-		err = server.Serve(listener)
+		err = rServer.Serve(rListener)
 		if err != nil {
 			logger.Critical(err.Error())
 		}
 	}()
-
-	a.Service = svc
 
 	return &activestreamer.Ack{
 		Success: true,
@@ -285,7 +277,7 @@ func (a *ActiveStreamerServer) StopRTMP(context.Context, *activestreamer.Null) (
 }
 func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
 
-	addr, err := twinxrtmp.NewURLAddr(r.Addr)
+	addr, err := rtmp.NewURLAddr(r.Addr)
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
@@ -302,7 +294,7 @@ func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.
 	}
 
 	// play -> publish
-	proxy := twinxrtmp.NewRTMPProxy(a.Local, addr)
+	proxy := rtmp.NewRTMPProxy(a.Local, addr)
 
 	// Cache
 	a.Remotes[addr.StreamURL()] = addr

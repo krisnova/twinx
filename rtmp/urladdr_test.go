@@ -76,7 +76,7 @@ func TestAddrs(t *testing.T) {
 		},
 	}
 	for input, expected := range happyCases {
-		actual, err := NewAddr(input)
+		actual, err := NewURLAddr(input)
 		if err != nil {
 			t.Errorf("happyCase error %v", err)
 		}
