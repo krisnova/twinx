@@ -43,10 +43,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"math/rand"
-	"net"
-	neturl "net/url"
-	"strings"
 
 	"github.com/gwuhaolin/livego/av"
 	"github.com/gwuhaolin/livego/protocol/amf"
@@ -57,6 +53,7 @@ type ConnClient struct {
 	conn    *Conn
 	urladdr *URLAddr
 
+	method     ClientMethod
 	done       bool
 	transID    int
 	url        string
@@ -173,13 +170,12 @@ func (cc *ConnClient) writeMsg(args ...interface{}) error {
 
 func (cc *ConnClient) writeConnectMsg() error {
 	event := make(amf.Object)
-	event["app"] = cc.app
-	event["type"] = "nonprivate"
-	event["flashVer"] = "FMS.3.1"
-	event["tcUrl"] = cc.tcurl
+	event[ConnInfoKeyApp] = cc.app
+	event[ConnInfoKeyType] = "nonprivate"
+	event[ConnInfoKeyFlashVer] = DefaultServerFMSVersion
+	event[ConnInfoKeyTcURL] = cc.tcurl
 	cc.curcmdName = CommandConnect
 
-	//logger.Info("writeConnectMsg: cc.transID=%d, event=%v", cc.transID, event)
 	if err := cc.writeMsg(CommandConnect, cc.transID, event); err != nil {
 		return err
 	}
@@ -190,18 +186,15 @@ func (cc *ConnClient) writeCreateStreamMsg() error {
 	cc.transID++
 	cc.curcmdName = CommandCreateStream
 
-	//logger.Info("writeCreateStreamMsg: cc.transID=%d", cc.transID)
 	if err := cc.writeMsg(CommandCreateStream, cc.transID, nil); err != nil {
 		return err
 	}
 
 	err := cc.readRespMsg()
-	if err == nil {
-		return nil
+	if err != nil {
+		return err
 	}
-
-	//logger.Info("writeCreateStreamMsg readRespMsg err=%v", err)
-	return err
+	return nil
 
 }
 
@@ -224,92 +217,49 @@ func (cc *ConnClient) writePlayMsg() error {
 	return cc.readRespMsg()
 }
 
-func (cc *ConnClient) Start(url string, method string) error {
-	u, err := neturl.Parse(url)
+func (cc *ConnClient) StartPublish(addr *URLAddr) error {
+	cc.method = ClientMethodPublish
+	conn, err := NewConnFromURLAddr(addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("new conn from addr: %v", err)
 	}
-	cc.url = url
-	path := strings.TrimLeft(u.Path, "/")
-	ps := strings.SplitN(path, "/", 2)
-	if len(ps) != 2 {
-		return fmt.Errorf("u path err: %s", path)
-	}
-	cc.app = ps[0]
-	cc.title = ps[1]
-	cc.query = u.RawQuery
-	cc.tcurl = "rtmp://" + u.Host + "/" + cc.app
-	port := ":1935"
-	host := u.Host
-	localIP := ":0"
-	var remoteIP string
-	if strings.Index(host, ":") != -1 {
-		host, port, err = net.SplitHostPort(host)
-		if err != nil {
-			return err
-		}
-		port = ":" + port
-	}
-	ips, err := net.LookupIP(host)
-	if err != nil {
-		//logger.Warning("look up host IP: %v", err)
-		return err
-	}
-	remoteIP = ips[rand.Intn(len(ips))].String()
-	if strings.Index(remoteIP, ":") == -1 {
-		remoteIP += port
-	}
-
-	local, err := net.ResolveTCPAddr("tcp", localIP)
-	if err != nil {
-		//logger.Warning("Proxy (local) resolve TCP addr: %v", err)
-		return err
-	}
-	remote, err := net.ResolveTCPAddr("tcp", remoteIP)
-	if err != nil {
-		//logger.Warning("Proxy (remote) resolve TCP addr: %v", err)
-		return err
-	}
-	conn, err := net.DialTCP("tcp", local, remote)
-	if err != nil {
-		//logger.Critical("Bridging proxy connection from local -> remote %v", err)
-		return err
-	}
-
-	////logger.Info("Connection")
-	//logger.Info("connection:", "local:", conn.LocalAddr(), "remote:", conn.RemoteAddr())
-
-	cc.conn = NewConn(conn, 4*1024)
+	cc.conn = conn
 
 	if err := cc.conn.HandshakeClient(); err != nil {
-		//logger.Warning("[RTMP] Handshake", err)
 		return err
 	}
-	//logger.Debug("[RTMP] Handshake")
-
 	if err := cc.writeConnectMsg(); err != nil {
-		//logger.Warning("[RTMP] Connecting", err)
 		return err
 	}
-	//logger.Debug("[RTMP] Connecting")
-
 	if err := cc.writeCreateStreamMsg(); err != nil {
-		//logger.Warning("[RTMP] Creating Stream", err)
 		return err
 	}
-	//logger.Debug("[RTMP] Creating Stream")
-
-	//logger.Info("Method control: %s %s %s", method, av.PUBLISH, av.PLAY)
-	if method == av.PUBLISH {
-		if err := cc.writePublishMsg(); err != nil {
-			return err
-		}
-	} else if method == av.PLAY {
-		if err := cc.writePlayMsg(); err != nil {
-			return err
-		}
+	if err := cc.writePublishMsg(); err != nil {
+		return err
 	}
 
+	return nil
+}
+
+func (cc *ConnClient) StartPlay(addr *URLAddr) error {
+	cc.method = ClientMethodPlay
+	conn, err := NewConnFromURLAddr(addr)
+	if err != nil {
+		return fmt.Errorf("new conn from addr: %v", err)
+	}
+	cc.conn = conn
+	if err := cc.conn.HandshakeClient(); err != nil {
+		return err
+	}
+	if err := cc.writeConnectMsg(); err != nil {
+		return err
+	}
+	if err := cc.writeCreateStreamMsg(); err != nil {
+		return err
+	}
+	if err := cc.writePlayMsg(); err != nil {
+		return err
+	}
 	return nil
 }
 

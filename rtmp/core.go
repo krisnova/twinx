@@ -91,8 +91,11 @@ const (
 	DefaultWindowAcknowledgementSizeBytes uint32 = 2500000
 	DefaultPeerBandwidthSizeBytes         uint32 = 2500000
 	DefaultMaximumPoolSizeBytes           int    = 1024 * 1024 * 512
+	DefaultConnBufferSizeBytes            int    = 1024 * 1024 * 512
+	DefaultServerFMSVersion               string = "FMS/3,0,1,123"
 
-	DefaultServerFMSVersion string = "FMS/3,0,1,123"
+	ClientMethodPlay    ClientMethod = "play"
+	ClientMethodPublish ClientMethod = "publish"
 
 	// Publish
 	// RTMP Spec 7.2.2.6
@@ -162,6 +165,8 @@ const (
 	PingRequest      uint32 = 6
 	PingResponse     uint32 = 7
 )
+
+type ClientMethod string
 
 // ChunkStream
 //
@@ -485,6 +490,7 @@ type ConnectInfo struct {
 
 const (
 	ConnInfoKeyApp         string = "app"
+	ConnInfoKeyType        string = "type"
 	ConnInfoKeyTcURL       string = "tcUrl"
 	ConnInfoKeyFlashVer    string = "flashVer"
 	ConnInfoObjectEncoding string = "objectEncoding"

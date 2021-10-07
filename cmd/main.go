@@ -143,7 +143,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 
 							// RTMP Addr
 							// Check the errors early, but still use the raw
-							parsedAddr, err := rtmp.NewAddr(addr)
+							parsedAddr, err := rtmp.NewURLAddr(addr)
 							if err != nil {
 								return fmt.Errorf("invalid rtmp addr %s: %v", addr, err)
 							}
@@ -199,7 +199,7 @@ func RunWithOptions(opt *RuntimeOptions) error {
 								return fmt.Errorf("usage: twinx relay forward <host:port/app/stream-key>")
 							}
 							addr := args.Get(0)
-							parsedAddr, err := rtmp.NewAddr(addr)
+							parsedAddr, err := rtmp.NewURLAddr(addr)
 							if err != nil {
 								return fmt.Errorf("invalid rtmp url %s: %v", addr, err)
 							}

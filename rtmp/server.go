@@ -61,43 +61,6 @@ const (
 	WriteTimeout int = 10
 )
 
-type Client struct {
-	handler Handler
-	getter  GetWriter
-}
-
-func NewRtmpClient(h Handler, getter GetWriter) *Client {
-	return &Client{
-		handler: h,
-		getter:  getter,
-	}
-}
-
-func (c *Client) Dial(url string, method string) error {
-	cc := NewConnClient()
-	if err := cc.Start(url, method); err != nil {
-		return err
-	}
-	if method == CommandPublish {
-		writer := NewVirtualWriter(cc)
-		logger.Info("client Dial call NewVirtualWriter url=%s, method=%s", url, method)
-		c.handler.HandleWriter(writer)
-	} else if method == CommandPlay {
-		reader := NewVirtualReader(cc)
-		logger.Info("client Dial call NewVirtualReader url=%s, method=%s", url, method)
-		c.handler.HandleReader(reader)
-		if c.getter != nil {
-			writer := c.getter.GetWriter(reader.Info())
-			c.handler.HandleWriter(writer)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetHandle() Handler {
-	return c.handler
-}
-
 type Server struct {
 	service *Service
 	getter  GetWriter
@@ -118,12 +81,16 @@ func (s *Server) Serve(listener net.Listener) (err error) {
 	}()
 
 	for {
-		var netconn net.Conn
-		netconn, err = listener.Accept()
+		var netConn net.Conn
+		netConn, err = listener.Accept()
 		if err != nil {
 			return
 		}
-		conn := NewConn(netconn, 4*1024)
+		local := netConn.LocalAddr()
+		conn, err := NewConn(local.String())
+		if err != nil {
+			return err
+		}
 		logger.Info("New client connected")
 		logger.Info("   Remote : %s", conn.RemoteAddr().String())
 		logger.Info("   Local  : %s", conn.LocalAddr().String())

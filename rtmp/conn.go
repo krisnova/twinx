@@ -46,9 +46,18 @@ import (
 	"time"
 )
 
+// Conn
+//
+// Conn is the base type for all RTMP connections.
+// Conn is embedded with native Go types
+//    - net.Conn
+//    - net.Addr
+//    - url.URL
+//
+// Both ConnClient and ConnServer are extensions of base Conn
 type Conn struct {
 	net.Conn
-	urladdr *URLAddr
+	URLAddr
 
 	chunkSize           uint32
 	remoteChunkSize     uint32
@@ -61,17 +70,31 @@ type Conn struct {
 	chunks              map[uint32]ChunkStream
 }
 
-func NewConn(c net.Conn, bufferSize int) *Conn {
-	return &Conn{
+func NewConnFromURLAddr(urladdr *URLAddr) (*Conn, error) {
+	c, err := net.Dial(DefaultProtocol, urladdr.Host())
+	if err != nil {
+		return nil, err
+	}
+	conn := &Conn{
 		Conn:                c,
+		URLAddr:             *urladdr,
 		chunkSize:           DefaultRTMPChunkSizeBytes,
 		remoteChunkSize:     DefaultRTMPChunkSizeBytes,
 		windowAckSize:       DefaultWindowAcknowledgementSizeBytes,
 		remoteWindowAckSize: DefaultWindowAcknowledgementSizeBytes,
 		pool:                NewPool(),
-		rw:                  NewReadWriter(c, bufferSize),
+		rw:                  NewReadWriter(c, DefaultConnBufferSizeBytes),
 		chunks:              make(map[uint32]ChunkStream),
 	}
+	return conn, nil
+}
+
+func NewConn(raw string) (*Conn, error) {
+	urladdr, err := NewURLAddr(raw)
+	if err != nil {
+		return nil, err
+	}
+	return NewConnFromURLAddr(urladdr)
 }
 
 var (

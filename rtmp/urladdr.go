@@ -72,7 +72,7 @@ type URLAddr struct {
 	key string
 }
 
-func NewAddr(raw string) (*URLAddr, error) {
+func NewURLAddr(raw string) (*URLAddr, error) {
 	var scheme, host, app, key string
 
 	url, err := url.Parse(raw)

@@ -168,7 +168,7 @@ func (r *RTMPProxy) Start() error {
 
 	// [ Play Client Connection ]
 	r.playClient = NewConnClient()
-	err := r.playClient.Start(r.playAddr.StreamURL(), CommandPlay)
+	err := r.playClient.StartPlay(r.playAddr)
 	defer r.playClient.Close()
 	if err != nil {
 		return fmt.Errorf("play(%s) --> [twinx proxy]: %v", r.playAddr.SafeURL(), err)
@@ -176,7 +176,7 @@ func (r *RTMPProxy) Start() error {
 
 	// [ Play Client Connection ]
 	r.publishClient = NewConnClient()
-	err = r.publishClient.Start(r.publishAddr.StreamURL(), CommandPublish)
+	err = r.publishClient.StartPublish(r.publishAddr)
 	defer r.playClient.Close()
 	if err != nil {
 		return fmt.Errorf("[twinx proxy] --> publish(%s): %v", r.playAddr.SafeURL(), err)

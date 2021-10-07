@@ -208,7 +208,7 @@ func NewActiveStreamerServer() *ActiveStreamerServer {
 
 func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
 
-	addr, err := twinxrtmp.NewAddr(r.Addr)
+	addr, err := twinxrtmp.NewURLAddr(r.Addr)
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
@@ -285,7 +285,7 @@ func (a *ActiveStreamerServer) StopRTMP(context.Context, *activestreamer.Null) (
 }
 func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.RTMPHost) (*activestreamer.Ack, error) {
 
-	addr, err := twinxrtmp.NewAddr(r.Addr)
+	addr, err := twinxrtmp.NewURLAddr(r.Addr)
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
