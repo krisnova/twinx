@@ -81,8 +81,6 @@ func (s *Server) ListenAndServe(raw string) error {
 }
 
 func (s *Server) Serve(listener net.Listener) error {
-	logger.Info("Listening %s...", s.listener.addr.SafeURL())
-
 	// Translate a Go net.Listener to an RTMP net.Listener
 	var concrete *Listener
 	if l, ok := listener.(*Listener); !ok {
@@ -95,6 +93,12 @@ func (s *Server) Serve(listener net.Listener) error {
 		concrete = l
 	}
 	s.listener = concrete
+	urlAddr, err := NewURLAddr(s.listener.Addr().String())
+	if err != nil {
+		return fmt.Errorf("urlAddr: %v", err)
+	}
+	s.listener.addr = urlAddr
+	logger.Info("Listening %s...", s.listener.addr.SafeURL())
 	for {
 		clientConn, err := s.listener.Accept()
 		if err != nil {

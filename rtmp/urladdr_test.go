@@ -42,12 +42,24 @@ import "testing"
 
 func TestAddrs(t *testing.T) {
 
+	//
+
 	happyCases := map[string]*URLAddr{
 		"rtmp://localhost:1935/twinx/1234": &URLAddr{
 			host:   "localhost:1935",
 			scheme: "rtmp",
 			app:    "twinx",
 			key:    "1234",
+		},
+		"127.0.0.1:1935": &URLAddr{
+			host:   "localhost:1935",
+			scheme: "rtmp",
+			app:    "twinx",
+		},
+		"rtmp://127.0.0.1": &URLAddr{
+			host:   "localhost:1935",
+			scheme: "rtmp",
+			app:    "twinx",
 		},
 		"": &URLAddr{
 			host:   "localhost:1935",

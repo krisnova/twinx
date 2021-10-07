@@ -52,7 +52,7 @@ func Listen(address string) (*Listener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("rtmp URL addr: %v", err)
 	}
-	listener, err := net.Listen(DefaultProtocol, address)
+	listener, err := net.Listen(DefaultProtocol, addr.Host())
 	if err != nil {
 		return nil, fmt.Errorf("rtmp listen: %v", err)
 	}

@@ -55,6 +55,18 @@ var (
 
 	// clientPlay can be opted in to a client.Play() instead of default client.Publish()
 	clientPlay bool = false
+
+	// verbose enables log verbosity
+	verbose bool = true
+
+	globalFlags = []cli.Flag{
+		&cli.BoolFlag{
+			Name:        "verbose",
+			Aliases:     []string{"v"},
+			Usage:       "toggle verbose mode for logger",
+			Destination: &verbose,
+		},
+	}
 )
 
 func main() {
@@ -76,13 +88,13 @@ func main() {
 			return nil
 		},
 		Version: twinx.CompileTimeVersion,
-		Flags:   []cli.Flag{},
+		Flags:   globalFlags,
 		Commands: []*cli.Command{
 			{
 				Name:    "server",
 				Aliases: []string{"s"},
 				Usage:   "Start a server that can accept client (play/publish) streams.",
-				Flags:   []cli.Flag{},
+				Flags:   globalFlags,
 				Action: func(c *cli.Context) error {
 					args := c.Args()
 					if args.Len() != 1 {
@@ -96,13 +108,13 @@ func main() {
 				Name:    "client",
 				Aliases: []string{"c"},
 				Usage:   "Start a client that can send client (publish) streams.",
-				Flags: []cli.Flag{
+				Flags: append([]cli.Flag{
 					// Default publish (This is what OBS does)
 					&cli.BoolFlag{
 						Name:        "play",
 						Destination: &clientPlay,
 					},
-				},
+				}, globalFlags...),
 				Action: func(c *cli.Context) error {
 					args := c.Args()
 					if args.Len() != 1 {
@@ -119,6 +131,7 @@ func main() {
 				Name:    "proxy",
 				Aliases: []string{"p"},
 				Usage:   "Start a proxy server that can accept client (publish) streams and proxy to remote (play) streams.",
+				Flags:   globalFlags,
 				Action: func(c *cli.Context) error {
 					args := c.Args()
 					if args.Len() != 2 {
@@ -130,6 +143,10 @@ func main() {
 				},
 			},
 		},
+	}
+
+	if verbose {
+		logger.BitwiseLevel = logger.LogEverything
 	}
 
 	err := app.Run(os.Args)
@@ -146,8 +163,7 @@ func RunServer(raw string) error {
 	if err != nil {
 		return err
 	}
-	rtmpServer.Serve(rtmpListener)
-	return nil
+	return rtmpServer.Serve(rtmpListener)
 }
 
 func RunClientPlay(raw string) error {

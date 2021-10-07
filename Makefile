@@ -43,7 +43,7 @@ compile: generate compile-rtmp ## Compile for the local architecture ⚙
 compile-rtmp: ## Compile the RTMP tool for the local architecture ⚙
 	@echo "Compiling ${bin_twinx}..."
 	go build \
-		-ldflags "-X github.com/kris-nova/twinx/rtmp.CompileTimeVersion=$(version)" \
+		-ldflags "-X github.com/kris-nova/twinx.CompileTimeVersion=$(version)" \
 		-o bin/${bin_rtmp} \
 		rtmp/cmd/*.go
 

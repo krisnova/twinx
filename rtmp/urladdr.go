@@ -75,6 +75,11 @@ type URLAddr struct {
 func NewURLAddr(raw string) (*URLAddr, error) {
 	var scheme, host, app, key string
 
+	raw = strings.Replace(raw, DefaultLo, DefaultLocalHost, 1)
+
+	if !strings.HasPrefix(raw, fmt.Sprintf("%s://", DefaultScheme)) {
+		raw = fmt.Sprintf("%s://%s", DefaultScheme, raw)
+	}
 	url, err := url.Parse(raw)
 	if err != nil {
 		return nil, fmt.Errorf("unable to url.Parse raw rtmp string: %s", err)
