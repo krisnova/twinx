@@ -117,7 +117,7 @@ func (s *Server) handleConn(netConn net.Conn) error {
 		return err
 	}
 
-	connSrv := NewConnServer(conn)
+	connSrv := NewServerConn(conn)
 	//logger.Debug("Stream ID: %d", connSrv.streamID)
 	logger.Debug("Transaction ID: %d", connSrv.transactionID)
 
@@ -209,6 +209,8 @@ func (s *Server) handleConn(netConn net.Conn) error {
 
 	return nil
 }
+
+// ==========================================================================================
 
 type StreamReadWriteCloser interface {
 	Close()

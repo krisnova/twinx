@@ -59,15 +59,15 @@ type InternalProxyControlMessage int
 // Will proxy a publish client stream as a play client
 // stream to a configured endpoint.
 type RTMPProxy struct {
-	playClient    *ConnClient
-	publishClient *ConnClient
+	playClient    *ClientConn
+	publishClient *ClientConn
 
 	chunkStreamCh  chan ChunkStream
 	proxyMessageCh chan InternalProxyControlMessage
 	isStreaming    bool
 }
 
-func NewRTMPProxy(play, publish *ConnClient) *RTMPProxy {
+func NewRTMPProxy(play, publish *ClientConn) *RTMPProxy {
 	return &RTMPProxy{
 		playClient:     play,
 		publishClient:  publish,

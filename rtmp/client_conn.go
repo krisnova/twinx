@@ -47,11 +47,12 @@ import (
 	"io"
 
 	"github.com/gwuhaolin/livego/av"
+
 	"github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/kris-nova/logger"
 )
 
-type ConnClient struct {
+type ClientConn struct {
 	conn       *Conn
 	urladdr    *URLAddr
 	method     ClientMethod
@@ -65,8 +66,8 @@ type ConnClient struct {
 	bytesw  *bytes.Buffer
 }
 
-func NewConnClient() *ConnClient {
-	return &ConnClient{
+func NewClientConn() *ClientConn {
+	return &ClientConn{
 		transID: 1,
 		bytesw:  bytes.NewBuffer(nil),
 		encoder: &amf.Encoder{},
@@ -74,12 +75,12 @@ func NewConnClient() *ConnClient {
 	}
 }
 
-func (cc *ConnClient) Dial(address string) error {
+func (cc *ClientConn) Dial(address string) error {
 	urlAddr, err := NewURLAddr(address)
 	if err != nil {
 		return fmt.Errorf("client dial: %v", err)
 	}
-	logger.Info("ConnClient.Dial %s", urlAddr.String())
+	logger.Info("ClientConn.Dial %s", urlAddr.String())
 	conn, err := urlAddr.NewConn()
 	if err != nil {
 		return fmt.Errorf("new conn from addr: %v", err)
@@ -89,7 +90,7 @@ func (cc *ConnClient) Dial(address string) error {
 	return nil
 }
 
-func (cc *ConnClient) Publish() error {
+func (cc *ClientConn) Publish() error {
 	cc.method = ClientMethodPublish
 	logger.Info("Client: Publish")
 	err := cc.connect()
@@ -102,7 +103,7 @@ func (cc *ConnClient) Publish() error {
 	return cc.readRespMsg()
 }
 
-func (cc *ConnClient) Play() error {
+func (cc *ClientConn) Play() error {
 	cc.method = ClientMethodPlay
 	logger.Info("Client: Play")
 	err := cc.connect()
@@ -115,7 +116,42 @@ func (cc *ConnClient) Play() error {
 	return cc.readRespMsg()
 }
 
-func (cc *ConnClient) connect() error {
+func (cc *ClientConn) DecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
+	vs, err := cc.decoder.DecodeBatch(r, ver)
+	return vs, err
+}
+
+func (cc *ClientConn) Write(c ChunkStream) error {
+	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
+		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
+		var err error
+		if c.Data, err = amf.MetaDataReform(c.Data, amf.ADD); err != nil {
+			return err
+		}
+		c.Length = uint32(len(c.Data))
+	}
+	return cc.conn.Write(&c)
+}
+
+func (cc *ClientConn) Flush() error {
+	return cc.conn.Flush()
+}
+
+func (cc *ClientConn) Read(c *ChunkStream) (err error) {
+	return cc.conn.Read(c)
+}
+
+func (cc *ClientConn) GetStreamId() uint32 {
+	return cc.streamid
+}
+
+func (cc *ClientConn) Close() {
+	cc.conn.Close()
+}
+
+// ==========================================================================================
+
+func (cc *ClientConn) connect() error {
 	if cc.connected {
 		return errors.New("already connected")
 	}
@@ -132,12 +168,7 @@ func (cc *ConnClient) connect() error {
 	return nil
 }
 
-func (cc *ConnClient) DecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
-	vs, err := cc.decoder.DecodeBatch(r, ver)
-	return vs, err
-}
-
-func (cc *ConnClient) readRespMsg() error {
+func (cc *ClientConn) readRespMsg() error {
 
 	var x ChunkStream
 
@@ -246,7 +277,7 @@ func (cc *ConnClient) readRespMsg() error {
 	return nil
 }
 
-func (cc *ConnClient) writeMsg(args ...interface{}) error {
+func (cc *ClientConn) writeMsg(args ...interface{}) error {
 	cc.bytesw.Reset()
 	for _, v := range args {
 		if _, err := cc.encoder.Encode(cc.bytesw, v, amf.AMF0); err != nil {
@@ -267,7 +298,7 @@ func (cc *ConnClient) writeMsg(args ...interface{}) error {
 	return cc.conn.Flush()
 }
 
-func (cc *ConnClient) writeConnectMsg() error {
+func (cc *ClientConn) writeConnectMsg() error {
 	logger.Debug("client connect")
 	event := make(amf.Object)
 	event[ConnInfoKeyApp] = cc.urladdr.App()
@@ -282,7 +313,7 @@ func (cc *ConnClient) writeConnectMsg() error {
 	return cc.readRespMsg()
 }
 
-func (cc *ConnClient) writeCreateStreamMsg() error {
+func (cc *ClientConn) writeCreateStreamMsg() error {
 	logger.Debug("client createStream")
 	cc.transID++
 	cc.curcmdName = CommandCreateStream
@@ -299,7 +330,7 @@ func (cc *ConnClient) writeCreateStreamMsg() error {
 
 }
 
-func (cc *ConnClient) writePublishMsg() error {
+func (cc *ClientConn) writePublishMsg() error {
 	logger.Debug("client publish")
 	cc.transID++
 	cc.curcmdName = CommandPublish
@@ -310,7 +341,7 @@ func (cc *ConnClient) writePublishMsg() error {
 	return nil
 }
 
-func (cc *ConnClient) writePlayMsg() error {
+func (cc *ClientConn) writePlayMsg() error {
 	logger.Debug("client play")
 	cc.transID++
 	cc.curcmdName = CommandPlay
@@ -319,32 +350,4 @@ func (cc *ConnClient) writePlayMsg() error {
 		return err
 	}
 	return cc.readRespMsg()
-}
-
-func (cc *ConnClient) Write(c ChunkStream) error {
-	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
-		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
-		var err error
-		if c.Data, err = amf.MetaDataReform(c.Data, amf.ADD); err != nil {
-			return err
-		}
-		c.Length = uint32(len(c.Data))
-	}
-	return cc.conn.Write(&c)
-}
-
-func (cc *ConnClient) Flush() error {
-	return cc.conn.Flush()
-}
-
-func (cc *ConnClient) Read(c *ChunkStream) (err error) {
-	return cc.conn.Read(c)
-}
-
-func (cc *ConnClient) GetStreamId() uint32 {
-	return cc.streamid
-}
-
-func (cc *ConnClient) Close() {
-	cc.conn.Close()
 }

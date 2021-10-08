@@ -54,7 +54,7 @@ import (
 //    - net.Addr
 //    - url.URL
 //
-// Both ConnClient and ConnServer are extensions of base Conn
+// Both ClientConn and ServerConn are extensions of base Conn
 type Conn struct {
 	net.Conn
 	chunkSize           uint32
@@ -146,8 +146,8 @@ func (conn *Conn) Flush() error {
 	return conn.rw.Flush()
 }
 
-func (conn *Conn) Close() error {
-	return conn.Conn.Close()
+func (conn *Conn) Close() {
+	conn.Conn.Close()
 }
 
 func (conn *Conn) RemoteAddr() net.Addr {

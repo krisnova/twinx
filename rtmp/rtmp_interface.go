@@ -38,6 +38,12 @@
 
 package rtmp
 
+import (
+	"errors"
+	"fmt"
+	"runtime"
+)
+
 // CompliantRTMPMember is a member that validates that both servers and clients
 // have associated methods to respond to each other.
 //
@@ -65,50 +71,65 @@ type CompliantRTMPMember interface {
 	// === 7.2.1 NetConnection Commands ===
 
 	// 7.2.1.1. connect
-	connectRX() error
-	connectTX() error
+	connectRX(x *ChunkStream) error
+	connectTX(x *ChunkStream) error
 
 	// 7.2.1.3 createStream
-	createStreamRX() error
-	createStreamTX() error
+	createStreamRX(x *ChunkStream) error
+	createStreamTX(x *ChunkStream) error
 
 	// === 7.2.2 NetStream Commands ===
 
 	// 7.2.2.1 play
-	playRX() error
-	playTX() error
+	playRX(x *ChunkStream) error
+	playTX(x *ChunkStream) error
 
 	// 7.2.2.2 play2
-	play2RX() error
-	play2TX() error
+	play2RX(x *ChunkStream) error
+	play2TX(x *ChunkStream) error
 
 	// 7.2.2.3 deleteStream
-	deleteStreamRX() error
-	deleteStreamTX() error
+	deleteStreamRX(x *ChunkStream) error
+	deleteStreamTX(x *ChunkStream) error
 
 	// 7.2.2.4 receiveAudio
-	receiveAudioRX() error
-	receiveAudioTX() error
+	receiveAudioRX(x *ChunkStream) error
+	receiveAudioTX(x *ChunkStream) error
 
 	// 7.2.2.5 receiveVideo
-	receiveVideoRX() error
-	receiveVideoTX() error
+	receiveVideoRX(x *ChunkStream) error
+	receiveVideoTX(x *ChunkStream) error
 
 	// 7.2.2.6 publish
-	publishRX() error
-	publishTX() error
+	publishRX(x *ChunkStream) error
+	publishTX(x *ChunkStream) error
 
 	// 7.2.2.7 seek
-	seekRX() error
-	seekTX() error
+	seekRX(x *ChunkStream) error
+	seekTX(x *ChunkStream) error
 
 	// 7.2.2.8 pause
-	pauseRX() error
-	pauseTX() error
+	pauseRX(x *ChunkStream) error
+	pauseTX(x *ChunkStream) error
 }
 
 // Enforce the implementation at compile time
 var (
-//_ CompliantRTMPMember = NewServer()
-//_ CompliantRTMPMember = NewClient()
+	_ CompliantRTMPMember = &ServerConn{}
+	_ CompliantRTMPMember = &ClientConn{}
+
+	DefaultUnimplementedError = errors.New("**UNIMPLEMENTED**")
 )
+
+func defaultUnimplemented() error {
+	pc := make([]uintptr, 1)
+	n := runtime.Callers(2, pc)
+	if n == 0 {
+		return DefaultUnimplementedError
+	}
+	caller := runtime.FuncForPC(pc[0] - 1)
+	if caller == nil {
+		return DefaultUnimplementedError
+	}
+	return fmt.Errorf("function %s %v", caller.Name(), DefaultUnimplementedError)
+}
