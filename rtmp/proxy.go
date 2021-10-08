@@ -60,9 +60,7 @@ type InternalProxyControlMessage int
 // stream to a configured endpoint.
 type RTMPProxy struct {
 	playClient    *ConnClient
-	playAddr      *URLAddr
 	publishClient *ConnClient
-	publishAddr   *URLAddr
 
 	chunkStreamCh  chan ChunkStream
 	proxyMessageCh chan InternalProxyControlMessage
@@ -169,14 +167,14 @@ func (r *RTMPProxy) Start() error {
 	err := r.playClient.Play()
 	defer r.playClient.Close()
 	if err != nil {
-		return fmt.Errorf("play(%s) --> [twinx proxy]: %v", r.playAddr.SafeURL(), err)
+		return fmt.Errorf("play(%s) --> [twinx proxy]: %v", r.playClient.urladdr.SafeURL(), err)
 	}
 
 	// [ Publish Client Connection ]
 	err = r.publishClient.Publish()
 	defer r.publishClient.Close()
 	if err != nil {
-		return fmt.Errorf("[twinx proxy] --> publish(%s): %v", r.playAddr.SafeURL(), err)
+		return fmt.Errorf("[twinx proxy] --> publish(%s): %v", r.publishClient.urladdr.SafeURL(), err)
 	}
 
 	r.isStreaming = true

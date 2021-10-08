@@ -156,12 +156,12 @@ func (cc *ConnClient) readRespMsg() error {
 		case AcknowledgementMessageID:
 			logger.Debug(typeIDString(&x))
 			ackSize := binary.BigEndian.Uint32(x.Data)
-			cc.conn.remoteWindowAckSize = ackSize
+			cc.conn.windowAckSize = ackSize
 			cc.conn.ack(ackSize)
 		case WindowAcknowledgementSizeMessageID:
 			logger.Debug(typeIDString(&x))
 			ackSize := binary.BigEndian.Uint32(x.Data)
-			cc.conn.remoteWindowAckSize = ackSize
+			cc.conn.windowAckSize = ackSize
 			cc.conn.ack(ackSize)
 		case SetPeerBandwidthMessageID:
 			logger.Debug(typeIDString(&x))
