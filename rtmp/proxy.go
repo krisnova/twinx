@@ -44,7 +44,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kris-nova/logger"
+	logger "github.com/kris-nova/logger"
 )
 
 const (
@@ -97,7 +97,7 @@ func (r *RTMPProxy) rxChunkStreamPlay() error {
 			if err == io.EOF {
 				break
 			}
-			return fmt.Errorf("reading packet from play(%s) client: %v", r.playAddr.SafeURL(), err)
+			return fmt.Errorf("reading packet from play(%s) client: %v", r.playClient.urladdr.SafeURL(), err)
 		}
 
 		switch x.TypeID {
@@ -187,7 +187,7 @@ func (r *RTMPProxy) Start() error {
 	// **************************
 
 	logger.Info("Proxy started.")
-	logger.Info("play(%s) --> [twinx proxy] --> publish(%s)", r.playAddr.SafeURL(), r.publishAddr.SafeURL())
+	logger.Info("play(%s) --> [twinx proxy] --> publish(%s)", r.playClient.urladdr.SafeURL(), r.publishClient.urladdr.SafeURL())
 
 	return nil
 }

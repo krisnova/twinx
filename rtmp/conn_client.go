@@ -303,7 +303,8 @@ func (cc *ConnClient) writePublishMsg() error {
 	if err := cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive); err != nil {
 		return err
 	}
-	return cc.readRespMsg()
+	// TODO left off here
+	return nil
 }
 
 func (cc *ConnClient) writePlayMsg() error {
