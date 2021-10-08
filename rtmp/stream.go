@@ -33,11 +33,12 @@ import (
 )
 
 type Stream struct {
+	uid     string
+	key     string
 	isStart bool
 	cache   *Cache
 	r       ReadCloser
 	ws      *sync.Map
-	info    Info
 }
 
 func NewStream() *Stream {
@@ -48,10 +49,7 @@ func NewStream() *Stream {
 }
 
 func (s *Stream) ID() string {
-	if s.r != nil {
-		return s.r.Info().UID
-	}
-	return ""
+	return s.uid
 }
 
 func (s *Stream) GetReader() ReadCloser {
@@ -63,7 +61,8 @@ func (s *Stream) GetWs() *sync.Map {
 }
 
 func (s *Stream) Copy(dst *Stream) {
-	dst.info = s.info
+	dst.uid = s.uid
+	dst.key = s.key
 	s.ws.Range(func(key, val interface{}) bool {
 		v := val.(*PackWriterCloser)
 		s.ws.Delete(key)
@@ -78,9 +77,8 @@ func (s *Stream) AddReader(r ReadCloser) {
 }
 
 func (s *Stream) AddWriter(w WriteCloser) {
-	info := w.Info()
 	pw := &PackWriterCloser{w: w}
-	s.ws.Store(info.UID, pw)
+	s.ws.Store(s.uid, pw)
 }
 
 func (s *Stream) TransactionStart() {
@@ -104,19 +102,14 @@ func (s *Stream) TransactionStart() {
 		s.ws.Range(func(key, val interface{}) bool {
 			v := val.(*PackWriterCloser)
 			if !v.init {
-				//logger.Info("cache.send: %v", v.w.Info())
 				if err = s.cache.Send(v.w); err != nil {
-					logger.Info("[%s] send cache packet error: %v, remove", v.w.Info(), err)
 					s.ws.Delete(key)
 					return true
 				}
 				v.init = true
 			} else {
 				newPacket := p
-				//writeType := reflect.TypeOf(v.w)
-				//logger.Info("w.Write: type=%v, %v", writeType, v.w.Info())
 				if err = v.w.Write(&newPacket); err != nil {
-					logger.Info("[%s] write packet error: %v, remove", v.w.Info(), err)
 					s.ws.Delete(key)
 				}
 			}
@@ -126,12 +119,9 @@ func (s *Stream) TransactionStart() {
 }
 
 func (s *Stream) TransStop() {
-	logger.Info("TransStop: %s", s.info.Key)
-
 	if s.isStart && s.r != nil {
 		s.r.Close()
 	}
-
 	s.isStart = false
 }
 
@@ -166,17 +156,16 @@ func (s *Stream) CheckAlive() (n int) {
 func (s *Stream) closeInter() {
 	if s.r != nil {
 		//s.StopStaticPush()
-		logger.Warning("Publisher closed: %s", s.r.Info().UID)
 	}
 
 	s.ws.Range(func(key, val interface{}) bool {
 		v := val.(*PackWriterCloser)
 		if v.w != nil {
 			v.w.Close()
-			if v.w.Info().IsInterval() {
-				s.ws.Delete(key)
-				logger.Info("[%v] player closed and remove\n", v.w.Info())
-			}
+			//if v.w.Info().IsInterval() {
+			//	s.ws.Delete(key)
+			//	logger.Info("[%v] player closed and remove\n", v.w.Info())
+			//}
 		}
 		return true
 	})

@@ -27,7 +27,8 @@
 package rtmp
 
 type Client struct {
-	conn *ConnClient
+	conn    *ConnClient
+	service *Service
 }
 
 func NewClient() *Client {
@@ -40,16 +41,43 @@ func (c *Client) Dial(address string) error {
 	if err != nil {
 		return err
 	}
+	c.service = NewService(clientConn.urladdr.Key())
 	c.conn = clientConn
 	return nil
 }
 
+func (c *Client) stream() error {
+	// Here is where we handle the service.
+	if c.conn.method == ClientMethodPublish {
+		writer := NewVirtualWriter(c.conn)
+		c.service.HandleWriter(writer)
+	} else if c.conn.method == ClientMethodPlay {
+		reader := NewVirtualReader(c.conn)
+		c.service.HandleReader(reader.UID, reader)
+	}
+	for {
+		// Stream until otherwise cancelled
+		// TODO add a signal handler
+	}
+	return nil
+}
+
 func (c *Client) Play() error {
-	return c.conn.Play()
+	err := c.conn.Play()
+	if err != nil {
+		return err
+	}
+	// We should be connected at this point
+	return c.stream()
 }
 
 func (c *Client) Publish() error {
-	return c.conn.Publish()
+	err := c.conn.Publish()
+	if err != nil {
+		return err
+	}
+	// We should be connected at this point
+	return c.stream()
 }
 
 func (c *Client) Client() *ConnClient {

@@ -28,11 +28,7 @@ package rtmp
 import (
 	"fmt"
 	"os"
-	"path"
-	"strings"
 	"time"
-
-	"github.com/kris-nova/logger"
 
 	"github.com/gwuhaolin/livego/protocol/amf"
 	"github.com/gwuhaolin/livego/utils/pio"
@@ -376,39 +372,32 @@ func (writer *FLVWriter) Close() {
 	close(writer.closed)
 }
 
-func (writer *FLVWriter) Info() (ret Info) {
-	ret.UID = writer.Uid
-	ret.URL = writer.url
-	ret.Key = writer.app + "/" + writer.title
-	return
-}
-
 type FlvDvr struct{}
 
-func (f *FlvDvr) GetWriter(info Info) WriteCloser {
-	paths := strings.SplitN(info.Key, "/", 2)
-	if len(paths) != 2 {
-		logger.Warning("invalid info")
-		return nil
-	}
-
-	flvDir := "UNSET"
-
-	err := os.MkdirAll(path.Join(flvDir, paths[0]), 0755)
-	if err != nil {
-		logger.Warning("mkdir error: ", err)
-		return nil
-	}
-
-	fileName := fmt.Sprintf("%s_%d.%s", path.Join(flvDir, info.Key), time.Now().Unix(), "flv")
-	logger.Debug("flv dvr save stream to: ", fileName)
-	w, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, 0755)
-	if err != nil {
-		logger.Warning("open file error: ", err)
-		return nil
-	}
-
-	writer := NewFLVWriter(paths[0], paths[1], info.URL, w)
-	logger.Debug("new flv dvr: ", writer.Info())
-	return writer
-}
+//func (f *FlvDvr) GetWriter(info Info) WriteCloser {
+//	paths := strings.SplitN(info.Key, "/", 2)
+//	if len(paths) != 2 {
+//		logger.Warning("invalid info")
+//		return nil
+//	}
+//
+//	flvDir := "UNSET"
+//
+//	err := os.MkdirAll(path.Join(flvDir, paths[0]), 0755)
+//	if err != nil {
+//		logger.Warning("mkdir error: ", err)
+//		return nil
+//	}
+//
+//	fileName := fmt.Sprintf("%s_%d.%s", path.Join(flvDir, info.Key), time.Now().Unix(), "flv")
+//	logger.Debug("flv dvr save stream to: ", fileName)
+//	w, err := os.OpenFile(fileName, os.O_CREATE|os.O_RDWR, 0755)
+//	if err != nil {
+//		logger.Warning("open file error: ", err)
+//		return nil
+//	}
+//
+//	writer := NewFLVWriter(paths[0], paths[1], info.URL, w)
+//	logger.Debug("new flv dvr: ", writer.Info())
+//	return writer
+//}

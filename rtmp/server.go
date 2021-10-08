@@ -30,9 +30,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"net/url"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/kris-nova/logger"
@@ -67,9 +65,7 @@ type Server struct {
 }
 
 func NewServer() *Server {
-	return &Server{
-		service: NewService(),
-	}
+	return &Server{}
 }
 
 func (s *Server) ListenAndServe(raw string) error {
@@ -98,6 +94,7 @@ func (s *Server) Serve(listener net.Listener) error {
 		return fmt.Errorf("urlAddr: %v", err)
 	}
 	s.listener.addr = urlAddr
+	s.service = NewService(urlAddr.Key())
 	logger.Info("Listening %s...", s.listener.addr.SafeURL())
 	for {
 		clientConn, err := s.listener.Accept()
@@ -127,7 +124,7 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	for {
 		if connSrv.IsPublisher() {
 			// Once we are connected plumb the stream through
-			logger.Debug("Stream ID: %d", connSrv.streamID)
+			//logger.Debug("Stream ID: %d", connSrv.streamID)
 			logger.Debug("Transaction ID: %d", connSrv.transactionID)
 
 			// **************************************
@@ -153,7 +150,7 @@ func (s *Server) handleConn(netConn net.Conn) error {
 			//
 			// **************************************
 			reader := NewVirtualReader(connSrv)
-			s.service.HandleReader(reader)
+			s.service.HandleReader(reader.UID, reader)
 
 			// TODO: Do NOT break here
 			break
@@ -213,12 +210,7 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	return nil
 }
 
-type GetInfo interface {
-	GetInfo() (string, string, string)
-}
-
 type StreamReadWriteCloser interface {
-	GetInfo
 	Close()
 	Write(ChunkStream) error
 	Read(c *ChunkStream) error
@@ -238,7 +230,7 @@ type StaticsBW struct {
 }
 
 type VirtualWriter struct {
-	Uid    string
+	UID    string
 	closed bool
 	RWBaser
 	conn        StreamReadWriteCloser
@@ -248,7 +240,7 @@ type VirtualWriter struct {
 
 func NewVirtualWriter(conn StreamReadWriteCloser) *VirtualWriter {
 	ret := &VirtualWriter{
-		Uid:         uid.NewId(),
+		UID:         uid.NewId(),
 		conn:        conn,
 		RWBaser:     NewRWBaser(time.Second * time.Duration(WriteTimeout)),
 		packetQueue: make(chan *Packet, MaximumPacketQueueRecords),
@@ -299,8 +291,7 @@ func (v *VirtualWriter) Check() {
 	}
 }
 
-func (v *VirtualWriter) DropPacket(pktQue chan *Packet, info Info) {
-	logger.Critical("packet queue max [%+v]", info)
+func (v *VirtualWriter) DropPacket(pktQue chan *Packet) {
 	for i := 0; i < MaximumPacketQueueRecords-84; i++ {
 		tmpPkt, ok := <-pktQue
 		// try to don't drop audio
@@ -344,7 +335,7 @@ func (v *VirtualWriter) Write(p *Packet) (err error) {
 		}
 	}()
 	if len(v.packetQueue) >= MaximumPacketQueueRecords-24 {
-		v.DropPacket(v.packetQueue, v.Info())
+		v.DropPacket(v.packetQueue)
 	} else {
 		v.packetQueue <- p
 	}
@@ -390,19 +381,6 @@ func (v *VirtualWriter) SendPacket() error {
 	}
 }
 
-func (v *VirtualWriter) Info() (ret Info) {
-	ret.UID = v.Uid
-	_, _, URL := v.conn.GetInfo()
-	ret.URL = URL
-	_url, err := url.Parse(URL)
-	if err != nil {
-		logger.Warning("parsing URL: %v", err)
-	}
-	ret.Key = strings.TrimLeft(_url.Path, "/")
-	ret.Inter = true
-	return
-}
-
 func (v *VirtualWriter) Close() {
 	if !v.closed {
 		close(v.packetQueue)
@@ -412,7 +390,7 @@ func (v *VirtualWriter) Close() {
 }
 
 type VirtualReader struct {
-	Uid string
+	UID string
 	RWBaser
 	demuxer    *FLVDemuxer
 	conn       StreamReadWriteCloser
@@ -421,7 +399,7 @@ type VirtualReader struct {
 
 func NewVirtualReader(conn StreamReadWriteCloser) *VirtualReader {
 	return &VirtualReader{
-		Uid:        uid.NewId(),
+		UID:        uid.NewId(),
 		conn:       conn,
 		RWBaser:    NewRWBaser(time.Second * time.Duration(WriteTimeout)),
 		demuxer:    NewFLVDemuxer(),
@@ -487,18 +465,6 @@ func (v *VirtualReader) Read(p *Packet) (err error) {
 	v.SaveStatics(p.StreamID, uint64(len(p.Data)), p.IsVideo)
 	v.demuxer.DemuxH(p)
 	return err
-}
-
-func (v *VirtualReader) Info() (ret Info) {
-	ret.UID = v.Uid
-	_, _, URL := v.conn.GetInfo()
-	ret.URL = URL
-	_url, err := url.Parse(URL)
-	if err != nil {
-		logger.Warning("parsing URL: %v", err)
-	}
-	ret.Key = strings.TrimLeft(_url.Path, "/")
-	return
 }
 
 func (v *VirtualReader) Close() {

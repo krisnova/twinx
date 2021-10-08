@@ -29,8 +29,6 @@ package rtmp
 import (
 	"sync"
 	"time"
-
-	"github.com/kris-nova/logger"
 )
 
 // Service is the main RTMP active service.
@@ -39,41 +37,41 @@ import (
 // We track each of the subordinate streams here.
 type Service struct {
 
+	// key is the stream key
+	// this is auth material, please keep it safe
+	key string
+
 	// mux is the concurrent safe hashmap used to track
 	// various subordinate streams.
 	mux *sync.Map
 }
 
 // NewService will start a new RTMP service which streams can be added to later.
-func NewService() *Service {
+func NewService(key string) *Service {
 	svc := &Service{
+		key: key,
 		mux: &sync.Map{},
 	}
 	go svc.CheckAlive()
 	return svc
 }
 
-func (svc *Service) HandleReader(r ReadCloser) {
-	// Note: r.Info().Key is secret material
-	info := r.Info()
-	logger.Info("Loading reader for stream: %s", info.UID)
+func (svc *Service) HandleReader(UID string, r ReadCloser) {
 
 	var stream *Stream
-	i, ok := svc.mux.Load(info.Key)
+	i, ok := svc.mux.Load(svc.key)
 	if stream, ok = i.(*Stream); ok {
 		stream.TransStop()
 		id := stream.ID()
-		if id != "" && id != info.UID {
+		if id != "" && id != UID {
 			ns := NewStream()
 			stream.Copy(ns)
 			stream = ns
-			svc.mux.Store(info.Key, ns)
+			svc.mux.Store(svc.key, ns)
 		}
 	} else {
 		stream = NewStream()
-		logger.Info("Starting new stream: %s", info.UID)
-		svc.mux.Store(info.Key, stream)
-		stream.info = info
+		svc.mux.Store(svc.key, stream)
 	}
 
 	stream.AddReader(r)
@@ -81,18 +79,11 @@ func (svc *Service) HandleReader(r ReadCloser) {
 }
 
 func (svc *Service) HandleWriter(w WriteCloser) {
-	// Note: r.Info().Key is secret material
-	info := w.Info()
-	logger.Info("Loading writer for stream: %s", info.UID)
-
 	var s *Stream
-	item, ok := svc.mux.Load(info.Key)
+	item, ok := svc.mux.Load(svc.key)
 	if !ok {
-		logger.Info("Validating with cache")
-		logger.Info("HandleWriter: not found create new info[%v]", info)
 		s = NewStream()
-		svc.mux.Store(info.Key, s)
-		s.info = info
+		svc.mux.Store(svc.key, s)
 	} else {
 		s = item.(*Stream)
 		s.AddWriter(w)

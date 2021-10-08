@@ -39,7 +39,6 @@
 package rtmp
 
 import (
-	"fmt"
 	"io"
 	"sync"
 	"time"
@@ -132,10 +131,6 @@ type CodecParser interface {
 	Parse(*Packet, io.Writer) error
 }
 
-type GetWriter interface {
-	GetWriter(Info) WriteCloser
-}
-
 type Handler interface {
 	HandleReader(ReadCloser)
 	HandleWriter(WriteCloser)
@@ -146,28 +141,11 @@ type Alive interface {
 }
 
 type Closer interface {
-	Info() Info
 	Close()
 }
 
 type CalcTime interface {
 	CalcBaseTimestamp()
-}
-
-type Info struct {
-	Key   string
-	URL   string
-	UID   string
-	Inter bool
-}
-
-func (info Info) IsInterval() bool {
-	return info.Inter
-}
-
-func (info Info) String() string {
-	return fmt.Sprintf("<key: %s, URL: %s, UID: %s, Inter: %v>",
-		info.Key, info.URL, info.UID, info.Inter)
 }
 
 type ReadCloser interface {
