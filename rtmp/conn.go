@@ -83,7 +83,9 @@ func NewConn(c net.Conn) *Conn {
 }
 
 var (
-	TestableEOFError = errors.New("reading bytes from client: EOF")
+	// Note: this can likely be caused by missing /app/key in the URL
+
+	TestableEOFError = errors.New("reading bytes from client: EOF.")
 )
 
 func (conn *Conn) Read(c *ChunkStream) error {

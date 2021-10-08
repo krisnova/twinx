@@ -49,7 +49,7 @@ func (c *Client) Play() error {
 }
 
 func (c *Client) Publish() error {
-	return c.conn.Play()
+	return c.conn.Publish()
 }
 
 func (c *Client) Client() *ConnClient {

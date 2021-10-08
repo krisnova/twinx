@@ -41,6 +41,7 @@ package rtmp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -51,22 +52,33 @@ import (
 )
 
 type ConnClient struct {
-	conn    *Conn
-	urladdr *URLAddr
+	conn      *Conn
+	urladdr   *URLAddr
+	method    ClientMethod
+	connected bool
+	transID   int
 
-	method     ClientMethod
-	connected  bool
-	transID    int
-	url        string
-	tcurl      string
-	app        string
-	title      string
-	query      string
+	// We believe this is raw
+	//url        string
+
+	// rtmp://host/app/key
+	//tcurl      string
+
+	// app
+	// app        string
+
+	// We believe this is the key
+	// title      string
+
+	// from url.parse
+	// query      string
+
 	curcmdName string
 	streamid   uint32
-	encoder    *amf.Encoder
-	decoder    *amf.Decoder
-	bytesw     *bytes.Buffer
+
+	encoder *amf.Encoder
+	decoder *amf.Decoder
+	bytesw  *bytes.Buffer
 }
 
 func NewConnClient() *ConnClient {
@@ -83,16 +95,19 @@ func (cc *ConnClient) Dial(address string) error {
 	if err != nil {
 		return fmt.Errorf("client dial: %v", err)
 	}
+	logger.Info("ConnClient.Dial %s", urlAddr.String())
 	conn, err := urlAddr.NewConn()
 	if err != nil {
 		return fmt.Errorf("new conn from addr: %v", err)
 	}
 	cc.conn = conn
+	cc.urladdr = urlAddr
 	return nil
 }
 
 func (cc *ConnClient) Publish() error {
 	cc.method = ClientMethodPublish
+	logger.Info("Client: Publish")
 	err := cc.connect()
 	if err != nil {
 		return err
@@ -105,6 +120,7 @@ func (cc *ConnClient) Publish() error {
 
 func (cc *ConnClient) Play() error {
 	cc.method = ClientMethodPlay
+	logger.Info("Client: Play")
 	err := cc.connect()
 	if err != nil {
 		return err
@@ -147,27 +163,55 @@ func (cc *ConnClient) readRespMsg() error {
 
 		switch x.TypeID {
 		case SetChunkSizeMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+			chunkSize := binary.BigEndian.Uint32(x.Data)
+			cc.conn.remoteChunkSize = chunkSize
+			cc.conn.ack(x.Length)
 		case AbortMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(&x))
 		case AcknowledgementMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+			ackSize := binary.BigEndian.Uint32(x.Data)
+			cc.conn.remoteWindowAckSize = ackSize
+			cc.conn.ack(ackSize)
 		case WindowAcknowledgementSizeMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+			ackSize := binary.BigEndian.Uint32(x.Data)
+			cc.conn.remoteWindowAckSize = ackSize
+			cc.conn.ack(ackSize)
 		case SetPeerBandwidthMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+			ackSize := binary.BigEndian.Uint32(x.Data)
+			cc.conn.ack(ackSize)
 		case UserControlMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
+			ackSize := binary.BigEndian.Uint32(x.Data)
+			cc.conn.ack(ackSize)
 		case CommandMessageAMF0ID, CommandMessageAMF3ID:
 			xReader := bytes.NewReader(x.Data)
 			values, err := cc.decoder.DecodeBatch(xReader, amf.AMF0)
 			if err != nil && err != io.EOF {
 				return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.urladdr.SafeURL(), err)
 			}
-			for _, v := range values {
+			for k, v := range values {
 				switch v.(type) {
 				case string:
+					switch cc.curcmdName {
+					case CommandConnect, CommandCreateStream:
+					case CommandPublish:
+
+					}
 				case float64:
+					switch cc.curcmdName {
+					case CommandConnect, CommandCreateStream:
+						id := int(v.(float64))
+						if k == 1 {
+							if id != cc.transID {
+								return fmt.Errorf("invalid ID")
+							}
+						} else if k == 3 {
+							cc.streamid = uint32(id)
+						}
+					case CommandPublish:
+						if int(v.(float64)) != 0 {
+							return fmt.Errorf("invalid publish")
+						}
+					}
 				case amf.Object:
 					// Todo unmarshal this into ConnEvent
 					entity := v.(amf.Object)
@@ -175,7 +219,7 @@ func (cc *ConnClient) readRespMsg() error {
 					case CommandConnect:
 						code, ok := entity[ConnEventCode]
 						if ok && code.(string) != CommandNetStreamConnectSuccess {
-							return fmt.Errorf("unable to connect: error code: %d", code)
+							return fmt.Errorf("unable to connect: error code: %v", code)
 						}
 					case CommandPublish:
 						code, ok := entity[ConnEventCode]
@@ -225,10 +269,10 @@ func (cc *ConnClient) writeMsg(args ...interface{}) error {
 
 func (cc *ConnClient) writeConnectMsg() error {
 	event := make(amf.Object)
-	event[ConnInfoKeyApp] = cc.app
+	event[ConnInfoKeyApp] = cc.urladdr.App()
 	event[ConnInfoKeyType] = "nonprivate"
 	event[ConnInfoKeyFlashVer] = DefaultServerFMSVersion
-	event[ConnInfoKeyTcURL] = cc.tcurl
+	event[ConnInfoKeyTcURL] = cc.urladdr.StreamURL()
 	cc.curcmdName = CommandConnect
 
 	if err := cc.writeMsg(CommandConnect, cc.transID, event); err != nil {
@@ -256,7 +300,7 @@ func (cc *ConnClient) writeCreateStreamMsg() error {
 func (cc *ConnClient) writePublishMsg() error {
 	cc.transID++
 	cc.curcmdName = CommandPublish
-	if err := cc.writeMsg(CommandPublish, cc.transID, nil, cc.title, PublishCommandLive); err != nil {
+	if err := cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive); err != nil {
 		return err
 	}
 	return cc.readRespMsg()
@@ -266,7 +310,7 @@ func (cc *ConnClient) writePlayMsg() error {
 	cc.transID++
 	cc.curcmdName = CommandPlay
 
-	if err := cc.writeMsg(CommandPlay, 0, nil, cc.title); err != nil {
+	if err := cc.writeMsg(CommandPlay, 0, nil, cc.urladdr.Key()); err != nil {
 		return err
 	}
 	return cc.readRespMsg()
@@ -290,13 +334,6 @@ func (cc *ConnClient) Flush() error {
 
 func (cc *ConnClient) Read(c *ChunkStream) (err error) {
 	return cc.conn.Read(c)
-}
-
-func (cc *ConnClient) GetInfo() (app string, name string, url string) {
-	app = cc.app
-	name = cc.title
-	url = cc.url
-	return
 }
 
 func (cc *ConnClient) GetStreamId() uint32 {

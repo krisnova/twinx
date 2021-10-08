@@ -112,6 +112,7 @@ func main() {
 					// Default publish (This is what OBS does)
 					&cli.BoolFlag{
 						Name:        "play",
+						Value:       false,
 						Destination: &clientPlay,
 					},
 				}, globalFlags...),

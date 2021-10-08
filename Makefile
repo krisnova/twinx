@@ -29,9 +29,9 @@ version=$(shell git rev-parse HEAD)
 
 # Global release version.
 # Change this to bump the build version!
-version   = "0.0.1"
-bin_twinx = "twinx"
-bin_rtmp  = "twinx-rtmp"
+version=0.0.1
+bin_twinx=twinx
+bin_rtmp=twinx-rtmp
 
 compile: generate compile-rtmp ## Compile for the local architecture ⚙
 	@echo "Compiling ${bin_twinx}..."
@@ -47,13 +47,15 @@ compile-rtmp: ## Compile the RTMP tool for the local architecture ⚙
 		-o bin/${bin_rtmp} \
 		rtmp/cmd/*.go
 
-install: ## Install your ${bin_twinx} 🎉
+install: install-rtmp ## Install your ${bin_twinx} 🎉
 	@echo "Installing..."
-	cp bin/twinx /usr/local/bin/twinx
+	rm -vf /usr/local/bin/${bin_twinx}
+	cp bin/${bin_twinx} /usr/local/bin/${bin_twinx}
 
 install-rtmp: ## Install your ${bin_twinx} 🎉
-	@echo "Installing gortmp..."
-	cp bin/gortmp /usr/local/bin/gortmp
+	@echo "Installing ${bin_twinx}..."
+	rm -vf /usr/local/bin/${bin_rtmp}
+	cp bin/${bin_rtmp} /usr/local/bin/${bin_rtmp}
 
 
 generate: ## Will generate Go code from .proto files in /api

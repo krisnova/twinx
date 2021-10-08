@@ -161,26 +161,25 @@ func (s *Server) handleConn(netConn net.Conn) error {
 		x, err := connSrv.ReadPacket()
 		if err != nil {
 			logger.Critical("reading chunk from client: %v", err)
+			// Terminate the client!
+			return err
 		}
 		//logger.Debug("Message received from client: %s", typeIDString(chunk))
 
 		switch x.TypeID {
 		case SetChunkSizeMessageID:
 			// 5.4.1. Set Chunk Size (1)
-			logger.Info("Message: SetChunkSize")
 			chunkSize := binary.BigEndian.Uint32(x.Data)
-			logger.Info("   Setting remoteChunkSize: %d", chunkSize)
 			conn.remoteChunkSize = chunkSize
 			conn.ack(x.Length)
 		case AbortMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case AcknowledgementMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
+			logger.Critical("server unsupported messageID: %s", typeIDString(x))
 		case WindowAcknowledgementSizeMessageID:
-			logger.Info("Message: WindowAcknowledgementSize")
 			ackSize := binary.BigEndian.Uint32(x.Data)
-			logger.Info("   Setting windowAcknowledgementSize: %d", ackSize)
 			conn.remoteWindowAckSize = ackSize
+			conn.ack(x.Length)
 		case SetPeerBandwidthMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(x))
 		case UserControlMessageID:

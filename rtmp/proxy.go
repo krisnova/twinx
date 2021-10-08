@@ -84,6 +84,7 @@ func NewRTMPProxy(play, publish *ConnClient) *RTMPProxy {
 // This will read bytes from a play client and send them
 // over a packet channel (ChunkStream) in an unbounded buffer.
 func (r *RTMPProxy) rxChunkStreamPlay() error {
+	logger.Info("Play %s", r.publishClient.urladdr.SafeURL())
 	for {
 		var x ChunkStream
 
@@ -115,11 +116,6 @@ func (r *RTMPProxy) rxChunkStreamPlay() error {
 		case UserControlMessageID:
 			logger.Critical("unsupported messageID: %s", typeIDString(&x))
 		case CommandMessageAMF0ID, CommandMessageAMF3ID:
-			//xReader := bytes.NewReader(x.Data)
-			//vs, err := r.playClient.DecodeBatch(xReader, amf.AMF0)
-			//if err != nil && err != io.EOF {
-			//	return fmt.Errorf("decoding bytes from play(%s) client: %v", r.playAddr.SafeURL(), err)
-			//}
 			logger.Critical("unsupported messageID: %s", typeIDString(&x))
 		case DataMessageAMF0ID, DataMessageAMF3ID:
 			logger.Critical("unsupported messageID: %s", typeIDString(&x))
@@ -143,6 +139,7 @@ func (r *RTMPProxy) rxChunkStreamPlay() error {
 // txChunkStreamPublish will read from the packet (ChunkStream)
 // channel and write to the configured client.
 func (r *RTMPProxy) txChunkStreamPublish() {
+	logger.Info("Publish %s", r.publishClient.urladdr.SafeURL())
 	for {
 		select {
 		case rc := <-r.chunkStreamCh:

@@ -250,7 +250,8 @@ func (a *URLAddr) String() string {
 }
 
 func (a *URLAddr) NewNetConn() (net.Conn, error) {
-	return net.Dial(DefaultProtocol, a.StreamURL())
+	// Note: This is the string we will try to dial()
+	return net.Dial(DefaultProtocol, a.String())
 }
 
 func (a *URLAddr) NewConn() (*Conn, error) {
