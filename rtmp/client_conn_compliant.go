@@ -39,31 +39,82 @@
 
 package rtmp
 
-import "github.com/kris-nova/logger"
+import (
+	"io"
+	"time"
+
+	"github.com/gwuhaolin/livego/protocol/amf"
+
+	"github.com/gwuhaolin/livego/utils/pio"
+	"github.com/kris-nova/logger"
+)
 
 func (cc *ClientConn) handshake() error {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	logger.Debug("[client] handshake...")
+	var err error
+	var random [(1 + 1536*2) * 2]byte
+	C0C1C2 := random[:1536*2+1]
+	C0 := C0C1C2[:1]
+	C0C1 := C0C1C2[:1536+1]
+	C2 := C0C1C2[1536+1:]
+	S0S1S2 := random[1536*2+1:]
+	C0[0] = 3
+	// > C0C1
+	cc.conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
+	if _, err = cc.conn.rw.Write(C0C1); err != nil {
+		return err
+	}
+	cc.conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
+	if err = cc.conn.rw.Flush(); err != nil {
+		return err
+	}
+
+	// < S0S1S2
+	cc.conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
+	if _, err = io.ReadFull(cc.conn.rw, S0S1S2); err != nil {
+		return err
+	}
+
+	S1 := S0S1S2[1 : 1536+1]
+	if ver := pio.U32BE(S1[4:8]); ver != 0 {
+		C2 = S1
+	} else {
+		C2 = S1
+	}
+
+	// > C2
+	cc.conn.SetDeadline(time.Now().Add(TimeoutDurationSeconds))
+	if _, err = cc.conn.rw.Write(C2); err != nil {
+		return err
+	}
+	cc.conn.SetDeadline(time.Time{})
+	return nil
 }
 
 func (cc *ClientConn) connectRX(x *ChunkStream) error {
-	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil
 }
 
-func (cc *ClientConn) connectTX(x *ChunkStream) error {
+func (cc *ClientConn) connectTX() (*ChunkStream, error) {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	event := make(amf.Object)
+	event[ConnInfoKeyApp] = cc.urladdr.App()
+	event[ConnInfoKeyType] = "nonprivate"
+	event[ConnInfoKeyFlashVer] = DefaultServerFMSVersion
+	event[ConnInfoKeyTcURL] = cc.urladdr.StreamURL()
+	cc.curcmdName = CommandConnect
+	return cc.writeMsg(CommandConnect, cc.transID, event)
 }
 
 func (cc *ClientConn) createStreamRX(x *ChunkStream) error {
-	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil
 }
 
-func (cc *ClientConn) createStreamTX(x *ChunkStream) error {
-	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+func (cc *ClientConn) createStreamTX() (*ChunkStream, error) {
+	cc.transID++
+	cc.curcmdName = CommandCreateStream
+	return cc.writeMsg(CommandCreateStream, cc.transID, nil)
 }
 
 func (cc *ClientConn) playRX(x *ChunkStream) error {
@@ -71,9 +122,10 @@ func (cc *ClientConn) playRX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) playTX(x *ChunkStream) error {
-	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+func (cc *ClientConn) playTX() (*ChunkStream, error) {
+	cc.transID++
+	cc.curcmdName = CommandPlay
+	return cc.writeMsg(CommandPlay, 0, nil, cc.urladdr.Key())
 }
 
 func (cc *ClientConn) play2RX(x *ChunkStream) error {
@@ -81,9 +133,9 @@ func (cc *ClientConn) play2RX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) play2TX(x *ChunkStream) error {
+func (cc *ClientConn) play2TX() (*ChunkStream, error) {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) deleteStreamRX(x *ChunkStream) error {
@@ -91,9 +143,9 @@ func (cc *ClientConn) deleteStreamRX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) deleteStreamTX(x *ChunkStream) error {
+func (cc *ClientConn) deleteStreamTX() (*ChunkStream, error) {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) receiveAudioRX(x *ChunkStream) error {
@@ -101,9 +153,9 @@ func (cc *ClientConn) receiveAudioRX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) receiveAudioTX(x *ChunkStream) error {
+func (cc *ClientConn) receiveAudioTX() (*ChunkStream, error) {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) receiveVideoRX(x *ChunkStream) error {
@@ -111,9 +163,9 @@ func (cc *ClientConn) receiveVideoRX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) receiveVideoTX(x *ChunkStream) error {
+func (cc *ClientConn) receiveVideoTX() (*ChunkStream, error) {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) publishRX(x *ChunkStream) error {
@@ -121,9 +173,10 @@ func (cc *ClientConn) publishRX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) publishTX(x *ChunkStream) error {
-	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+func (cc *ClientConn) publishTX() (*ChunkStream, error) {
+	cc.transID++
+	cc.curcmdName = CommandPublish
+	return cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive)
 }
 
 func (cc *ClientConn) seekRX(x *ChunkStream) error {
@@ -131,9 +184,9 @@ func (cc *ClientConn) seekRX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) seekTX(x *ChunkStream) error {
+func (cc *ClientConn) seekTX() (*ChunkStream, error) {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) pauseRX(x *ChunkStream) error {
@@ -141,7 +194,7 @@ func (cc *ClientConn) pauseRX(x *ChunkStream) error {
 	return defaultUnimplemented()
 }
 
-func (cc *ClientConn) pauseTX(x *ChunkStream) error {
+func (cc *ClientConn) pauseTX() (*ChunkStream, error) {
 	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	return nil, defaultUnimplemented()
 }

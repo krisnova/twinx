@@ -38,13 +38,7 @@
 
 package rtmp
 
-import (
-	"errors"
-	"fmt"
-	"runtime"
-)
-
-// CompliantRTMPMember is a member that validates that both servers and clients
+// CompliantMember is a member that validates that both servers and clients
 // have associated methods to respond to each other.
 //
 // This allows a clearer understanding of communication between the entities and
@@ -56,7 +50,7 @@ import (
 // We us "RX" and "TX" to identify the direction of packets.
 //    RX = Receive  : Packets coming from a remote to this process
 //    TX = Transmit : Packets sending to a remote from this process
-type CompliantRTMPMember interface {
+type CompliantMember interface {
 
 	// 5.2 Handshake
 	//
@@ -72,64 +66,61 @@ type CompliantRTMPMember interface {
 
 	// 7.2.1.1. connect
 	connectRX(x *ChunkStream) error
-	connectTX(x *ChunkStream) error
+	connectTX() (*ChunkStream, error)
 
 	// 7.2.1.3 createStream
 	createStreamRX(x *ChunkStream) error
-	createStreamTX(x *ChunkStream) error
+	createStreamTX() (*ChunkStream, error)
 
 	// === 7.2.2 NetStream Commands ===
 
 	// 7.2.2.1 play
 	playRX(x *ChunkStream) error
-	playTX(x *ChunkStream) error
+	playTX() (*ChunkStream, error)
 
 	// 7.2.2.2 play2
 	play2RX(x *ChunkStream) error
-	play2TX(x *ChunkStream) error
+	play2TX() (*ChunkStream, error)
 
 	// 7.2.2.3 deleteStream
 	deleteStreamRX(x *ChunkStream) error
-	deleteStreamTX(x *ChunkStream) error
+	deleteStreamTX() (*ChunkStream, error)
 
 	// 7.2.2.4 receiveAudio
 	receiveAudioRX(x *ChunkStream) error
-	receiveAudioTX(x *ChunkStream) error
+	receiveAudioTX() (*ChunkStream, error)
 
 	// 7.2.2.5 receiveVideo
 	receiveVideoRX(x *ChunkStream) error
-	receiveVideoTX(x *ChunkStream) error
+	receiveVideoTX() (*ChunkStream, error)
 
 	// 7.2.2.6 publish
 	publishRX(x *ChunkStream) error
-	publishTX(x *ChunkStream) error
+	publishTX() (*ChunkStream, error)
 
 	// 7.2.2.7 seek
 	seekRX(x *ChunkStream) error
-	seekTX(x *ChunkStream) error
+	seekTX() (*ChunkStream, error)
 
 	// 7.2.2.8 pause
 	pauseRX(x *ChunkStream) error
-	pauseTX(x *ChunkStream) error
+	pauseTX() (*ChunkStream, error)
+}
+
+type ChunkStreamRouter interface {
+	// RoutePackets just reads packets and calls Route()
+	RoutePackets() error
+
+	Route(x *ChunkStream) error
+}
+
+type ChunkStreamReader interface {
+	Read(x *ChunkStream) error
+	NextChunk() (*ChunkStream, error)
 }
 
 // Enforce the implementation at compile time
 var (
-	_ CompliantRTMPMember = &ServerConn{}
-	_ CompliantRTMPMember = &ClientConn{}
-
-	DefaultUnimplementedError = errors.New("**UNIMPLEMENTED**")
+	//_ CompliantMember = &ServerConn{}
+	_ CompliantMember = &ClientConn{}
 )
-
-func defaultUnimplemented() error {
-	pc := make([]uintptr, 1)
-	n := runtime.Callers(2, pc)
-	if n == 0 {
-		return DefaultUnimplementedError
-	}
-	caller := runtime.FuncForPC(pc[0] - 1)
-	if caller == nil {
-		return DefaultUnimplementedError
-	}
-	return fmt.Errorf("function %s %v", caller.Name(), DefaultUnimplementedError)
-}

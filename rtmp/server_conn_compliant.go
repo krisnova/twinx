@@ -41,7 +41,12 @@ package rtmp
 
 import "github.com/kris-nova/logger"
 
-func (s *ServerConn) handshake() error {
+func (s *ServerConn) handshakeClient() error {
+	logger.Debug(thisFunctionName())
+	return defaultUnimplemented()
+}
+
+func (s *ServerConn) handshakeServer() error {
 	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
