@@ -99,6 +99,9 @@ func (cc *ConnClient) Publish() error {
 	if err := cc.writePublishMsg(); err != nil {
 		return err
 	}
+	for {
+		cc.readRespMsg()
+	}
 	return nil
 }
 
@@ -111,6 +114,9 @@ func (cc *ConnClient) Play() error {
 	}
 	if err := cc.writePlayMsg(); err != nil {
 		return err
+	}
+	for {
+		cc.readRespMsg()
 	}
 	return nil
 }
@@ -140,94 +146,99 @@ func (cc *ConnClient) DecodeBatch(r io.Reader, ver amf.Version) (ret []interface
 func (cc *ConnClient) readRespMsg() error {
 
 	var x ChunkStream
-	for {
-		if err := cc.conn.Read(&x); err != nil {
-			return err
+
+	if err := cc.conn.Read(&x); err != nil {
+		return err
+	}
+
+	switch x.TypeID {
+	case SetChunkSizeMessageID:
+		logger.Debug(typeIDString(&x))
+		chunkSize := binary.BigEndian.Uint32(x.Data)
+		cc.conn.chunkSize = chunkSize
+		cc.conn.ack(x.Length)
+	case AbortMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(&x))
+	case AcknowledgementMessageID:
+		logger.Debug(typeIDString(&x))
+		ackSize := binary.BigEndian.Uint32(x.Data)
+		cc.conn.remoteWindowAckSize = ackSize
+		cc.conn.ack(ackSize)
+	case WindowAcknowledgementSizeMessageID:
+		logger.Debug(typeIDString(&x))
+		ackSize := binary.BigEndian.Uint32(x.Data)
+		cc.conn.remoteWindowAckSize = ackSize
+		cc.conn.ack(ackSize)
+	case SetPeerBandwidthMessageID:
+		logger.Debug(typeIDString(&x))
+		ackSize := binary.BigEndian.Uint32(x.Data)
+		cc.conn.ack(ackSize)
+	case UserControlMessageID:
+		logger.Debug(typeIDString(&x))
+		ackSize := binary.BigEndian.Uint32(x.Data)
+		cc.conn.ack(ackSize)
+	case CommandMessageAMF0ID, CommandMessageAMF3ID:
+		logger.Debug(typeIDString(&x))
+		xReader := bytes.NewReader(x.Data)
+		values, err := cc.decoder.DecodeBatch(xReader, amf.AMF0)
+		if err != nil && err != io.EOF {
+			return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.urladdr.SafeURL(), err)
 		}
-
-		switch x.TypeID {
-		case SetChunkSizeMessageID:
-			chunkSize := binary.BigEndian.Uint32(x.Data)
-			cc.conn.remoteChunkSize = chunkSize
-			cc.conn.ack(x.Length)
-		case AbortMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
-		case AcknowledgementMessageID:
-			ackSize := binary.BigEndian.Uint32(x.Data)
-			cc.conn.remoteWindowAckSize = ackSize
-			cc.conn.ack(ackSize)
-		case WindowAcknowledgementSizeMessageID:
-			ackSize := binary.BigEndian.Uint32(x.Data)
-			cc.conn.remoteWindowAckSize = ackSize
-			cc.conn.ack(ackSize)
-		case SetPeerBandwidthMessageID:
-			ackSize := binary.BigEndian.Uint32(x.Data)
-			cc.conn.ack(ackSize)
-		case UserControlMessageID:
-			ackSize := binary.BigEndian.Uint32(x.Data)
-			cc.conn.ack(ackSize)
-		case CommandMessageAMF0ID, CommandMessageAMF3ID:
-			xReader := bytes.NewReader(x.Data)
-			values, err := cc.decoder.DecodeBatch(xReader, amf.AMF0)
-			if err != nil && err != io.EOF {
-				return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.urladdr.SafeURL(), err)
-			}
-			for k, v := range values {
-				switch v.(type) {
-				case string:
-					switch cc.curcmdName {
-					case CommandConnect, CommandCreateStream:
-					case CommandPublish:
-
+		for k, v := range values {
+			switch v.(type) {
+			case string:
+				switch cc.curcmdName {
+				case CommandConnect, CommandCreateStream:
+				case CommandPublish:
+				}
+			case float64:
+				switch cc.curcmdName {
+				case CommandConnect, CommandCreateStream:
+					id := int(v.(float64))
+					if k == 1 {
+						if id != cc.transID {
+							return fmt.Errorf("invalid ID")
+						}
+					} else if k == 3 {
+						cc.streamid = uint32(id)
 					}
-				case float64:
-					switch cc.curcmdName {
-					case CommandConnect, CommandCreateStream:
-						id := int(v.(float64))
-						if k == 1 {
-							if id != cc.transID {
-								return fmt.Errorf("invalid ID")
-							}
-						} else if k == 3 {
-							cc.streamid = uint32(id)
-						}
-					case CommandPublish:
-						if int(v.(float64)) != 0 {
-							return fmt.Errorf("invalid publish")
-						}
+				case CommandPublish:
+					if int(v.(float64)) != 0 {
+						return fmt.Errorf("invalid publish")
 					}
-				case amf.Object:
-					// Todo unmarshal this into ConnEvent
-					entity := v.(amf.Object)
-					switch cc.curcmdName {
-					case CommandConnect:
-						code, ok := entity[ConnEventCode]
-						if ok && code.(string) != CommandNetStreamConnectSuccess {
-							return fmt.Errorf("unable to connect: error code: %v", code)
-						}
-					case CommandPublish:
-						code, ok := entity[ConnEventCode]
-						if ok && code.(string) != CommandNetStreamPublishStart {
-							return fmt.Errorf("unable to publish: error code: %d", code)
-						}
+				}
+			case amf.Object:
+				// Todo unmarshal this into ConnEvent
+				entity := v.(amf.Object)
+				switch cc.curcmdName {
+				case CommandConnect:
+					code, ok := entity[ConnEventCode]
+					if ok && code.(string) != CommandNetStreamConnectSuccess {
+						return fmt.Errorf("unable to connect: error code: %v", code)
+					}
+				case CommandPublish:
+					code, ok := entity[ConnEventCode]
+					if ok && code.(string) != CommandNetStreamPublishStart {
+						return fmt.Errorf("unable to publish: error code: %d", code)
 					}
 				}
 			}
-
-		case DataMessageAMF0ID, DataMessageAMF3ID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
-		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
-		case AudioMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
-		case VideoMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
-		case AggregateMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
-		default:
-			logger.Critical("unsupported messageID: %s", typeIDString(&x))
 		}
+
+	case DataMessageAMF0ID, DataMessageAMF3ID:
+		logger.Critical("unsupported messageID: %s", typeIDString(&x))
+	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
+		logger.Critical("unsupported messageID: %s", typeIDString(&x))
+	case AudioMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(&x))
+	case VideoMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(&x))
+	case AggregateMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(&x))
+	default:
+		logger.Critical("unsupported messageID: %s", typeIDString(&x))
 	}
+	return nil
 }
 
 func (cc *ConnClient) writeMsg(args ...interface{}) error {
