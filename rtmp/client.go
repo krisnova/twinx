@@ -26,6 +26,8 @@
 
 package rtmp
 
+import "github.com/kris-nova/logger"
+
 type Client struct {
 	conn    *ConnClient
 	service *Service
@@ -48,6 +50,7 @@ func (c *Client) Dial(address string) error {
 
 func (c *Client) stream() error {
 	// Here is where we handle the service.
+	logger.Info("Streaming...")
 	if c.conn.method == ClientMethodPublish {
 		writer := NewVirtualWriter(c.conn)
 		c.service.HandleWriter(writer)

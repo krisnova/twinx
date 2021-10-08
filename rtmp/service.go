@@ -29,6 +29,8 @@ package rtmp
 import (
 	"sync"
 	"time"
+
+	"github.com/kris-nova/logger"
 )
 
 // Service is the main RTMP active service.
@@ -57,7 +59,7 @@ func NewService(key string) *Service {
 }
 
 func (svc *Service) HandleReader(UID string, r ReadCloser) {
-
+	logger.Debug("HandleReader")
 	var stream *Stream
 	i, ok := svc.mux.Load(svc.key)
 	if stream, ok = i.(*Stream); ok {

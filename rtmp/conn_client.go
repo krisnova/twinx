@@ -99,7 +99,7 @@ func (cc *ConnClient) Publish() error {
 	if err := cc.writePublishMsg(); err != nil {
 		return err
 	}
-	return nil
+	return cc.readRespMsg()
 }
 
 func (cc *ConnClient) Play() error {
@@ -112,7 +112,7 @@ func (cc *ConnClient) Play() error {
 	if err := cc.writePlayMsg(); err != nil {
 		return err
 	}
-	return nil
+	return cc.readRespMsg()
 }
 
 func (cc *ConnClient) connect() error {
@@ -142,6 +142,9 @@ func (cc *ConnClient) readRespMsg() error {
 	var x ChunkStream
 
 	for {
+		if cc.connected {
+			return nil
+		}
 		if err := cc.conn.Read(&x); err != nil {
 			return err
 		}
@@ -225,7 +228,7 @@ func (cc *ConnClient) readRespMsg() error {
 					}
 				}
 			}
-
+			return nil
 		case DataMessageAMF0ID, DataMessageAMF3ID:
 			logger.Critical("unsupported messageID: %s", typeIDString(&x))
 		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
