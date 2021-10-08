@@ -52,27 +52,11 @@ import (
 )
 
 type ConnClient struct {
-	conn      *Conn
-	urladdr   *URLAddr
-	method    ClientMethod
-	connected bool
-	transID   int
-
-	// We believe this is raw
-	//url        string
-
-	// rtmp://host/app/key
-	//tcurl      string
-
-	// app
-	// app        string
-
-	// We believe this is the key
-	// title      string
-
-	// from url.parse
-	// query      string
-
+	conn       *Conn
+	urladdr    *URLAddr
+	method     ClientMethod
+	connected  bool
+	transID    int
 	curcmdName string
 	streamid   uint32
 
