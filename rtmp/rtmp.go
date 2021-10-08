@@ -54,7 +54,9 @@ const (
 	DefaultGenerateKeyLength int    = 20
 	DefaultGenerateKeyPrefix string = "twinx_"
 	StreamKeyRandomBytePool  string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+)
 
+const (
 	TAG_AUDIO                   uint32 = 8
 	TAG_VIDEO                   uint32 = 9
 	TAG_SCRIPTDATAAMF0          uint32 = 18
