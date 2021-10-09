@@ -38,7 +38,11 @@
 
 package rtmp
 
-import "runtime"
+import (
+	"fmt"
+	"runtime"
+	"strings"
+)
 
 func thisFunctionName() string {
 	fpcs := make([]uintptr, 1)
@@ -51,5 +55,26 @@ func thisFunctionName() string {
 		return "unknown function"
 	}
 	// filename and line number caller.FileLine(fpcs[0]-1)
-	return caller.Name()
+	fullName := caller.Name()
+	spl := strings.Split(fullName, ".")
+	return spl[3]
+}
+
+type messageOperator string
+
+const (
+	rx  messageOperator = "[⬅ 💻  ]"
+	tx  messageOperator = "[  💻 ➡]"
+	ack messageOperator = "[  ✨  ]"
+	hs  messageOperator = "[  🤝  ]"
+)
+
+// Send an RTMP protocol message with an operator
+//
+// Operators used in this convention.
+//   ->  Transmit (TX) out to a remote
+//   <-  Receive (RX) in to a local
+//   *   Ack (ack) mutate a process based on the content of a message
+func rtmpMessage(place string, op messageOperator) string {
+	return fmt.Sprintf("[rtmp] %s (%s)", op, place)
 }

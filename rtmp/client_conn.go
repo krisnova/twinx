@@ -93,7 +93,7 @@ func (cc *ClientConn) Dial(address string) error {
 // with a configured server.
 func (cc *ClientConn) Publish() error {
 	cc.method = ClientMethodPlay
-	logger.Info("Client: Publish")
+	logger.Info("Starting Publish 📝 Client")
 	err := cc.initialTX()
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func (cc *ClientConn) Publish() error {
 // with a configured server.
 func (cc *ClientConn) Play() error {
 	cc.method = ClientMethodPlay
-	logger.Info("Client: Play")
+	logger.Info("Starting Play ⏯ Client")
 	err := cc.initialTX()
 	if err != nil {
 		return err
@@ -163,31 +163,39 @@ func (cc *ClientConn) RoutePackets() error {
 func (cc *ClientConn) Route(x *ChunkStream) error {
 	switch x.TypeID {
 	case SetChunkSizeMessageID:
-		logger.Debug(typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		chunkSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.chunkSize = chunkSize
 		cc.conn.ack(x.Length)
+		logger.Debug(rtmpMessage(typeIDString(x), ack))
 	case AbortMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AcknowledgementMessageID:
-		logger.Debug(typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.windowAckSize = ackSize
+		logger.Debug(rtmpMessage(typeIDString(x), ack))
 		cc.conn.ack(ackSize)
+		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case WindowAcknowledgementSizeMessageID:
-		logger.Debug(typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.windowAckSize = ackSize
+		logger.Debug(rtmpMessage(typeIDString(x), ack))
 		cc.conn.ack(ackSize)
+		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case SetPeerBandwidthMessageID:
-		logger.Debug(typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.ack(ackSize)
+		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case UserControlMessageID:
-		logger.Debug(typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.ack(ackSize)
+		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case CommandMessageAMF0ID, CommandMessageAMF3ID:
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		xReader := bytes.NewReader(x.Data)
 		values, err := cc.decoder.DecodeBatch(xReader, amf.AMF0)
 		if err != nil && err != io.EOF {
@@ -196,15 +204,19 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 		for k, v := range values {
 			switch v.(type) {
 			case string:
-				logger.Info("Command [%s]", cc.curcmdName)
+				logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), ack))
 				switch cc.curcmdName {
 				case CommandConnect:
+					logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), rx))
 					return cc.connectRX(x)
 				case CommandCreateStream:
+					logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), rx))
 					return cc.createStreamRX(x)
 				case CommandPublish:
+					logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), rx))
 					return cc.publishRX(x)
 				case CommandPlay:
+					logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), rx))
 					return cc.playRX(x)
 				}
 			case float64:
@@ -216,6 +228,7 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 							return fmt.Errorf("invalid ID")
 						}
 					} else if k == 3 {
+						logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), ack))
 						cc.streamid = uint32(id)
 					}
 				case CommandPublish:

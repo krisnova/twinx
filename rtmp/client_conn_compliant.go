@@ -50,8 +50,7 @@ import (
 )
 
 func (cc *ClientConn) handshake() error {
-	logger.Debug(thisFunctionName())
-	logger.Debug("[client] handshake...")
+	logger.Debug(rtmpMessage(thisFunctionName(), hs))
 	var err error
 	var random [(1 + 1536*2) * 2]byte
 	C0C1C2 := random[:1536*2+1]
@@ -93,11 +92,12 @@ func (cc *ClientConn) handshake() error {
 }
 
 func (cc *ClientConn) connectRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	return nil
 }
 
 func (cc *ClientConn) connectTX() (*ChunkStream, error) {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	event := make(amf.Object)
 	event[ConnInfoKeyApp] = cc.urladdr.App()
 	event[ConnInfoKeyType] = "nonprivate"
@@ -108,93 +108,103 @@ func (cc *ClientConn) connectTX() (*ChunkStream, error) {
 }
 
 func (cc *ClientConn) createStreamRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	return nil
 }
 
 func (cc *ClientConn) createStreamTX() (*ChunkStream, error) {
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandCreateStream
 	return cc.writeMsg(CommandCreateStream, cc.transID, nil)
 }
 
 func (cc *ClientConn) playRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) playTX() (*ChunkStream, error) {
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandPlay
 	return cc.writeMsg(CommandPlay, 0, nil, cc.urladdr.Key())
 }
 
 func (cc *ClientConn) play2RX(x *ChunkStream) error {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) play2TX() (*ChunkStream, error) {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) deleteStreamRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) deleteStreamTX() (*ChunkStream, error) {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) receiveAudioRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) receiveAudioTX() (*ChunkStream, error) {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) receiveVideoRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) receiveVideoTX() (*ChunkStream, error) {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) publishRX(x *ChunkStream) error {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) publishTX() (*ChunkStream, error) {
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandPublish
 	return cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive)
 }
 
 func (cc *ClientConn) seekRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) seekTX() (*ChunkStream, error) {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
 
 func (cc *ClientConn) pauseRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
 func (cc *ClientConn) pauseTX() (*ChunkStream, error) {
-	logger.Debug(thisFunctionName())
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
