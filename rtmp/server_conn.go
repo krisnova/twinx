@@ -156,7 +156,7 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 	case CommandMessageAMF0ID, CommandMessageAMF3ID:
 		// Handle the command message
 		// Note: There are sub-command messages logged in the next method
-		err := s.messageCommand(x)
+		err := s.handleCommand(x)
 		if err != nil {
 			logger.Critical("command message: %v", err)
 		}
@@ -177,25 +177,18 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 	return nil
 }
 
-func (s *ServerConn) messageCommand(packet *ChunkStream) error {
+func (s *ServerConn) handleCommand(x *ChunkStream) error {
 	amfType := amf.AMF0
-	if packet.TypeID == CommandMessageAMF3ID {
+	if x.TypeID == CommandMessageAMF3ID {
 		// Arithmetic to match AMF3 encoding
 		amfType = amf.AMF3
-		packet.Data = packet.Data[1:]
+		x.Data = x.Data[1:]
 	}
-	r := bytes.NewReader(packet.Data)
+	r := bytes.NewReader(x.Data)
 	vs, err := s.decoder.DecodeBatch(r, amf.Version(amfType))
 	if err != nil && err != io.EOF {
 		return err
 	}
-
-	//logger.Debug("   Raw Command Message from Client: %#v", vs)
-	// []interface {}{"connect", 1, amf.Object{"app":"twinx", "flashVer":"FMLE/3.0 (compatible; FMSc/1.0)", "swfUrl":"rtmp://localhost:1935/twinx", "tcUrl":"rtmp://localhost:1935/twinx", "type":"nonprivate"}}
-	// []interface {}{"releaseStream", 2, interface {}(nil), "1234"}
-	// []interface {}{"FCPublish", 3, interface {}(nil), "1234"}
-	// []interface {}{"createStream", 4, interface {}(nil)}
-	// []interface {}{"publish", 5, interface {}(nil), "1234", "live"}
 	switch vs[0].(type) {
 	case string:
 		switch vs[0].(string) {
@@ -205,7 +198,7 @@ func (s *ServerConn) messageCommand(packet *ChunkStream) error {
 				return err
 			}
 			logger.Info("   Response: connect")
-			if err = s.messageCommandConnectResponse(packet); err != nil {
+			if err = s.messageCommandConnectResponse(x); err != nil {
 				return err
 			}
 			s.isConnected = true
@@ -215,7 +208,7 @@ func (s *ServerConn) messageCommand(packet *ChunkStream) error {
 				return err
 			}
 			logger.Info("   Response: createStream")
-			if err = s.messageCommandCreateStreamResponse(packet); err != nil {
+			if err = s.messageCommandCreateStreamResponse(x); err != nil {
 				return err
 			}
 			s.isConnected = true
@@ -225,7 +218,7 @@ func (s *ServerConn) messageCommand(packet *ChunkStream) error {
 				return err
 			}
 			logger.Info("   Response: publish")
-			if err = s.messageCommandPublishResponse(packet); err != nil {
+			if err = s.messageCommandPublishResponse(x); err != nil {
 				return err
 			}
 			s.isConnected = true
@@ -236,7 +229,7 @@ func (s *ServerConn) messageCommand(packet *ChunkStream) error {
 				return err
 			}
 			logger.Info("   Response: play")
-			if err = s.messageCommandPlayResponse(packet); err != nil {
+			if err = s.messageCommandPlayResponse(x); err != nil {
 				return err
 			}
 			s.done = true

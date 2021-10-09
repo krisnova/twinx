@@ -38,12 +38,64 @@
 
 package rtmp
 
-import "testing"
+import (
+	"os"
+	"testing"
+	"time"
 
-func TestClientConnCompliant(t *testing.T) {
-	//c := NewClientConn()
-	//x := &ChunkStream{}
-	//c.handshake()
-	//c.connectRX(x)
-	//c.connectTX(x)
+	"github.com/kris-nova/logger"
+)
+
+const (
+	TestClientAddr string = "localhost:1936"
+	TestServerAddr string = "localhost:1936"
+)
+
+func TestMain(m *testing.M) {
+	logger.BitwiseLevel = logger.LogEverything
+	server := NewServer()
+	go func() {
+		err := server.ListenAndServe(TestServerAddr)
+		if err != nil {
+			logger.Critical("unable to start server")
+			os.Exit(1)
+		}
+	}()
+	os.Exit(m.Run())
+}
+
+func TestClientPlay(t *testing.T) {
+	time.Sleep(time.Millisecond * 500)
+	client := NewClient()
+	err := client.Dial(TestClientAddr)
+	if err != nil {
+		t.Errorf("unable to dial client: %v", err)
+		t.FailNow()
+	}
+	go func() {
+		err := client.Play()
+		if err != nil {
+			t.Errorf("play error: %v", err)
+		}
+	}()
+	defer client.conn.Close()
+	time.Sleep(time.Millisecond * 500)
+}
+
+func TestClientPublish(t *testing.T) {
+	time.Sleep(time.Millisecond * 500)
+	client := NewClient()
+	err := client.Dial(TestClientAddr)
+	if err != nil {
+		t.Errorf("unable to dial client: %v", err)
+		t.FailNow()
+	}
+	go func() {
+		err := client.Publish()
+		if err != nil {
+			t.Errorf("play error: %v", err)
+		}
+	}()
+	defer client.conn.Close()
+	time.Sleep(time.Millisecond * 500)
 }

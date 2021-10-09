@@ -2,18 +2,10 @@ package rtmp
 
 import (
 	"bytes"
-	"os"
 	"testing"
-
-	"github.com/kris-nova/logger"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func TestMain(m *testing.M) {
-	logger.BitwiseLevel = logger.LogEverything
-	os.Exit(m.Run())
-}
 
 func TestChunkRead1(t *testing.T) {
 	at := assert.New(t)
