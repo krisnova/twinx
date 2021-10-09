@@ -63,18 +63,16 @@ func thisFunctionName() string {
 type messageOperator string
 
 const (
-	rx  messageOperator = "[⬅ 💻  ]"
-	tx  messageOperator = "[  💻 ➡]"
-	ack messageOperator = "[  ✨  ]"
-	hs  messageOperator = "[  🤝  ]"
+	rx   messageOperator = "[← 💻  ]"
+	tx   messageOperator = "[  💻 →]"
+	ack  messageOperator = "[  ✨  ]"
+	hs   messageOperator = "[  🤝  ]"
+	pub  messageOperator = "[  📝  ]"
+	play messageOperator = "[  ⏯  ]"
+	conn messageOperator = "[  📶  ]"
 )
 
 // Send an RTMP protocol message with an operator
-//
-// Operators used in this convention.
-//   ->  Transmit (TX) out to a remote
-//   <-  Receive (RX) in to a local
-//   *   Ack (ack) mutate a process based on the content of a message
-func rtmpMessage(place string, op messageOperator) string {
-	return fmt.Sprintf("[rtmp] %s (%s)", op, place)
+func rtmpMessage(msg string, op messageOperator) string {
+	return fmt.Sprintf("[rtmp] %s (%s)", op, msg)
 }

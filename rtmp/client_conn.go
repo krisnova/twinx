@@ -79,7 +79,7 @@ func (cc *ClientConn) Dial(address string) error {
 	if err != nil {
 		return fmt.Errorf("client dial: %v", err)
 	}
-	logger.Info("ClientConn.Dial %s", urlAddr.String())
+	logger.Info(rtmpMessage(fmt.Sprintf("client.Dial %s", urlAddr.Host()), conn))
 	conn, err := urlAddr.NewConn()
 	if err != nil {
 		return fmt.Errorf("new conn from addr: %v", err)
@@ -93,7 +93,7 @@ func (cc *ClientConn) Dial(address string) error {
 // with a configured server.
 func (cc *ClientConn) Publish() error {
 	cc.method = ClientMethodPlay
-	logger.Info("Starting Publish 📝 Client")
+	logger.Info(rtmpMessage("client.Publish", pub))
 	err := cc.initialTX()
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func (cc *ClientConn) Publish() error {
 // with a configured server.
 func (cc *ClientConn) Play() error {
 	cc.method = ClientMethodPlay
-	logger.Info("Starting Play ⏯ Client")
+	logger.Info(rtmpMessage("Client Publish", play))
 	err := cc.initialTX()
 	if err != nil {
 		return err
