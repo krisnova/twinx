@@ -73,11 +73,14 @@ const (
 	stream messageOperator = "[→ 🌊 →]"
 	fork   messageOperator = "[← 🍴 →]"
 	proxy  messageOperator = "[← 💻 →]"
-	err    messageOperator = "[  ⚠  ]"
+	warn   messageOperator = "[  ⚠  ]"
 	danger messageOperator = "[  🧨  ]"
 	start  messageOperator = "[  ⏱  ]"
 	stop   messageOperator = "[  ⏹  ]"
 	seek   messageOperator = "[  ⏩  ]"
+	listen messageOperator = "[  🙉  ]"
+	serve  messageOperator = "[  🍽  ]"
+	new    messageOperator = "[  🆕  ]"
 )
 
 // Send an RTMP protocol message with an operator

@@ -50,7 +50,6 @@ import (
 )
 
 func (cc *ClientConn) handshake() error {
-	logger.Debug(rtmpMessage(thisFunctionName(), hs))
 	var err error
 	var random [(1 + 1536*2) * 2]byte
 	C0C1C2 := random[:1536*2+1]
@@ -88,6 +87,7 @@ func (cc *ClientConn) handshake() error {
 		return err
 	}
 	cc.conn.SetDeadline(time.Time{})
+	logger.Debug(rtmpMessage(thisFunctionName(), hs))
 	return nil
 }
 

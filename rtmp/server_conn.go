@@ -41,6 +41,7 @@ package rtmp
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 
@@ -72,15 +73,108 @@ func NewServerConn(conn *Conn) *ServerConn {
 	}
 }
 
-// ReadPacket will read the next packet of data from the client,
+// NextChunk will read the next packet of data from the client,
 // and will attempt to respond to the packet based on it's content and
 // the appropriate response per the RTMP spec.
-func (s *ServerConn) ReadPacket() (*ChunkStream, error) {
+func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 	var chunk ChunkStream
 	if err := s.conn.Read(&chunk); err != nil {
 		return nil, fmt.Errorf("reading chunk from client: %v", err)
 	}
 	return &chunk, nil
+}
+
+func (s *ServerConn) RoutePackets() error {
+	for {
+		if s.IsPublisher() {
+			// Once we are connected plumb the stream through
+			//logger.Debug("Stream ID: %d", connSrv.streamID)
+			logger.Debug("Transaction ID: %d", s.transactionID)
+
+			// **************************************
+			// Hér vera drekar
+			// **************************************
+			//
+			// So here is where I am temporarily
+			// stopping my refactoring of this server
+			// code.
+			//
+			// Ideally we do NOT have to "break" here.
+			// We can clean our code up by having
+			// the client responses funnel through
+			// this main code point.
+			//
+			// The underlying implementation is how
+			// we manage multiplexing onto the various
+			// internal memory pools for each stream.
+			//
+			// Although I WANT to refactor this.
+			// I will not be refactoring this right
+			// now.
+			//
+			// **************************************
+
+			// TODO: Do NOT break here
+			break
+		}
+		x, err := s.NextChunk()
+		if err != nil {
+			//logger.Critical("reading chunk from client: %v", err)
+			// Terminate the client!
+			return err
+		}
+		s.Route(x)
+
+	}
+	return nil
+}
+
+func (s *ServerConn) Route(x *ChunkStream) error {
+	switch x.TypeID {
+	case SetChunkSizeMessageID:
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		chunkSize := binary.BigEndian.Uint32(x.Data)
+		s.conn.remoteChunkSize = chunkSize
+		logger.Debug(rtmpMessage(typeIDString(x), ack))
+		s.conn.ack(x.Length)
+		logger.Debug(rtmpMessage(typeIDString(x), tx))
+	case AbortMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	case AcknowledgementMessageID:
+		logger.Critical("server unsupported messageID: %s", typeIDString(x))
+	case WindowAcknowledgementSizeMessageID:
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		ackSize := binary.BigEndian.Uint32(x.Data)
+		s.conn.remoteWindowAckSize = ackSize
+		logger.Debug(rtmpMessage(typeIDString(x), ack))
+		s.conn.ack(x.Length)
+		logger.Debug(rtmpMessage(typeIDString(x), tx))
+	case SetPeerBandwidthMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	case UserControlMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	case CommandMessageAMF0ID, CommandMessageAMF3ID:
+		// Handle the command message
+		// Note: There are sub-command messages logged in the next method
+		err := s.messageCommand(x)
+		if err != nil {
+			logger.Critical("command message: %v", err)
+		}
+	case DataMessageAMF0ID, DataMessageAMF3ID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	case AudioMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	case VideoMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	case AggregateMessageID:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+	default:
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
+
+	}
+	return nil
 }
 
 func (s *ServerConn) messageCommand(packet *ChunkStream) error {

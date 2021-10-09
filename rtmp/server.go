@@ -27,7 +27,6 @@
 package rtmp
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net"
 	"reflect"
@@ -62,6 +61,7 @@ const (
 type Server struct {
 	service  *Service
 	listener *Listener
+	conn     *ServerConn
 }
 
 func NewServer() *Server {
@@ -95,118 +95,45 @@ func (s *Server) Serve(listener net.Listener) error {
 	}
 	s.listener.addr = urlAddr
 	s.service = NewService(urlAddr.Key())
-	logger.Info("Listening %s...", s.listener.addr.SafeURL())
+	logger.Info(rtmpMessage("server.Serve", serve))
+
 	for {
 		clientConn, err := s.listener.Accept()
 		if err != nil {
 			return fmt.Errorf("client conn accept: %v", err)
 		}
-		go s.handleConn(clientConn)
+		go func() {
+			err := s.handleConn(clientConn)
+			if err != nil {
+				logger.Critical("dropped client: %v", err)
+			}
+		}()
 	}
 	return nil
 }
 
 func (s *Server) handleConn(netConn net.Conn) error {
-
-	// Translate net.Conn -> rtmp.Conn
+	logger.Info(rtmpMessage(fmt.Sprintf("server.Accept client %s", netConn.RemoteAddr()), new))
 	conn := NewConn(netConn)
-
-	if err := conn.HandshakeServer(); err != nil {
-		conn.Close()
-		logger.Critical("RTMP Handshake: %v", err)
+	connSrv := NewServerConn(conn)
+	s.conn = connSrv
+	s.conn.conn = conn
+	err := s.conn.handshake()
+	if err != nil {
+		return nil
+	}
+	err = s.conn.RoutePackets()
+	if err != nil {
 		return err
 	}
+	return s.stream()
+}
 
-	connSrv := NewServerConn(conn)
-	//logger.Debug("Stream ID: %d", connSrv.streamID)
-	logger.Debug("Transaction ID: %d", connSrv.transactionID)
-
-	for {
-		if connSrv.IsPublisher() {
-			// Once we are connected plumb the stream through
-			//logger.Debug("Stream ID: %d", connSrv.streamID)
-			logger.Debug("Transaction ID: %d", connSrv.transactionID)
-
-			// **************************************
-			// Hér vera drekar
-			// **************************************
-			//
-			// So here is where I am temporarily
-			// stopping my refactoring of this server
-			// code.
-			//
-			// Ideally we do NOT have to "break" here.
-			// We can clean our code up by having
-			// the client responses funnel through
-			// this main code point.
-			//
-			// The underlying implementation is how
-			// we manage multiplexing onto the various
-			// internal memory pools for each stream.
-			//
-			// Although I WANT to refactor this.
-			// I will not be refactoring this right
-			// now.
-			//
-			// **************************************
-			reader := NewVirtualReader(connSrv)
-			s.service.HandleReader(reader.UID, reader)
-
-			// TODO: Do NOT break here
-			break
-		}
-		x, err := connSrv.ReadPacket()
-		if err != nil {
-			logger.Critical("reading chunk from client: %v", err)
-			// Terminate the client!
-			return err
-		}
-		//logger.Debug("Message received from client: %s", typeIDString(chunk))
-
-		switch x.TypeID {
-		case SetChunkSizeMessageID:
-			// 5.4.1. Set Chunk Size (1)
-			chunkSize := binary.BigEndian.Uint32(x.Data)
-			conn.remoteChunkSize = chunkSize
-			conn.ack(x.Length)
-		case AbortMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		case AcknowledgementMessageID:
-			logger.Critical("server unsupported messageID: %s", typeIDString(x))
-		case WindowAcknowledgementSizeMessageID:
-			ackSize := binary.BigEndian.Uint32(x.Data)
-			conn.remoteWindowAckSize = ackSize
-			conn.ack(x.Length)
-		case SetPeerBandwidthMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		case UserControlMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		case CommandMessageAMF0ID, CommandMessageAMF3ID:
-			// Handle the command message
-			// Note: There are sub-command messages logged in the next method
-			err := connSrv.messageCommand(x)
-			if err != nil {
-				logger.Critical("command message: %v", err)
-			}
-		case DataMessageAMF0ID, DataMessageAMF3ID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		case AudioMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		case VideoMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		case AggregateMessageID:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-		default:
-			logger.Critical("unsupported messageID: %s", typeIDString(x))
-
-		}
-	}
-
-	//writer := NewVirtualWriter(connSrv)
-	//s.service.HandleWriter(writer)
-
+func (s *Server) stream() error {
+	// Here is where we handle the service.
+	logger.Info(rtmpMessage("server.stream streaming", stream))
+	reader := NewVirtualReader(s.conn)
+	s.service.HandleReader(reader.UID, reader)
 	return nil
 }
 

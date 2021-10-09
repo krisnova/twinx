@@ -28,6 +28,8 @@ package rtmp
 import (
 	"fmt"
 	"net"
+
+	"github.com/kris-nova/logger"
 )
 
 type Listener struct {
@@ -48,6 +50,7 @@ func newFromNetListener(l net.Listener) (*Listener, error) {
 }
 
 func Listen(address string) (*Listener, error) {
+
 	addr, err := NewURLAddr(address)
 	if err != nil {
 		return nil, fmt.Errorf("rtmp URL addr: %v", err)
@@ -56,6 +59,7 @@ func Listen(address string) (*Listener, error) {
 	if err != nil {
 		return nil, fmt.Errorf("rtmp listen: %v", err)
 	}
+	logger.Info(rtmpMessage(fmt.Sprintf("server.Listen %s", addr.Host()), listen))
 	return &Listener{
 		Listener: listener,
 		addr:     addr,
