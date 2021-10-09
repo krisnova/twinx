@@ -28,8 +28,6 @@ package rtmp
 
 import (
 	"sync"
-
-	"github.com/kris-nova/logger"
 )
 
 type Stream struct {
@@ -82,7 +80,7 @@ func (s *Stream) AddWriter(w WriteCloser) {
 }
 
 func (s *Stream) TransactionStart() {
-	logger.Info("Starting stream transaction")
+
 	s.isStart = true
 	var p Packet
 	for {

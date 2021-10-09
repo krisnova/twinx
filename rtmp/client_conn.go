@@ -243,12 +243,12 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 				case CommandConnect:
 					code, ok := entity[ConnEventCode]
 					if ok && code.(string) != CommandNetStreamConnectSuccess {
-						return fmt.Errorf("unable to connect: error code: %v", code)
+						return fmt.Errorf("connect error : %v", code)
 					}
 				case CommandPublish:
 					code, ok := entity[ConnEventCode]
 					if ok && code.(string) != CommandNetStreamPublishStart {
-						return fmt.Errorf("unable to publish: error code: %d", code)
+						return fmt.Errorf("publish error: %d", code)
 					}
 				}
 			}

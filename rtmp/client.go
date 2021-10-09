@@ -72,7 +72,7 @@ func (c *Client) Client() *ClientConn {
 
 func (c *Client) stream() error {
 	// Here is where we handle the service.
-	logger.Info("Streaming...")
+	logger.Info(rtmpMessage("client.stream streaming", stream))
 	if c.conn.method == ClientMethodPublish {
 		writer := NewVirtualWriter(c.conn)
 		c.service.HandleWriter(writer)

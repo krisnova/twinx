@@ -63,13 +63,21 @@ func thisFunctionName() string {
 type messageOperator string
 
 const (
-	rx   messageOperator = "[← 💻  ]"
-	tx   messageOperator = "[  💻 →]"
-	ack  messageOperator = "[  ✨  ]"
-	hs   messageOperator = "[  🤝  ]"
-	pub  messageOperator = "[  📝  ]"
-	play messageOperator = "[  ⏯  ]"
-	conn messageOperator = "[  📶  ]"
+	rx     messageOperator = "[← 💻  ]"
+	tx     messageOperator = "[  💻 →]"
+	ack    messageOperator = "[  ✨  ]"
+	hs     messageOperator = "[  🤝  ]"
+	pub    messageOperator = "[  📝  ]"
+	play   messageOperator = "[  ⏯  ]"
+	conn   messageOperator = "[  📶  ]"
+	stream messageOperator = "[→ 🌊 →]"
+	fork   messageOperator = "[← 🍴 →]"
+	proxy  messageOperator = "[← 💻 →]"
+	err    messageOperator = "[  ⚠  ]"
+	danger messageOperator = "[  🧨  ]"
+	start  messageOperator = "[  ⏱  ]"
+	stop   messageOperator = "[  ⏹  ]"
+	seek   messageOperator = "[  ⏩  ]"
 )
 
 // Send an RTMP protocol message with an operator

@@ -59,7 +59,7 @@ func NewService(key string) *Service {
 }
 
 func (svc *Service) HandleReader(UID string, r ReadCloser) {
-	logger.Debug("HandleReader")
+	logger.Warning(rtmpMessage("service.HandleReader", err))
 	var stream *Stream
 	i, ok := svc.mux.Load(svc.key)
 	if stream, ok = i.(*Stream); ok {

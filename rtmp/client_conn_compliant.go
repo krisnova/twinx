@@ -120,9 +120,9 @@ func (cc *ClientConn) createStreamTX() (*ChunkStream, error) {
 }
 
 func (cc *ClientConn) playRX(x *ChunkStream) error {
-	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	logger.Debug(thisFunctionName())
-	return defaultUnimplemented()
+	cc.connected = true
+	logger.Debug(rtmpMessage(thisFunctionName(), ack))
+	return nil
 }
 
 func (cc *ClientConn) playTX() (*ChunkStream, error) {
@@ -176,8 +176,9 @@ func (cc *ClientConn) receiveVideoTX() (*ChunkStream, error) {
 }
 
 func (cc *ClientConn) publishRX(x *ChunkStream) error {
-	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	return defaultUnimplemented()
+	cc.connected = true
+	logger.Debug(rtmpMessage(thisFunctionName(), ack))
+	return nil
 }
 
 func (cc *ClientConn) publishTX() (*ChunkStream, error) {
