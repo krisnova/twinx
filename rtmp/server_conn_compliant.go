@@ -147,7 +147,6 @@ func (s *ServerConn) connectRX(x *ChunkStream) error {
 		return fmt.Errorf("building connect info: %v", err)
 	}
 	s.connectInfo = rxConnInfo
-	s.isConnected = true
 	s.connectPacket = x
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
 
@@ -218,7 +217,7 @@ func (s *ServerConn) createStreamRX(x *ChunkStream) error {
 	rxID := x.batchedValues[1]
 	id, ok := rxID.(float64)
 	if !ok {
-		return errors.New("invalid ID field")
+		return errors.New("invalid ID field, unable to type cast float64")
 	}
 	s.transactionID = int64(id)
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
@@ -229,7 +228,7 @@ func (s *ServerConn) createStreamRX(x *ChunkStream) error {
 
 func (s *ServerConn) createStreamTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "Response [_result]"), tx))
-	err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandType_Result, s.transactionID, nil, s.streamID)
+	err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandType_Result, s.transactionID, nil, 1)
 	return nil, err
 }
 
@@ -323,7 +322,7 @@ func (s *ServerConn) playRX(x *ChunkStream) error {
 	rxID := x.batchedValues[1]
 	id, ok := rxID.(float64)
 	if !ok {
-		return errors.New("invalid ID field")
+		return errors.New("invalid ID field, unable to type cast float64")
 	}
 	s.transactionID = int64(id)
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
@@ -419,14 +418,82 @@ func (s *ServerConn) receiveVideoTX() (*ChunkStream, error) {
 	return nil, defaultUnimplemented()
 }
 
+//   +--------------+----------+----------------------------------------+
+//   | Field Name   |   Type   |             Description                |
+//   +--------------+----------+----------------------------------------+
+// 0 | Command Name |  String  | Name of the command, set to "publish". |
+//   +--------------+----------+----------------------------------------+
+// 1 | Transaction  |  Number  | Transaction ID set to 0.               |
+//   | ID           |          |                                        |
+//   +--------------+----------+----------------------------------------+
+// 2 | Command      |  Null    | Command information object does not    |
+//   | Object       |          | exist. Set to null type.               |
+//   +--------------+----------+----------------------------------------+
+// 3 | Publishing   |  String  | Name with which the stream is          |
+//   | Name         |          | published.                             |
+//   +--------------+----------+----------------------------------------+
+// 4 | Publishing   |  String  | Type of publishing. Set to "live",     |
+//   | Type         |          | "record", or "append".                 |
+//   |              |          | record: The stream is published and the|
+//   |              |          | data is recorded to a new file.The file|
+//   |              |          | is stored on the server in a           |
+//   |              |          | subdirectory within the directory that |
+//   |              |          | contains the server application. If the|
+//   |              |          | file already exists, it is overwritten.|
+//   |              |          | append: The stream is published and the|
+//   |              |          | data is appended to a file. If no file |
+//   |              |          | is found, it is created.               |
+//   |              |          | live: Live data is published without   |
+//   |              |          | recording it in a file.                |
+//   +--------------+----------+----------------------------------------+
+//
+// Example raw data from logs:
+//   0: publish
+//   1: 3
+//   2: <nil>
+//   3: twinx_XVlBzgbaiCMRAjWwhTHc
+//   4: live
 func (s *ServerConn) publishRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	return nil
+	if len(x.batchedValues) == 0 {
+		return errors.New("missing values")
+	}
+	if len(x.batchedValues) < 5 {
+		return fmt.Errorf("invalid publish command length [%d] < 5", len(x.batchedValues))
+	}
+
+	rxID := x.batchedValues[1]
+	id, ok := rxID.(float64)
+	if !ok {
+		return errors.New("invalid ID field, unable to type cast float64")
+	}
+	s.transactionID = int64(id)
+	publishInfo := &PublishInfo{
+		Name: x.batchedValues[3].(string),
+		Type: x.batchedValues[4].(string),
+	}
+	s.publishInfo = publishInfo
+	logger.Debug(rtmpMessage(thisFunctionName(), ack))
+
+	_, err := s.publishTX()
+	return err
 }
 
 func (s *ServerConn) publishTX() (*ChunkStream, error) {
-	logger.Debug(rtmpMessage(thisFunctionName(), tx))
-	return nil, defaultUnimplemented()
+	s.conn.streamBegin()
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "StreamBegin"), tx))
+
+	event := make(amf.Object)
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPublishStart
+	event[ConnEventDescription] = "Start publishing."
+	err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event)
+	if err != nil {
+		return nil, err
+	}
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPublishStart), tx))
+
+	return nil, nil
 }
 
 func (s *ServerConn) seekRX(x *ChunkStream) error {

@@ -51,11 +51,9 @@ import (
 )
 
 type ServerConn struct {
-	done        bool
-	streamID    int
-	isPublisher bool
-	isConnected bool
-	conn        *Conn
+
+	// conn is the base conn for all RTMP members (both clients, and servers)
+	conn *Conn
 
 	// transactionID is passed around
 	// with the packets to/from a compliant RTMP member
@@ -70,19 +68,22 @@ type ServerConn struct {
 	// connectPacket is the single *ChunkStream packet
 	// discovered when a client calls connect
 	connectPacket *ChunkStream
-	publishInfo   PublishInfo
-	decoder       *amf.Decoder
-	encoder       *amf.Encoder
-	bytesw        *bytes.Buffer
+
+	// publishInfo will be set if this connection is an RTMP publish
+	// client
+	publishInfo *PublishInfo
+
+	decoder *amf.Decoder
+	encoder *amf.Encoder
+	bytesw  *bytes.Buffer
 }
 
 func NewServerConn(conn *Conn) *ServerConn {
 	return &ServerConn{
-		conn:     conn,
-		streamID: 1,
-		bytesw:   bytes.NewBuffer(nil),
-		decoder:  &amf.Decoder{},
-		encoder:  &amf.Encoder{},
+		conn:    conn,
+		bytesw:  bytes.NewBuffer(nil),
+		decoder: &amf.Decoder{},
+		encoder: &amf.Encoder{},
 	}
 }
 
@@ -99,36 +100,37 @@ func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 
 func (s *ServerConn) RoutePackets() error {
 	for {
-		if s.IsPublisher() {
-			// Once we are connected plumb the stream through
-			//logger.Debug("Stream ID: %d", connSrv.streamID)
+		//if s.IsPublisher() {
+		// Once we are connected plumb the stream through
+		//logger.Debug("Stream ID: %d", connSrv.streamID)
 
-			// **************************************
-			// Hér vera drekar
-			// **************************************
-			//
-			// So here is where I am temporarily
-			// stopping my refactoring of this server
-			// code.
-			//
-			// Ideally we do NOT have to "break" here.
-			// We can clean our code up by having
-			// the client responses funnel through
-			// this main code point.
-			//
-			// The underlying implementation is how
-			// we manage multiplexing onto the various
-			// internal memory pools for each stream.
-			//
-			// Although I WANT to refactor this.
-			// I will not be refactoring this right
-			// now.
-			//
-			// **************************************
+		// **************************************
+		// Hér vera drekar
+		// **************************************
+		//
+		// So here is where I am temporarily
+		// stopping my refactoring of this server
+		// code.
+		//
+		// Ideally we do NOT have to "break" here.
+		// We can clean our code up by having
+		// the client responses funnel through
+		// this main code point.
+		//
+		// The underlying implementation is how
+		// we manage multiplexing onto the various
+		// internal memory pools for each stream.
+		//
+		// Although I WANT to refactor this.
+		// I will not be refactoring this right
+		// now.
+		//
+		// **************************************
 
-			// TODO: Do NOT break here
-			break
-		}
+		// TODO: Do NOT break here
+		//	break
+		//}
+
 		x, err := s.NextChunk()
 		if err != nil {
 			//logger.Critical("reading chunk from client: %v", err)
@@ -194,22 +196,6 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 //
 // this is the main router for all of these commands that start out
 // as an unknown interface
-//
-// 0: connect
-// 1: 1
-// 2: map[app:twinx flashVer:FMS/3,0,1,123 tcUrl:rtmp://localhost:1935/twinx/twinx_XVlBzgbaiCMRAjWwhTHc type:nonprivate]
-// 0: createStream
-// 1: 2
-// 2: <nil>
-// 0: publish
-// 1: 3
-// 2: <nil>
-// 3: twinx_XVlBzgbaiCMRAjWwhTHc
-// 4: live
-
-// 0: connect
-// 1: 1
-// 2: map[app:twinx flashVer:FMLE/3.0 (compatible; FMSc/1.0) swfUrl:rtmp://localhost:1935/twinx tcUrl:rtmp://localhost:1935/twinx type:nonprivate]
 func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 	switch commandName {
 	case CommandConnect:
@@ -264,58 +250,6 @@ func (s *ServerConn) handleCommand(x *ChunkStream) error {
 const (
 	CommandConnectWellKnownID float64 = 1
 )
-
-//func (s *ServerConn) messageCommandPublishResponse(cur *ChunkStream) error {
-//	s.conn.messageUserControlStreamBegin()
-//	event := make(amf.Object)
-//	event[ConnEventLevel] = ConnEventStatus
-//	event[ConnEventCode] = CommandNetStreamPublishStart
-//	event[ConnEventDescription] = "Start publishing."
-//	return s.writeMsg(cur.CSID, cur.StreamID, CommandTypeOnStatus, 0, nil, event)
-//}
-
-//func (s *ServerConn) messageCommandPlayResponse(cur *ChunkStream) error {
-//	s.conn.SetRecorded()
-//	s.conn.messageUserControlStreamBegin()
-//
-//	event := make(amf.Object)
-//	event[ConnEventLevel] = ConnEventStatus
-//	event[ConnEventCode] = CommandNetStreamPlayReset
-//	event[ConnEventDescription] = "Playing and resetting stream."
-//	if err := s.writeMsg(cur.CSID, cur.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
-//		return err
-//	}
-//
-//	event[ConnEventLevel] = ConnEventStatus
-//	event[ConnEventCode] = CommandNetStreamPlayStart
-//	event[ConnEventDescription] = "Started playing stream."
-//	if err := s.writeMsg(cur.CSID, cur.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
-//		return err
-//	}
-//
-//	event[ConnEventLevel] = ConnEventStatus
-//	event[ConnEventCode] = CommandNetStreamDataStart
-//	event[ConnEventDescription] = "Started playing stream."
-//	if err := s.writeMsg(cur.CSID, cur.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
-//		return err
-//	}
-//
-//	event[ConnEventLevel] = ConnEventStatus
-//	event[ConnEventCode] = CommandNetStreamPublishNotify
-//	event[ConnEventDescription] = "Started playing notify."
-//	if err := s.writeMsg(cur.CSID, cur.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
-//		return err
-//	}
-//	return s.conn.Flush()
-//}
-
-func (s *ServerConn) IsConnected() bool {
-	return s.isConnected
-}
-
-func (s *ServerConn) IsPublisher() bool {
-	return s.isPublisher
-}
 
 func (s *ServerConn) Write(packet ChunkStream) error {
 	if packet.TypeID == TAG_SCRIPTDATAAMF0 ||
