@@ -79,7 +79,7 @@ const (
 
 	// TimeoutDurationSeconds is the timeout used for all
 	// connection timeouts.
-	TimeoutDurationSeconds time.Duration = 5 * time.Second
+	TimeoutDurationSeconds time.Duration = 1 * time.Second
 
 	// Chunk Size
 	// 5.4.1 Set Chunk Size

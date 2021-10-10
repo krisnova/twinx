@@ -136,6 +136,7 @@ func (s *ServerConn) connectRX(x *ChunkStream) error {
 	if !ok {
 		return errors.New("invalid ID field")
 	}
+	s.transactionID = int64(id)
 	// ---
 
 	if id != CommandConnectWellKnownID {

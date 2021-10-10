@@ -98,52 +98,24 @@ func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 	return &chunk, nil
 }
 
-func (s *ServerConn) RoutePackets() error {
+func (s *ServerConn) RoutePackets(stream *SafeBoundedBuffer) error {
 	for {
-		//if s.IsPublisher() {
-		// Once we are connected plumb the stream through
-		//logger.Debug("Stream ID: %d", connSrv.streamID)
-
-		// **************************************
-		// Hér vera drekar
-		// **************************************
-		//
-		// So here is where I am temporarily
-		// stopping my refactoring of this server
-		// code.
-		//
-		// Ideally we do NOT have to "break" here.
-		// We can clean our code up by having
-		// the client responses funnel through
-		// this main code point.
-		//
-		// The underlying implementation is how
-		// we manage multiplexing onto the various
-		// internal memory pools for each stream.
-		//
-		// Although I WANT to refactor this.
-		// I will not be refactoring this right
-		// now.
-		//
-		// **************************************
-
-		// TODO: Do NOT break here
-		//	break
-		//}
-
 		x, err := s.NextChunk()
 		if err != nil {
 			//logger.Critical("reading chunk from client: %v", err)
 			// Terminate the client!
 			return err
 		}
-		s.Route(x)
+		err = s.Route(stream, x)
+		if err != nil {
+			logger.Critical(err.Error())
+		}
 
 	}
 	return nil
 }
 
-func (s *ServerConn) Route(x *ChunkStream) error {
+func (s *ServerConn) Route(stream *SafeBoundedBuffer, x *ChunkStream) error {
 	switch x.TypeID {
 	case SetChunkSizeMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
@@ -178,9 +150,11 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AudioMessageID:
-		logger.Critical("unsupported messageID: %s", typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		stream.Write(x)
 	case VideoMessageID:
-		logger.Critical("unsupported messageID: %s", typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		stream.Write(x)
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	default:

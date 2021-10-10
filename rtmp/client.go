@@ -26,11 +26,9 @@
 
 package rtmp
 
-import "github.com/kris-nova/logger"
-
 type Client struct {
 	conn    *ClientConn
-	service *Service
+	service *SafeMuxDemuxService
 }
 
 func NewClient() *Client {
@@ -43,8 +41,13 @@ func (c *Client) Dial(address string) error {
 	if err != nil {
 		return err
 	}
-	c.service = NewService(clientConn.urladdr.Key())
 	c.conn = clientConn
+	c.service = NewMuxDemService()
+	stream, err := c.service.GetStream(c.conn.urladdr.Key())
+	if err != nil {
+		return err
+	}
+	c.conn.stream = stream
 	return nil
 }
 
@@ -53,8 +56,7 @@ func (c *Client) Play() error {
 	if err != nil {
 		return err
 	}
-	// We should be connected at this point
-	return c.stream()
+	return nil
 }
 
 func (c *Client) Publish() error {
@@ -62,27 +64,9 @@ func (c *Client) Publish() error {
 	if err != nil {
 		return err
 	}
-	// We should be connected at this point
-	return c.stream()
+	return nil
 }
 
 func (c *Client) Client() *ClientConn {
 	return c.conn
-}
-
-func (c *Client) stream() error {
-	// Here is where we handle the service.
-	logger.Info(rtmpMessage("client.stream streaming", stream))
-	if c.conn.method == ClientMethodPublish {
-		writer := NewVirtualWriter(c.conn)
-		c.service.HandleWriter(writer)
-	} else if c.conn.method == ClientMethodPlay {
-		reader := NewVirtualReader(c.conn)
-		c.service.HandleReader(reader.UID, reader)
-	}
-	for {
-		// Stream until otherwise cancelled
-		// TODO add a signal handler
-	}
-	return nil
 }

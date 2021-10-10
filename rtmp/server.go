@@ -59,13 +59,15 @@ const (
 )
 
 type Server struct {
-	service  *Service
+	muxdem   *SafeMuxDemuxService
 	listener *Listener
 	conn     *ServerConn
 }
 
 func NewServer() *Server {
-	return &Server{}
+	return &Server{
+		muxdem: NewMuxDemService(),
+	}
 }
 
 func (s *Server) ListenAndServe(raw string) error {
@@ -94,9 +96,7 @@ func (s *Server) Serve(listener net.Listener) error {
 		return fmt.Errorf("urlAddr: %v", err)
 	}
 	s.listener.addr = urlAddr
-	s.service = NewService(urlAddr.Key())
 	logger.Info(rtmpMessage("server.Serve", serve))
-
 	for {
 		clientConn, err := s.listener.Accept()
 		if err != nil {
@@ -114,27 +114,27 @@ func (s *Server) Serve(listener net.Listener) error {
 
 func (s *Server) handleConn(netConn net.Conn) error {
 	logger.Info(rtmpMessage(fmt.Sprintf("server.Accept client %s", netConn.RemoteAddr()), new))
+
+	// Base connection
 	conn := NewConn(netConn)
+
+	// Server Connection
 	connSrv := NewServerConn(conn)
 	s.conn = connSrv
 	s.conn.conn = conn
-	err := s.conn.handshake()
-	if err != nil {
-		return nil
-	}
-	err = s.conn.RoutePackets()
+
+	// Set up multiplexing
+	stream, err := s.muxdem.GetStream(s.listener.URLAddr().Key())
 	if err != nil {
 		return err
 	}
-	return s.stream()
-}
 
-func (s *Server) stream() error {
-	// Here is where we handle the service.
-	logger.Info(rtmpMessage("server.stream streaming", stream))
-	reader := NewVirtualReader(s.conn)
-	s.service.HandleReader(reader.UID, reader)
-	return nil
+	err = s.conn.handshake()
+	if err != nil {
+		return nil
+	}
+
+	return s.conn.RoutePackets(stream)
 }
 
 // ==========================================================================================

@@ -59,6 +59,7 @@ type ClientConn struct {
 	transID    int
 	curcmdName string
 	streamid   uint32
+	stream     *SafeBoundedBuffer
 
 	encoder *amf.Encoder
 	decoder *amf.Decoder
@@ -137,17 +138,6 @@ func (cc *ClientConn) RoutePackets() error {
 	var x *ChunkStream
 	var err error
 	for {
-		if cc.connected {
-			// **************************************
-			// Hér vera drekar
-			// **************************************
-			//
-			// We should be routing audio video packets
-			// through here as well.
-			//
-			// For now they are handled elsewhere.
-			break
-		}
 		x, err = cc.NextChunk()
 		if err != nil {
 			return err
@@ -256,9 +246,11 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AudioMessageID:
-		logger.Critical("unsupported messageID: %s", typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		cc.stream.Write(x)
 	case VideoMessageID:
-		logger.Critical("unsupported messageID: %s", typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		cc.stream.Write(x)
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	default:
