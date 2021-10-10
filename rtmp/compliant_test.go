@@ -99,3 +99,35 @@ func TestClientPublish(t *testing.T) {
 	defer client.conn.Close()
 	time.Sleep(time.Millisecond * 500)
 }
+
+func TestClientPlayClientPublish(t *testing.T) {
+	time.Sleep(time.Millisecond * 500)
+	client := NewClient()
+	err := client.Dial(TestClientAddr)
+	if err != nil {
+		t.Errorf("unable to dial client: %v", err)
+		t.FailNow()
+	}
+	go func() {
+		err := client.Publish()
+		if err != nil {
+			t.Errorf("play error: %v", err)
+		}
+	}()
+	defer client.conn.Close()
+
+	clientPlay := NewClient()
+	err = clientPlay.Dial(TestClientAddr)
+	if err != nil {
+		t.Errorf("unable to dial client: %v", err)
+		t.FailNow()
+	}
+	go func() {
+		err := clientPlay.Publish()
+		if err != nil {
+			t.Errorf("play error: %v", err)
+		}
+	}()
+	defer client.conn.Close()
+	time.Sleep(time.Millisecond * 500)
+}

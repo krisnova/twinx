@@ -121,6 +121,6 @@ type ChunkStreamReader interface {
 
 // Enforce the implementation at compile time
 var (
-	//_ CompliantMember = &ServerConn{}
+	_ CompliantMember = &ServerConn{}
 	_ CompliantMember = &ClientConn{}
 )

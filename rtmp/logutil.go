@@ -39,6 +39,7 @@
 package rtmp
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"strings"
@@ -86,4 +87,21 @@ const (
 // Send an RTMP protocol message with an operator
 func rtmpMessage(msg string, op messageOperator) string {
 	return fmt.Sprintf("[rtmp] %s (%s)", op, msg)
+}
+
+var (
+	DefaultUnimplementedError = errors.New("**UNIMPLEMENTED**")
+)
+
+func defaultUnimplemented() error {
+	pc := make([]uintptr, 1)
+	n := runtime.Callers(2, pc)
+	if n == 0 {
+		return DefaultUnimplementedError
+	}
+	caller := runtime.FuncForPC(pc[0] - 1)
+	if caller == nil {
+		return DefaultUnimplementedError
+	}
+	return fmt.Errorf("function %s %v", caller.Name(), DefaultUnimplementedError)
 }
