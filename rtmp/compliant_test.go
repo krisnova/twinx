@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestClientPlay(t *testing.T) {
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 100)
 	client := NewClient()
 	err := client.Dial(TestClientAddr)
 	if err != nil {
@@ -79,11 +79,13 @@ func TestClientPlay(t *testing.T) {
 		}
 	}()
 	defer client.conn.Close()
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 100)
+
 }
 
 func TestClientPublish(t *testing.T) {
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 100)
+
 	client := NewClient()
 	err := client.Dial(TestClientAddr)
 	if err != nil {
@@ -97,11 +99,13 @@ func TestClientPublish(t *testing.T) {
 		}
 	}()
 	defer client.conn.Close()
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 100)
+
 }
 
 func TestClientPlayClientPublish(t *testing.T) {
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 100)
+
 	client := NewClient()
 	err := client.Dial(TestClientAddr)
 	if err != nil {
@@ -129,5 +133,6 @@ func TestClientPlayClientPublish(t *testing.T) {
 		}
 	}()
 	defer client.conn.Close()
-	time.Sleep(time.Millisecond * 500)
+	time.Sleep(time.Millisecond * 100)
+
 }

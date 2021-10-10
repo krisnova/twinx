@@ -104,7 +104,9 @@ func (s *ServerConn) RoutePackets(stream *SafeBoundedBuffer) error {
 		if err != nil {
 			//logger.Critical("reading chunk from client: %v", err)
 			// Terminate the client!
-			return err
+			if err != TestableEOFError {
+				return err
+			}
 		}
 		err = s.Route(stream, x)
 		if err != nil {

@@ -140,7 +140,10 @@ func (cc *ClientConn) RoutePackets() error {
 	for {
 		x, err = cc.NextChunk()
 		if err != nil {
-			return err
+			if err != TestableEOFError {
+				return err
+			}
+			continue
 		}
 		err = cc.Route(x)
 		if err != nil {
