@@ -146,14 +146,15 @@ func (s *ServerConn) Route(stream *SafeBoundedBuffer, x *ChunkStream) error {
 			logger.Critical("command message: %v", err)
 		}
 	case DataMessageAMF0ID, DataMessageAMF3ID:
-		logger.Critical("unsupported messageID: %s", typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		stream.Write(x)
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AudioMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		stream.Write(x)
 	case VideoMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		stream.Write(x)
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))

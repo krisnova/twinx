@@ -124,11 +124,29 @@ func (mx *SafeBoundedBuffer) Stream() error {
 	// Get FIFO chunk
 	var x *ChunkStream
 	for {
-		for _, f := range mx.writeFuncs {
-			// For every
-			f(x)
+		mx.writeMutex.Lock()
+		if len(mx.packetBuffer) > 0 {
+
+			// Find the top element (x)
+			x = mx.packetBuffer[0]
+
+			// Process (x) for every configured output
+			for _, f := range mx.writeFuncs {
+				f(x)
+			}
+
+			// Drop (x) from the queue
+			mx.packetBuffer = mx.packetBuffer[1:]
 		}
+		mx.writeMutex.Unlock()
 	}
 }
 
+func (mx *SafeBoundedBuffer) AddWriteFunc(f writeFunc) {
+	mx.writeMutex.Lock()
+	defer mx.writeMutex.Unlock()
+	mx.writeFuncs = append(mx.writeFuncs, f)
+}
+
+// writeFunc should probably be an interface (Reader?)
 type writeFunc func(x *ChunkStream)

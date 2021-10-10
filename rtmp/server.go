@@ -134,6 +134,13 @@ func (s *Server) handleConn(netConn net.Conn) error {
 		return nil
 	}
 
+	go func() {
+		err := stream.Stream()
+		if err != nil {
+			logger.Critical(err.Error())
+		}
+	}()
+
 	return s.conn.RoutePackets(stream)
 }
 
