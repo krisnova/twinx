@@ -39,9 +39,12 @@
 package rtmp
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"time"
+
+	"github.com/gwuhaolin/livego/protocol/amf"
 
 	"github.com/gwuhaolin/livego/utils/pio"
 	"github.com/kris-nova/logger"
@@ -113,34 +116,267 @@ func (s *ServerConn) handshake() error {
 	return nil
 }
 
+// connectRX
+//
+// Example raw data from logs:
+//   0: connect
+//   1: 1
+//   2: map[app:twinx flashVer:FMLE/3.0 (compatible; FMSc/1.0) swfUrl:rtmp://localhost:1935/twinx tcUrl:rtmp://localhost:1935/twinx type:nonprivate]
 func (s *ServerConn) connectRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	return nil
+	// ---
+	if len(x.batchedValues) == 0 {
+		return errors.New("missing values")
+	}
+	if len(x.batchedValues) < 3 {
+		return fmt.Errorf("invalid connect command length [%d] < 3", len(x.batchedValues))
+	}
+	rxID := x.batchedValues[1]
+	id, ok := rxID.(float64)
+	if !ok {
+		return errors.New("invalid ID field")
+	}
+	// ---
+
+	if id != CommandConnectWellKnownID {
+		return fmt.Errorf("invalid connect id: %v", rxID)
+	}
+	rxConnInfoMap := x.batchedValues[2]
+	rxConnInfo, err := ConnectInfoMapToInstance(rxConnInfoMap)
+	if err != nil {
+		return fmt.Errorf("building connect info: %v", err)
+	}
+	s.connectInfo = rxConnInfo
+	s.isConnected = true
+	s.connectPacket = x
+	logger.Debug(rtmpMessage(thisFunctionName(), ack))
+
+	// Server code should just TX right away
+	_, err = s.connectTX()
+	return err
 }
 
 func (s *ServerConn) connectTX() (*ChunkStream, error) {
-	logger.Debug(rtmpMessage(thisFunctionName(), tx))
-	return nil, defaultUnimplemented()
+	var txPacket *ChunkStream
+	var err error
+
+	// WindowAcknowledgement
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "WindowAcknowledgement"), tx))
+	txPacket = s.conn.newChunkStreamWindowAcknowledgementMessage(DefaultWindowAcknowledgementSizeBytes)
+	err = s.conn.Write(txPacket)
+	if err != nil {
+		return nil, err
+	}
+
+	// SetPeerBandwidth
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetPeerBandwidth"), tx))
+	txPacket = s.conn.newChunkStreamSetPeerBandwidth(DefaultPeerBandwidthSizeBytes)
+	err = s.conn.Write(txPacket)
+	if err != nil {
+		return nil, err
+	}
+
+	// SetChunkSize
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetChunkSize"), tx))
+	txPacket = s.conn.newChunkStreamSetChunkSize(DefaultRTMPChunkSizeBytesLarge)
+	err = s.conn.Write(txPacket)
+	if err != nil {
+		return nil, err
+	}
+
+	// Compliant connect response [response]
+	resp := make(amf.Object)
+	resp[ConnRespFMSVer] = DefaultServerFMSVersion
+	resp[ConnRespCapabilities] = 31
+
+	// Compliant connect response [event]
+	event := make(amf.Object)
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamConnectSuccess
+	event[ConnEventDescription] = "Connection succeeded."
+	event[ConnEventObjectEncoding] = s.connectInfo.ObjectEncoding
+
+	// Write out _result message
+	err = s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandType_Result, s.transactionID, resp, event)
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "Response [_result]"), tx))
+	return nil, err
 }
 
+// Example raw data from logs:
+//   0: createStream
+//   1: 2
+//   2: <nil>
 func (s *ServerConn) createStreamRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	return nil
+	if len(x.batchedValues) == 0 {
+		return errors.New("missing values")
+	}
+	if len(x.batchedValues) < 3 {
+		return fmt.Errorf("invalid createStream command length [%d] < 3", len(x.batchedValues))
+	}
+
+	rxID := x.batchedValues[1]
+	id, ok := rxID.(float64)
+	if !ok {
+		return errors.New("invalid ID field")
+	}
+	s.transactionID = int64(id)
+	logger.Debug(rtmpMessage(thisFunctionName(), ack))
+
+	_, err := s.createStreamTX()
+	return err
 }
 
 func (s *ServerConn) createStreamTX() (*ChunkStream, error) {
-	logger.Debug(rtmpMessage(thisFunctionName(), tx))
-	return nil, defaultUnimplemented()
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "Response [_result]"), tx))
+	err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandType_Result, s.transactionID, nil, s.streamID)
+	return nil, err
 }
 
+//   +--------------+----------+-----------------------------------------+
+//   | Field Name   |   Type   |             Description                 |
+//   +--------------+----------+-----------------------------------------+
+// 0 | Command Name |  String  | Name of the command. Set to "play".     |
+//   +--------------+----------+-----------------------------------------+
+// 1 | Transaction  |  Number  | Transaction ID set to 0.                |
+//   | ID           |          |                                         |
+//   +--------------+----------+-----------------------------------------+
+// 2 | Command      |   Null   | Command information does not exist.     |
+//   | Object       |          | Set to null type.                       |
+//   +--------------+----------+-----------------------------------------+
+// 3 | Stream Name  |  String  | Name of the stream to play.             |
+//   |              |          | To play video (FLV) files, specify the  |
+//   |              |          | name of the stream without a file       |
+//   |              |          | extension (for example, "sample"). To   |
+//   |              |          | play back MP3 or ID3 tags, you must     |
+//   |              |          | precede the stream name with mp3:       |
+//   |              |          | (for example, "mp3:sample". To play     |
+//   |              |          | H.264/AAC files, you must precede the   |
+//   |              |          | stream name with mp4: and specify the   |
+//   |              |          | file extension. For example, to play the|
+//   |              |          | file sample.m4v,specify "mp4:sample.m4v"|
+//   |              |          |                                         |
+//   +--------------+----------+-----------------------------------------+
+// 4 | Start        |  Number  | An optional parameter that specifies    |
+//   |              |          | the start time in seconds. The default  |
+//   |              |          | value is -2, which means the subscriber |
+//   |              |          | first tries to play the live stream     |
+//   |              |          | specified in the Stream Name field. If a|
+//   |              |          | live stream of that name is not found,it|
+//   |              |          | plays the recorded stream of the same   |
+//   |              |          | name. If there is no recorded stream    |
+//   |              |          | with that name, the subscriber waits for|
+//   |              |          | a new live stream with that name and    |
+//   |              |          | plays it when available. If you pass -1 |
+//   |              |          | in the Start field, only the live stream|
+//   |              |          | specified in the Stream Name field is   |
+//   |              |          | played. If you pass 0 or a positive     |
+//   |              |          | number in the Start field, a recorded   |
+//   |              |          | stream specified in the Stream Name     |
+//   |              |          | field is played beginning from the time |
+//   |              |          | specified in the Start field. If no     |
+//   |              |          | recorded stream is found, the next item |
+//   |              |          | in the playlist is played.              |
+//   +--------------+----------+-----------------------------------------+
+// 5 | Duration     |  Number  | An optional parameter that specifies the|
+//   |              |          | duration of playback in seconds. The    |
+//   |              |          | default value is -1. The -1 value means |
+//   |              |          | a live stream is played until it is no  |
+//   |              |          | longer available or a recorded stream is|
+//   |              |          | played until it ends. If you pass 0, it |
+//   |              |          | plays the single frame since the time   |
+//   |              |          | specified in the Start field from the   |
+//   |              |          | beginning of a recorded stream. It is   |
+//   |              |          | assumed that the value specified in     |
+//   |              |          | the Start field is equal to or greater  |
+//   |              |          | than 0. If you pass a positive number,  |
+//   |              |          | it plays a live stream for              |
+//   |              |          | the time period specified in the        |
+//   |              |          | Duration field. After that it becomes   |
+//   |              |          | available or plays a recorded stream    |
+//   |              |          | for the time specified in the Duration  |
+//   |              |          | field. (If a stream ends before the     |
+//   |              |          | time specified in the Duration field,   |
+//   |              |          | playback ends when the stream ends.)    |
+//   |              |          | If you pass a negative number other     |
+//   |              |          | than -1 in the Duration field, it       |
+//   |              |          | interprets the value as if it were -1.  |
+//   +--------------+----------+-----------------------------------------+
+// 6 | Reset        | Boolean  | An optional Boolean value or number     |
+//   |              |          | that specifies whether to flush any     |
+//   |              |          | previous playlist.                      |
+//   +--------------+----------+-----------------------------------------+
+// Example raw data from logs:
+//   0: play
+//   1: 0
+//   2: <nil>
+//   3: twinx_XVlBzgbaiCMRAjWwhTHc
 func (s *ServerConn) playRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	if len(x.batchedValues) == 0 {
+		return errors.New("missing values")
+	}
+	if len(x.batchedValues) < 4 {
+		return fmt.Errorf("invalid play command length [%d] < 3", len(x.batchedValues))
+	}
+
+	rxID := x.batchedValues[1]
+	id, ok := rxID.(float64)
+	if !ok {
+		return errors.New("invalid ID field")
+	}
+	s.transactionID = int64(id)
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
-	return nil
+
+	_, err := s.playTX()
+	return err
 }
 
 func (s *ServerConn) playTX() (*ChunkStream, error) {
-	logger.Debug(rtmpMessage(thisFunctionName(), tx))
-	return nil, defaultUnimplemented()
+	s.conn.setRecorded()
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetRecorded"), tx))
+
+	s.conn.streamBegin()
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "StreamBegin"), tx))
+
+	// NetStream.Play.Reset
+	event := make(amf.Object)
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPlayReset
+	event[ConnEventDescription] = "Playing and resetting stream."
+	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
+		return nil, err
+	}
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPlayReset), tx))
+
+	// NetStream.Play.Start
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPlayStart
+	event[ConnEventDescription] = "Started playing stream."
+	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
+		return nil, err
+	}
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPlayStart), tx))
+
+	// NetStream.Data.Start
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamDataStart
+	event[ConnEventDescription] = "Started playing stream."
+	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
+		return nil, err
+	}
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamDataStart), tx))
+
+	// 	NetStream.Publish.Notify
+	event[ConnEventLevel] = ConnEventStatus
+	event[ConnEventCode] = CommandNetStreamPublishNotify
+	event[ConnEventDescription] = "Started playing notify."
+	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
+		return nil, err
+	}
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPublishNotify), tx))
+
+	return nil, s.conn.Flush()
 }
 
 func (s *ServerConn) play2RX(x *ChunkStream) error {
@@ -184,7 +420,7 @@ func (s *ServerConn) receiveVideoTX() (*ChunkStream, error) {
 }
 
 func (s *ServerConn) publishRX(x *ChunkStream) error {
-	logger.Debug(rtmpMessage(thisFunctionName(), ack))
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	return nil
 }
 

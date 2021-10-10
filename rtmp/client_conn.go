@@ -176,31 +176,28 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 		cc.conn.windowAckSize = ackSize
 		logger.Debug(rtmpMessage(typeIDString(x), ack))
 		cc.conn.ack(ackSize)
-		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case WindowAcknowledgementSizeMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.windowAckSize = ackSize
 		logger.Debug(rtmpMessage(typeIDString(x), ack))
 		cc.conn.ack(ackSize)
-		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case SetPeerBandwidthMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.ack(ackSize)
-		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case UserControlMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
 		cc.conn.ack(ackSize)
-		logger.Debug(rtmpMessage(typeIDString(x), tx))
 	case CommandMessageAMF0ID, CommandMessageAMF3ID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		xReader := bytes.NewReader(x.Data)
-		values, err := cc.decoder.DecodeBatch(xReader, amf.AMF0)
+		values, err := cc.LogDecodeBatch(xReader, amf.AMF0)
 		if err != nil && err != io.EOF {
 			return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.urladdr.SafeURL(), err)
 		}
+		x.batchedValues = values
 		for k, v := range values {
 			switch v.(type) {
 			case string:
@@ -289,8 +286,11 @@ func (cc *ClientConn) initialTX() error {
 
 // ==========================================================================================
 
-func (cc *ClientConn) DecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
+func (cc *ClientConn) LogDecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
 	vs, err := cc.decoder.DecodeBatch(r, ver)
+	for k, v := range vs {
+		logger.Debug("  [%+v] (%+v)", k, v)
+	}
 	return vs, err
 }
 

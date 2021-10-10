@@ -121,6 +121,7 @@ func (cc *ClientConn) createStreamTX() (*ChunkStream, error) {
 
 func (cc *ClientConn) playRX(x *ChunkStream) error {
 	cc.connected = true
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
 	return nil
 }
@@ -144,7 +145,6 @@ func (cc *ClientConn) play2TX() (*ChunkStream, error) {
 
 func (cc *ClientConn) deleteStreamRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
@@ -155,7 +155,6 @@ func (cc *ClientConn) deleteStreamTX() (*ChunkStream, error) {
 
 func (cc *ClientConn) receiveAudioRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
@@ -166,7 +165,6 @@ func (cc *ClientConn) receiveAudioTX() (*ChunkStream, error) {
 
 func (cc *ClientConn) receiveVideoRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
@@ -177,6 +175,7 @@ func (cc *ClientConn) receiveVideoTX() (*ChunkStream, error) {
 
 func (cc *ClientConn) publishRX(x *ChunkStream) error {
 	cc.connected = true
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
 	return nil
 }
@@ -190,7 +189,6 @@ func (cc *ClientConn) publishTX() (*ChunkStream, error) {
 
 func (cc *ClientConn) seekRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 
@@ -201,7 +199,6 @@ func (cc *ClientConn) seekTX() (*ChunkStream, error) {
 
 func (cc *ClientConn) pauseRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	logger.Debug(thisFunctionName())
 	return defaultUnimplemented()
 }
 

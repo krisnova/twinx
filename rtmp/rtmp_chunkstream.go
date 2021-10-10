@@ -88,4 +88,13 @@ type ChunkStream struct {
 	remain    uint32
 	got       bool
 	tmpFormat uint32
+
+	// batchedValues is an internal member
+	// as we route packets we begin to decode the chunk stream data
+
+	// once the data is decoded it will be cached here, and can be
+	// checked by length > 0
+	//
+	// the LogDecodeBatch method should respect this
+	batchedValues []interface{}
 }

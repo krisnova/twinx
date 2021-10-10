@@ -42,6 +42,7 @@ package rtmp
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -368,7 +369,7 @@ func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool 
 	return r.readError
 }
 
-func newChunkStream(typeID, length, payload uint32) ChunkStream {
+func newChunkStream(typeID, length, payload uint32) *ChunkStream {
 	ret := ChunkStream{
 		Format:   0,
 		CSID:     2,
@@ -378,7 +379,7 @@ func newChunkStream(typeID, length, payload uint32) ChunkStream {
 		Data:     make([]byte, length),
 	}
 	pio.PutU32BE(ret.Data[:length], payload)
-	return ret
+	return &ret
 }
 
 // ConnectInfo is the RTMP spec's parameters of the key value pairs passed
@@ -434,6 +435,19 @@ type ConnectInfo struct {
 	VideoFunction  int    `amf:"videoFunction" json:"videoFunction"`
 	PageUrl        string `amf:"pageUrl" json:"pageUrl"`
 	ObjectEncoding int    `amf:"objectEncoding" json:"objectEncoding"`
+}
+
+func ConnectInfoMapToInstance(i interface{}) (*ConnectInfo, error) {
+	var connInfo ConnectInfo
+	b, err := json.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(b, &connInfo)
+	if err != nil {
+		return nil, err
+	}
+	return &connInfo, nil
 }
 
 const (

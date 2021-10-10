@@ -162,37 +162,6 @@ func (conn *Conn) SetDeadline(t time.Time) error {
 	return conn.Conn.SetDeadline(t)
 }
 
-func (conn *Conn) NewAck(size uint32) ChunkStream {
-	return newChunkStream(AcknowledgementMessageID, 4, size)
-}
-
-func (conn *Conn) NewSetChunkSize(size uint32) ChunkStream {
-	return newChunkStream(SetChunkSizeMessageID, 4, size)
-}
-
-func (conn *Conn) NewWindowAckSize(size uint32) ChunkStream {
-	return newChunkStream(AcknowledgementMessageID, 4, size)
-}
-
-func (conn *Conn) NewSetPeerBandwidth(size uint32) ChunkStream {
-	ret := newChunkStream(SetPeerBandwidthMessageID, 5, size)
-	ret.Data[4] = 2
-	return ret
-}
-
-func (conn *Conn) ack(size uint32) {
-	conn.received += uint32(size)
-	conn.ackReceived += uint32(size)
-	if conn.received >= 0xf0000000 {
-		conn.received = 0
-	}
-	if conn.ackReceived >= conn.remoteWindowAckSize {
-		cs := conn.NewAck(conn.ackReceived)
-		cs.writeChunk(conn.rw, int(conn.chunkSize))
-		conn.ackReceived = 0
-	}
-}
-
 func (conn *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {
 	var ret ChunkStream
 	buflen += 2
@@ -209,16 +178,49 @@ func (conn *Conn) userControlMsg(eventType, buflen uint32) ChunkStream {
 	return ret
 }
 
-func (conn *Conn) messageUserControlStreamBegin() {
-	ret := conn.userControlMsg(StreamBegin, 4)
+// ==================================================================================================
+
+func (conn *Conn) newChunkStreamWindowAcknowledgementMessage(size uint32) *ChunkStream {
+	return newChunkStream(AcknowledgementMessageID, 4, size)
+}
+
+func (conn *Conn) newChunkStreamSetPeerBandwidth(size uint32) *ChunkStream {
+	x := newChunkStream(SetPeerBandwidthMessageID, 5, size)
+	x.Data[4] = 2
+	return x
+}
+
+func (conn *Conn) newChunkStreamSetChunkSize(size uint32) *ChunkStream {
+	return newChunkStream(SetChunkSizeMessageID, 4, size)
+}
+
+func (conn *Conn) newChunkStreamAck(size uint32) *ChunkStream {
+	return newChunkStream(AcknowledgementMessageID, 4, size)
+}
+
+func (conn *Conn) ack(size uint32) {
+	conn.received += uint32(size)
+	conn.ackReceived += uint32(size)
+	if conn.received >= 0xf0000000 {
+		conn.received = 0
+	}
+	if conn.ackReceived >= conn.remoteWindowAckSize {
+		cs := conn.newChunkStreamAck(conn.ackReceived)
+		cs.writeChunk(conn.rw, int(conn.chunkSize))
+		conn.ackReceived = 0
+	}
+}
+
+func (conn *Conn) setRecorded() {
+	ret := conn.userControlMsg(StreamIsRecorded, 4)
 	for i := 0; i < 4; i++ {
 		ret.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)
 	}
 	conn.Write(&ret)
 }
 
-func (conn *Conn) SetRecorded() {
-	ret := conn.userControlMsg(StreamIsRecorded, 4)
+func (conn *Conn) streamBegin() {
+	ret := conn.userControlMsg(StreamBegin, 4)
 	for i := 0; i < 4; i++ {
 		ret.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)
 	}
