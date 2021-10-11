@@ -83,7 +83,7 @@ func (s *SafeMuxDemuxService) GetStream(key string) (*SafeBoundedBuffer, error) 
 }
 
 type SafeBoundedBuffer struct {
-	writers []ChunkStreamWriter
+	writers map[string]ChunkStreamWriter
 
 	writeMutex sync.Mutex
 
@@ -142,31 +142,29 @@ func (mx *SafeBoundedBuffer) Stream() error {
 	}
 }
 
-func (mx *SafeBoundedBuffer) AddWriter(w ChunkStreamWriter) {
+func (mx *SafeBoundedBuffer) AddWriter(key string, w ChunkStreamWriter) {
 	mx.writeMutex.Lock()
+	mx.writers[key] = w
 	defer mx.writeMutex.Unlock()
-	mx.writers = append(mx.writers, w)
 }
 
 type ChunkStreamWriter interface {
-	// Write (by design) does not block, or return an error.
-	// Errors from this chunk stream should be handled by the
-	// implementation.
-	Write(x *ChunkStream)
+	// Write (by design) does not block
+	Write(x *ChunkStream) error
 }
 
 type PlayWriter struct {
-	conn *ServerConn
+	conn *ClientConn
 }
 
-func NewPlayWriter(conn *ServerConn) *PlayWriter {
+func NewPlayWriter(conn *ClientConn) *PlayWriter {
 	return &PlayWriter{
 		conn: conn,
 	}
 }
 
-func (p *PlayWriter) Write(x *ChunkStream) {
+func (p *PlayWriter) Write(x *ChunkStream) error {
 	// **************
-	p.conn.Write(*x)
+	return p.conn.Write(x)
 	// **************
 }

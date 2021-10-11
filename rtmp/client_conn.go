@@ -204,10 +204,21 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 					return cc.createStreamRX(x)
 				case CommandPublish:
 					logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), rx))
-					return cc.publishRX(x)
+					err := cc.publishRX(x)
+					if err != nil {
+						return err
+					}
+					logger.Info(rtmpMessage("Publish Stream", stream))
+
+					return nil
 				case CommandPlay:
 					logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), rx))
-					return cc.playRX(x)
+					err := cc.playRX(x)
+					if err != nil {
+						return err
+					}
+					logger.Info(rtmpMessage("Play Stream", stream))
+					return nil
 				}
 			case float64:
 				switch cc.curcmdName {
@@ -289,7 +300,7 @@ func (cc *ClientConn) LogDecodeBatch(r io.Reader, ver amf.Version) (ret []interf
 	return vs, err
 }
 
-func (cc *ClientConn) Write(c ChunkStream) error {
+func (cc *ClientConn) Write(c *ChunkStream) error {
 	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
 		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
 		var err error
@@ -298,7 +309,7 @@ func (cc *ClientConn) Write(c ChunkStream) error {
 		}
 		c.Length = uint32(len(c.Data))
 	}
-	return cc.conn.Write(&c)
+	return cc.conn.Write(c)
 }
 
 func (cc *ClientConn) Flush() error {

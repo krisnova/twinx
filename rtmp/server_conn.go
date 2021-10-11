@@ -80,6 +80,10 @@ type ServerConn struct {
 	decoder *amf.Decoder
 	encoder *amf.Encoder
 	bytesw  *bytes.Buffer
+
+	// uniqueProxies come from an associated server
+	// and are handled at the server level
+	uniqueProxies map[string]*ClientConn
 }
 
 func NewServerConn(conn *Conn) *ServerConn {
@@ -104,6 +108,14 @@ func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 
 func (s *ServerConn) RoutePackets() error {
 	for {
+		// Sync the proxies before routing the next packet
+		for _, proxy := range s.uniqueProxies {
+			// This will lock
+			//
+			// TODO we should figure out a way to make this faster
+			s.stream.AddWriter(proxy.urladdr.SafeURL(), proxy)
+		}
+
 		x, err := s.NextChunk()
 		if err != nil {
 			// Terminate the client!
@@ -115,6 +127,7 @@ func (s *ServerConn) RoutePackets() error {
 		if err != nil {
 			logger.Critical(err.Error())
 		}
+
 	}
 	return nil
 }
@@ -195,18 +208,16 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		}
 		// Write packets to the stream
 		logger.Info(rtmpMessage("Publish Stream", stream))
-		s.stream.Stream()
+
+		// Start caching packets
+		go s.stream.Stream()
 	case CommandPlay:
 		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandPlay), rx))
 		err := s.playRX(x)
 		if err != nil {
 			return err
 		}
-		// Read packets from the stream
-		playWriter := NewPlayWriter(s)
-		s.stream.AddWriter(playWriter)
 		logger.Info(rtmpMessage("Play Stream", stream))
-
 	default:
 		return fmt.Errorf("unsupported commandName: %s", commandName)
 	}
@@ -248,16 +259,16 @@ const (
 	CommandConnectWellKnownID float64 = 1
 )
 
-func (s *ServerConn) Write(packet ChunkStream) error {
-	if packet.TypeID == TAG_SCRIPTDATAAMF0 ||
-		packet.TypeID == TAG_SCRIPTDATAAMF3 {
+func (s *ServerConn) Write(x *ChunkStream) error {
+	if x.TypeID == TAG_SCRIPTDATAAMF0 ||
+		x.TypeID == TAG_SCRIPTDATAAMF3 {
 		var err error
-		if packet.Data, err = amf.MetaDataReform(packet.Data, amf.DEL); err != nil {
+		if x.Data, err = amf.MetaDataReform(x.Data, amf.DEL); err != nil {
 			return err
 		}
-		packet.Length = uint32(len(packet.Data))
+		x.Length = uint32(len(x.Data))
 	}
-	return s.conn.Write(&packet)
+	return s.conn.Write(x)
 }
 
 func (s *ServerConn) Flush() error {

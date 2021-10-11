@@ -57,12 +57,34 @@ const (
 type Server struct {
 	muxdem   *SafeMuxDemuxService
 	listener *Listener
-	conn     *ServerConn
+	conns    []*ServerConn
 }
 
 func NewServer() *Server {
 	return &Server{
 		muxdem: NewMuxDemService(),
+	}
+}
+
+func (s *Server) Forward(raw string) error {
+	forwardClient := NewClient()
+	err := forwardClient.Dial(raw)
+	if err != nil {
+		return err
+	}
+	s.AddClient(forwardClient.conn)
+	return nil
+}
+
+// AddClient will add clients to this server.
+//
+// Client forwarding is handled at the server level.
+// We trust each subsequent stream to update to the configured
+// clients as they are added.
+func (s *Server) AddClient(f *ClientConn) {
+	for _, c := range s.conns {
+		// Use the SafeURL as our key
+		c.uniqueProxies[f.urladdr.SafeURL()] = f
 	}
 }
 
@@ -74,6 +96,11 @@ func (s *Server) ListenAndServe(raw string) error {
 	return s.Serve(l)
 }
 
+// Serve
+//
+// A blocking method that will listen for new connections
+// and create subsequent go routines for new clients as they
+// connect.
 func (s *Server) Serve(listener net.Listener) error {
 	// Translate a Go net.Listener to an RTMP net.Listener
 	var concrete *Listener
@@ -116,8 +143,8 @@ func (s *Server) handleConn(netConn net.Conn) error {
 
 	// Server Connection
 	connSrv := NewServerConn(conn)
-	s.conn = connSrv
-	s.conn.conn = conn
+	s.conns = append(s.conns, connSrv)
+	connSrv.conn = conn
 
 	// Set up multiplexing
 	stream, err := s.muxdem.GetStream(s.listener.URLAddr().Key())
@@ -126,13 +153,13 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	}
 
 	// Map the stream to the conn
-	s.conn.stream = stream
+	connSrv.stream = stream
 
 	// Handshakes
-	err = s.conn.handshake()
+	err = connSrv.handshake()
 	if err != nil {
 		return nil
 	}
 
-	return s.conn.RoutePackets()
+	return connSrv.RoutePackets()
 }

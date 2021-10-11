@@ -197,7 +197,7 @@ type ActiveStreamerServer struct {
 	Local    *rtmp.URLAddr
 	Remotes  map[string]*rtmp.URLAddr
 	Listener *rtmp.Listener
-	Server   rtmp.Server
+	Server   *rtmp.Server
 }
 
 func NewActiveStreamerServer() *ActiveStreamerServer {
@@ -239,6 +239,7 @@ func (a *ActiveStreamerServer) StartRTMP(ctx context.Context, r *activestreamer.
 	//logger.Debug("Caching local RTMP server")
 	a.Local = addr
 	a.Listener = rListener
+	a.Server = rServer
 
 	// Run the server in a go routine
 	go func() {
@@ -293,38 +294,13 @@ func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("unable to start rtmp relay, local server notrunning")
 	}
 
-	// play -> publish
-	play := a.Local
-	publish := addr
-
-	playClient := rtmp.NewClient()
-	err = playClient.Dial(play.StreamURL())
+	err = a.Server.Forward(addr.StreamURL())
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
 			Message: S("unable to dial play client"),
 		}, fmt.Errorf("unable to dial play client")
 	}
-
-	publishClient := rtmp.NewClient()
-	err = publishClient.Dial(publish.StreamURL())
-	if err != nil {
-		return &activestreamer.Ack{
-			Success: false,
-			Message: S("unable to dial publish client"),
-		}, fmt.Errorf("unable to dial publish client")
-	}
-	rtmpProxy := rtmp.NewRTMPProxy(playClient.Client(), publishClient.Client())
-
-	// Cache
-	a.Remotes[addr.StreamURL()] = addr
-
-	go func() {
-		err := rtmpProxy.Start()
-		if err != nil {
-			logger.Critical("starting RTMP proxy: %v", err)
-		}
-	}()
 
 	return &activestreamer.Ack{
 		Success: true,

@@ -131,16 +131,16 @@ func main() {
 			{
 				Name:    "proxy",
 				Aliases: []string{"p"},
-				Usage:   "Start a proxy server that can accept client (publish) streams and proxy to remote (play) streams.",
+				Usage:   "Start a proxy server and configure a forward URL",
 				Flags:   globalFlags,
 				Action: func(c *cli.Context) error {
 					args := c.Args()
 					if args.Len() != 2 {
-						return errors.New("usage: twinx-rtmp proxy <play-addr> <publish-addr>")
+						return errors.New("usage: twinx-rtmp proxy <server-addr> <forward-addr>")
 					}
-					play := args.Get(0)
-					publish := args.Get(1)
-					return RunProxy(play, publish)
+					server := args.Get(0)
+					forward := args.Get(1)
+					return RunProxy(server, forward)
 				},
 			},
 		},
@@ -185,18 +185,19 @@ func RunClientPublish(raw string) error {
 	return rtmpClient.Publish()
 }
 
-func RunProxy(play, publish string) error {
-	playClient := rtmp.NewClient()
-	err := playClient.Dial(play)
+func RunProxy(server, forward string) error {
+
+	// Start a server that will consume publish bytes
+	rtmpServer := rtmp.NewServer()
+	rtmpListener, err := rtmp.Listen(server)
 	if err != nil {
 		return err
 	}
 
-	publishClient := rtmp.NewClient()
-	err = publishClient.Dial(publish)
+	err = rtmpServer.Forward(forward)
 	if err != nil {
 		return err
 	}
-	rtmpProxy := rtmp.NewRTMPProxy(playClient.Client(), publishClient.Client())
-	return rtmpProxy.Start()
+
+	return rtmpServer.Serve(rtmpListener)
 }
