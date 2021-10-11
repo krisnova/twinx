@@ -125,17 +125,14 @@ func (s *Server) handleConn(netConn net.Conn) error {
 		return err
 	}
 
+	// Map the stream to the conn
+	s.conn.stream = stream
+
+	// Handshakes
 	err = s.conn.handshake()
 	if err != nil {
 		return nil
 	}
 
-	go func() {
-		err := stream.Stream()
-		if err != nil {
-			logger.Critical(err.Error())
-		}
-	}()
-
-	return s.conn.RoutePackets(stream)
+	return s.conn.RoutePackets()
 }

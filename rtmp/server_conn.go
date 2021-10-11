@@ -73,6 +73,10 @@ type ServerConn struct {
 	// client
 	publishInfo *PublishInfo
 
+	// Every stream conn has an RTMP url
+	// Every stream conn has a stream
+	stream *SafeBoundedBuffer
+
 	decoder *amf.Decoder
 	encoder *amf.Encoder
 	bytesw  *bytes.Buffer
@@ -98,26 +102,24 @@ func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 	return &chunk, nil
 }
 
-func (s *ServerConn) RoutePackets(stream *SafeBoundedBuffer) error {
+func (s *ServerConn) RoutePackets() error {
 	for {
 		x, err := s.NextChunk()
 		if err != nil {
-			//logger.Critical("reading chunk from client: %v", err)
 			// Terminate the client!
 			if err != TestableEOFError {
 				return err
 			}
 		}
-		err = s.Route(stream, x)
+		err = s.Route(x)
 		if err != nil {
 			logger.Critical(err.Error())
 		}
-
 	}
 	return nil
 }
 
-func (s *ServerConn) Route(stream *SafeBoundedBuffer, x *ChunkStream) error {
+func (s *ServerConn) Route(x *ChunkStream) error {
 	switch x.TypeID {
 	case SetChunkSizeMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
@@ -149,15 +151,19 @@ func (s *ServerConn) Route(stream *SafeBoundedBuffer, x *ChunkStream) error {
 		}
 	case DataMessageAMF0ID, DataMessageAMF3ID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		stream.Write(x)
+		s.stream.Write(x)
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AudioMessageID:
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
-		stream.Write(x)
+		if s.publishInfo != nil {
+			s.stream.Write(x)
+		}
 	case VideoMessageID:
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
-		stream.Write(x)
+		if s.publishInfo != nil {
+			s.stream.Write(x)
+		}
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	default:
@@ -183,10 +189,24 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		return s.createStreamRX(x)
 	case CommandPublish:
 		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandPublish), rx))
-		return s.publishRX(x)
+		err := s.publishRX(x)
+		if err != nil {
+			return err
+		}
+		// Write packets to the stream
+		logger.Info(rtmpMessage("Publish Stream", stream))
+		s.stream.Stream()
 	case CommandPlay:
 		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandPlay), rx))
-		return s.playRX(x)
+		err := s.playRX(x)
+		if err != nil {
+			return err
+		}
+		// Read packets from the stream
+		playWriter := NewPlayWriter(s)
+		s.stream.AddWriter(playWriter)
+		logger.Info(rtmpMessage("Play Stream", stream))
+
 	default:
 		return fmt.Errorf("unsupported commandName: %s", commandName)
 	}

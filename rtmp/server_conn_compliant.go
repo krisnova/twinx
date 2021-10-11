@@ -329,7 +329,10 @@ func (s *ServerConn) playRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
 
 	_, err := s.playTX()
-	return err
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *ServerConn) playTX() (*ChunkStream, error) {

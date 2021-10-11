@@ -77,11 +77,11 @@ func NewRTMPProxy(play, publish *ClientConn) *RTMPProxy {
 	}
 }
 
-// rxChunkStreamPlay
+// proxyPlayRX
 //
 // This will read bytes from a play client and send them
 // over a packet channel (ChunkStream) in an unbounded buffer.
-func (r *RTMPProxy) rxChunkStreamPlay() error {
+func (r *RTMPProxy) proxyPlayRX() error {
 	logger.Info("Play %s", r.publishClient.urladdr.SafeURL())
 	for {
 		var x ChunkStream
@@ -134,9 +134,9 @@ func (r *RTMPProxy) rxChunkStreamPlay() error {
 	return nil
 }
 
-// txChunkStreamPublish will read from the packet (ChunkStream)
+// proxyPublishTX will read from the packet (ChunkStream)
 // channel and write to the configured client.
-func (r *RTMPProxy) txChunkStreamPublish() {
+func (r *RTMPProxy) proxyPublishTX() {
 	logger.Info("Publish %s", r.publishClient.urladdr.SafeURL())
 	for {
 		select {
@@ -182,12 +182,10 @@ func (r *RTMPProxy) Start() error {
 	// **************************
 	// Proxy Logic
 	//
-	go r.rxChunkStreamPlay()
-	go r.txChunkStreamPublish()
+	go r.proxyPlayRX()
+	go r.proxyPublishTX()
+	//
 	// **************************
-
-	logger.Info("Proxy started.")
-	logger.Info("play(%s) --> [twinx proxy] --> publish(%s)", r.playClient.urladdr.SafeURL(), r.publishClient.urladdr.SafeURL())
 
 	return nil
 }
