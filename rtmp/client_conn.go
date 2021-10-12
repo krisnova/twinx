@@ -90,7 +90,7 @@ func (cc *ClientConn) Dial(address string) error {
 	return nil
 }
 
-// Publish will attempt to start a Publish stream
+// Publish will hang and attempt to start a Publish stream
 // with a configured server.
 func (cc *ClientConn) Publish() error {
 	cc.method = ClientMethodPlay

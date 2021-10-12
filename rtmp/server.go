@@ -83,10 +83,13 @@ func (s *Server) Forward(raw string) error {
 func (s *Server) AddClient(f *ClientConn) error {
 
 	// New clients will always be publishers.
-	err := f.Publish()
-	if err != nil {
-		return err
-	}
+	go func() {
+		err := f.Publish()
+		if err != nil {
+			logger.Critical(err.Error())
+		}
+	}()
+
 	for _, c := range s.conns {
 		// Use the SafeURL as our key
 		c.uniqueProxies[f.urladdr.SafeURL()] = f
