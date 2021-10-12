@@ -577,6 +577,19 @@ type ConnEvent struct {
 	ObjectEncoding int    `amf:"objectEncoding"`
 }
 
+func ConnEventMapToInstance(i interface{}) (*ConnEvent, error) {
+	var c ConnEvent
+	b, err := json.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(b, &c)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 const (
 	ConnEventLevel          string = "level"
 	ConnEventCode           string = "code"

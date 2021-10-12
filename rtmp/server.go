@@ -72,8 +72,7 @@ func (s *Server) Forward(raw string) error {
 	if err != nil {
 		return err
 	}
-	s.AddClient(forwardClient.conn)
-	return nil
+	return s.AddClient(forwardClient.conn)
 }
 
 // AddClient will add clients to this server.
@@ -81,11 +80,18 @@ func (s *Server) Forward(raw string) error {
 // Client forwarding is handled at the server level.
 // We trust each subsequent stream to update to the configured
 // clients as they are added.
-func (s *Server) AddClient(f *ClientConn) {
+func (s *Server) AddClient(f *ClientConn) error {
+
+	// New clients will always be publishers.
+	err := f.Publish()
+	if err != nil {
+		return err
+	}
 	for _, c := range s.conns {
 		// Use the SafeURL as our key
 		c.uniqueProxies[f.urladdr.SafeURL()] = f
 	}
+	return nil
 }
 
 func (s *Server) ListenAndServe(raw string) error {

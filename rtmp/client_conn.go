@@ -99,6 +99,19 @@ func (cc *ClientConn) Publish() error {
 	if err != nil {
 		return err
 	}
+
+	// Read until the server is connected
+	for !cc.connected {
+		x, err := cc.NextChunk()
+		if err != nil {
+			return err
+		}
+		err = cc.Route(x)
+		if err != nil {
+			return err
+		}
+	}
+
 	_, err = cc.publishTX()
 	if err != nil {
 		return err
@@ -191,6 +204,16 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 			return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.urladdr.SafeURL(), err)
 		}
 		x.batchedValues = values
+
+		// TODO Left off here!
+		//
+		//
+		// Here is where we need to break things down and fix our client publish
+		// protocol
+		//
+		//
+		// TODO Left off here!
+
 		for k, v := range values {
 			switch v.(type) {
 			case string:
@@ -208,8 +231,7 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 					if err != nil {
 						return err
 					}
-					logger.Info(rtmpMessage("Publish Stream", stream))
-
+					//logger.Info(rtmpMessage("Publish Stream", stream))
 					return nil
 				case CommandPlay:
 					logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", cc.curcmdName), rx))

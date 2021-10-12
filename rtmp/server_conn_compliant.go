@@ -317,7 +317,7 @@ func (s *ServerConn) playRX(x *ChunkStream) error {
 		return errors.New("missing values")
 	}
 	if len(x.batchedValues) < 4 {
-		return fmt.Errorf("invalid play command length [%d] < 3", len(x.batchedValues))
+		return fmt.Errorf("invalid play command length [%d] < 4", len(x.batchedValues))
 	}
 
 	rxID := x.batchedValues[1]

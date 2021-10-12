@@ -40,6 +40,8 @@
 package rtmp
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -107,20 +109,73 @@ func (cc *ClientConn) connectTX() (*ChunkStream, error) {
 	return cc.writeMsg(CommandConnect, cc.transID, event)
 }
 
+//  The command structure from server to client is as follows:
+//
+//    +--------------+----------+----------------------------------------+
+//    | Field Name   |   Type   |             Description                |
+//    +--------------+----------+----------------------------------------+
+// 0  | Command Name |  String  | _result or _error; indicates whether   |
+//    |              |          | the response is result or error.       |
+//    +--------------+----------+----------------------------------------+
+// 1  | Transaction  |  Number  | ID of the command that response belongs|
+//    | ID           |          | to.                                    |
+//    +--------------+----------+----------------------------------------+
+// 2  | Command      |  Object  | If there exists any command info this  |
+//    | Object       |          | is set, else this is set to null type. |
+//    +--------------+----------+----------------------------------------+
+// 3  | Stream       |  Number  | The return value is either a stream ID |
+//    | ID           |          | or an error information object.        |
+//    +--------------+----------+----------------------------------------+
+//
 func (cc *ClientConn) createStreamRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	if len(x.batchedValues) == 0 {
+		return errors.New("missing values")
+	}
+	if len(x.batchedValues) < 4 {
+		return fmt.Errorf("invalid createStream command length [%d] < 4", len(x.batchedValues))
+	}
+	event, err := ConnEventMapToInstance(x.batchedValues[3])
+	if err != nil {
+		return fmt.Errorf("unable to parse ConnEvent amf object")
+	}
+	if event.Code == CommandNetStreamConnectSuccess {
+		cc.connected = true
+	} else {
+		logger.Always("%+v", event)
+	}
 	return nil
 }
 
+//  The command structure from the client to the server is as follows:
+//
+//    +--------------+----------+----------------------------------------+
+//    | Field Name   |   Type   |             Description                |
+//    +--------------+----------+----------------------------------------+
+//    | Command Name |  String  | Name of the command. Set to            |
+//    |              |          | "createStream".                        |
+//    +--------------+----------+----------------------------------------+
+//    | Transaction  |  Number  | Transaction ID of the command.         |
+//    | ID           |          |                                        |
+//    +--------------+----------+----------------------------------------+
+//    | Command      |  Object  | If there exists any command info this  |
+//    | Object       |          | is set, else this is set to null type. |
+//    +--------------+----------+----------------------------------------+
+//
 func (cc *ClientConn) createStreamTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandCreateStream
-	return cc.writeMsg(CommandCreateStream, cc.transID, nil)
+	_, err := cc.writeMsg(CommandCreateStream, cc.transID, nil)
+	if err != nil {
+		return nil, err
+	}
+	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.Connected=true", thisFunctionName()), tx))
+	//cc.connected = true
+	return nil, nil
 }
 
 func (cc *ClientConn) playRX(x *ChunkStream) error {
-	cc.connected = true
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
 	return nil
@@ -174,17 +229,48 @@ func (cc *ClientConn) receiveVideoTX() (*ChunkStream, error) {
 }
 
 func (cc *ClientConn) publishRX(x *ChunkStream) error {
-	cc.connected = true
-	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	//logger.Debug(rtmpMessage(thisFunctionName(), rx))
+
 	logger.Debug(rtmpMessage(thisFunctionName(), ack))
 	return nil
 }
 
+// The command structure from the client to the server is as follows:
+//
+//    +--------------+----------+----------------------------------------+
+//    | Field Name   |   Type   |             Description                |
+//    +--------------+----------+----------------------------------------+
+//    | Command Name |  String  | Name of the command, set to "publish". |
+//    +--------------+----------+----------------------------------------+
+//    | Transaction  |  Number  | Transaction ID set to 0.               |
+//    | ID           |          |                                        |
+//    +--------------+----------+----------------------------------------+
+//    | Command      |  Null    | Command information object does not    |
+//    | Object       |          | exist. Set to null type.               |
+//    +--------------+----------+----------------------------------------+
+//    | Publishing   |  String  | Name with which the stream is          |
+//    | Name         |          | published.                             |
+//    +--------------+----------+----------------------------------------+
+//    | Publishing   |  String  | Type of publishing. Set to "live",     |
+//    | Type         |          | "record", or "append".                 |
+//    |              |          | record: The stream is published and the|
+//    |              |          | data is recorded to a new file.The file|
+//    |              |          | is stored on the server in a           |
+//    |              |          | subdirectory within the directory that |
+//    |              |          | contains the server application. If the|
+//    |              |          | file already exists, it is overwritten.|
+//    |              |          | append: The stream is published and the|
+//    |              |          | data is appended to a file. If no file |
+//    |              |          | is found, it is created.               |
+//    |              |          | live: Live data is published without   |
+//    |              |          | recording it in a file.                |
+//    +--------------+----------+----------------------------------------+
+//
 func (cc *ClientConn) publishTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandPublish
-	return cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive)
+	return cc.writeMsg(CommandPublish, 0, nil, cc.urladdr.Key(), PublishCommandLive)
 }
 
 func (cc *ClientConn) seekRX(x *ChunkStream) error {
