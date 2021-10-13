@@ -158,6 +158,15 @@ const (
 	CommandNetStreamConnectSuccess = "NetConnection.Connect.Success"
 	CommandOnBWDone                = "CommandOnBWDone"
 
+	// 7.1.2.  Data Message
+	//
+	// Data messages are not found in the official spec.
+	// We have identified an AMF encoded "onMetaData" message
+	// from OBS that contains many key/value pairs of audio
+	// and video meta data.
+
+	DataMessageOnMetaData = "onMetaData"
+
 	StreamBegin      uint32 = 0
 	StreamEOF        uint32 = 1
 	StreamDry        uint32 = 2
@@ -482,6 +491,48 @@ func newChunkStream(typeID, length, payload uint32) *ChunkStream {
 	}
 	pio.PutU32BE(ret.Data[:length], payload)
 	return &ret
+}
+
+// MetaData is found in clients such as OBS
+//
+// Example
+// map: 2.1:false 3.1:false 4.0:false 4.1:false 5.1:false 7.1:false audiochannels:2 audiocodecid:10
+// audiodatarate:160 audiosamplerate:48000 audiosamplesize:16 duration:0 encoder:obs-output module (libobs version 27.0.1-3)
+// fileSize:0 framerate:30 height:720 stereo:true videocodecid:7 videodatarate:2500 width:1280
+type MetaData struct {
+	V21             bool   `amf:"2.1" json:"2.1"`
+	V31             bool   `amf:"3.1" json:"3.1"`
+	V40             bool   `amf:"4.0" json:"4.0"`
+	V41             bool   `amf:"4.1" json:"4.1"`
+	V51             bool   `amf:"5.1" json:"5.1"`
+	V71             bool   `amf:"7.1" json:"7.1"`
+	AudioChannels   int64  `amf:"audiochannels" json:"audiochannels"`
+	AudioCodecID    int64  `amf:"audiocodecid" json:"audiocodecid"`
+	AudioRate       int64  `amf:"audiorate" json:"audiorate"`
+	AudioSampleRate int64  `amf:"audiosamplerate" json:"audiosamplerate"`
+	AudioSampleSize int64  `amf:"audiosamplesize" json:"audiosamplesize"`
+	Duration        int64  `amf:"duration" json:"duration"`
+	Encoder         string `amf:"encoder" json:"encoder"`
+	FileSize        int64  `amf:"filesize" json:"filesize"`
+	FrameRate       int64  `amf:"framerate" json:"framerate"`
+	Height          int64  `amf:"height" json:"height"`
+	Stereo          bool   `amf:"stereo" json:"stereo"`
+	VideoCodecID    int64  `amf:"videocodecid" json:"videocodecid"`
+	VideoRate       int64  `amf:"videorate" json:"videorate"`
+	Width           int64  `amf:"width" json:"width"`
+}
+
+func MetaDataMapToInstance(i interface{}) (*MetaData, error) {
+	var md MetaData
+	b, err := json.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(b, &md)
+	if err != nil {
+		return nil, err
+	}
+	return &md, nil
 }
 
 // ConnectInfo is the RTMP spec's parameters of the key value pairs passed

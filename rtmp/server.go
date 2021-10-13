@@ -57,15 +57,25 @@ const (
 type Server struct {
 	muxdem   *SafeMuxDemuxService
 	listener *Listener
-	conns    []*ServerConn
+
+	// conns should be moved to a hashmap and can be made to close conns
+	conns []*ServerConn
+
+	// forwardClients are publish clients that we will push down to each ServerConn to forward packets to
+	forwardClients map[string]*ClientConn
 }
 
 func NewServer() *Server {
 	return &Server{
-		muxdem: NewMuxDemService(),
+		forwardClients: make(map[string]*ClientConn),
+		muxdem:         NewMuxDemService(),
 	}
 }
 
+// Forward will configure forward addresses for the RTMP server.
+//
+// Forward can be called before or after Serve()
+// and the backend server will be smart enough to sync clients.
 func (s *Server) Forward(raw string) error {
 	forwardClient := NewClient()
 	err := forwardClient.Dial(raw)
@@ -90,10 +100,9 @@ func (s *Server) AddClient(f *ClientConn) error {
 		}
 	}()
 
-	for _, c := range s.conns {
-		// Use the SafeURL as our key
-		c.uniqueProxies[f.urladdr.SafeURL()] = f
-	}
+	logger.Info(rtmpMessage(fmt.Sprintf("server.AddClient(%s)", f.urladdr.SafeURL()), ack))
+	s.forwardClients[f.urladdr.SafeURL()] = f
+
 	return nil
 }
 
@@ -154,6 +163,9 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	connSrv := NewServerConn(conn)
 	s.conns = append(s.conns, connSrv)
 	connSrv.conn = conn
+
+	// Point all clients back to the main server
+	connSrv.server = s
 
 	// Set up multiplexing
 	stream, err := s.muxdem.GetStream(s.listener.URLAddr().Key())

@@ -40,7 +40,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/kris-nova/twinx/rtmp"
@@ -154,7 +153,6 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		logger.Critical(err.Error())
-		os.Exit(1)
 	}
 	os.Exit(0)
 }
@@ -195,12 +193,10 @@ func RunProxy(server, forward string) error {
 		return err
 	}
 
-	fmt.Println("beeps")
-	err = rtmpServer.Forward(forward)
-	if err != nil {
-		return err
-	}
-	fmt.Println("boops")
+	go rtmpServer.Forward(forward)
 
-	return rtmpServer.Serve(rtmpListener)
+	// Start the server before we proxy
+	rtmpServer.Serve(rtmpListener)
+
+	return nil
 }

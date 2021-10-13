@@ -73,6 +73,8 @@ type ServerConn struct {
 	// client
 	publishInfo *PublishInfo
 
+	metaData *MetaData
+
 	// Every stream conn has an RTMP url
 	// Every stream conn has a stream
 	stream *SafeBoundedBuffer
@@ -81,9 +83,8 @@ type ServerConn struct {
 	encoder *amf.Encoder
 	bytesw  *bytes.Buffer
 
-	// uniqueProxies come from an associated server
-	// and are handled at the server level
-	uniqueProxies map[string]*ClientConn
+	// server is a pointer back to the main server instance
+	server *Server
 }
 
 func NewServerConn(conn *Conn) *ServerConn {
@@ -109,11 +110,11 @@ func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 func (s *ServerConn) RoutePackets() error {
 	for {
 		// Sync the proxies before routing the next packet
-		for _, proxy := range s.uniqueProxies {
+		for name, fwdClient := range s.server.forwardClients {
 			// This will lock
 			//
 			// TODO we should figure out a way to make this faster
-			s.stream.AddWriter(proxy.urladdr.SafeURL(), proxy)
+			s.stream.AddWriter(name, fwdClient)
 		}
 
 		x, err := s.NextChunk()
@@ -158,13 +159,10 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		// Handle the command message
 		// Note: There are sub-command messages logged in the next method
-		err := s.handleCommand(x)
-		if err != nil {
-			logger.Critical("command message: %v", err)
-		}
+		return s.handleCommand(x)
 	case DataMessageAMF0ID, DataMessageAMF3ID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		s.stream.Write(x)
+		return s.handleDataMessage(x)
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AudioMessageID:
@@ -183,6 +181,42 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 
 	}
+	return nil
+}
+
+// Example from OBS
+//2021-10-13T10:48:38-07:00 [Debug     ]    [0] (@setDataFrame)
+//2021-10-13T10:48:38-07:00 [Debug     ]    [1] (onMetaData)
+//2021-10-13T10:48:38-07:00 [Debug     ]    [2] (map[2.1:false 3.1:false 4.0:false 4.1:false 5.1:false 7.1:false audiochannels:2 audiocodecid:10 audiodatarate:160 audiosamplerate:48000 audiosamplesize:16 duration:0 encoder:obs-output module (libobs version 27.0.1-3) fileSize:0 framerate:30 height:720 stereo:true videocodecid:7 videodatarate:2500 width:1280])
+func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
+	amfType := amf.AMF0
+	if x.TypeID == CommandMessageAMF3ID {
+		// Arithmetic to match AMF3 encoding
+		amfType = amf.AMF3
+		x.Data = x.Data[1:]
+	}
+	r := bytes.NewReader(x.Data)
+
+	vs, err := s.LogDecodeBatch(r, amf.Version(amfType))
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	// set batchedValues
+	x.batchedValues = vs
+
+	if len(x.batchedValues) != 3 {
+		return fmt.Errorf("unsupported metadata packet size: 3")
+	}
+
+	// We assume field [1] is our MetaData object
+	metaData, err := MetaDataMapToInstance(x.batchedValues[1])
+	if err != nil {
+		return fmt.Errorf("unale to map metadata: %v", err)
+	}
+
+	s.metaData = metaData
+
 	return nil
 }
 

@@ -323,6 +323,9 @@ func (cc *ClientConn) LogDecodeBatch(r io.Reader, ver amf.Version) (ret []interf
 }
 
 func (cc *ClientConn) Write(c *ChunkStream) error {
+	// **************
+	//logger.Debug("%+v", c)
+	// **************
 	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
 		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
 		var err error

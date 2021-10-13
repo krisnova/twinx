@@ -28,6 +28,7 @@ package rtmp
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/kris-nova/logger"
@@ -72,7 +73,7 @@ func (s *SafeMuxDemuxService) GetStream(key string) (*SafeBoundedBuffer, error) 
 		//
 		// A note on buffer size. A total buffer memory footprint can be measured:
 		// (Chunk Meta + Current Chunk Size) * Queue Size = Total memory in bytes
-		stream = NewSafeBoundedBuffer(DefaultMaximumBufferSizeChunkStream)
+		stream = NewSafeBoundedBuffer(key, DefaultMaximumBufferSizeChunkStream)
 		s.mux.Store(key, stream)
 		return stream, nil
 	}
@@ -83,6 +84,8 @@ func (s *SafeMuxDemuxService) GetStream(key string) (*SafeBoundedBuffer, error) 
 }
 
 type SafeBoundedBuffer struct {
+	name string
+
 	writers map[string]ChunkStreamWriter
 
 	writeMutex sync.Mutex
@@ -95,10 +98,12 @@ type SafeBoundedBuffer struct {
 	// TODO add read/write functions
 }
 
-func NewSafeBoundedBuffer(upperBufferLimit int) *SafeBoundedBuffer {
+func NewSafeBoundedBuffer(name string, upperBufferLimit int) *SafeBoundedBuffer {
 	return &SafeBoundedBuffer{
+		name:             name,
 		upperBufferLimit: upperBufferLimit,
 		writeMutex:       sync.Mutex{},
+		writers:          make(map[string]ChunkStreamWriter),
 	}
 }
 
@@ -118,10 +123,13 @@ func (mx *SafeBoundedBuffer) Write(x *ChunkStream) {
 	}
 	// Add the packet to the end of the queue
 	mx.packetBuffer = append(mx.packetBuffer, x)
+	//os.Exit(1)
 }
 
 func (mx *SafeBoundedBuffer) Stream() error {
+
 	// Get FIFO chunk
+	logger.Debug(rtmpMessage(fmt.Sprintf("Streaming [%s]", mx.name), stream))
 	var x *ChunkStream
 	for {
 		mx.writeMutex.Lock()
@@ -132,7 +140,11 @@ func (mx *SafeBoundedBuffer) Stream() error {
 
 			// Process (x) for every configured output
 			for _, w := range mx.writers {
-				w.Write(x)
+				err := w.Write(x)
+				if err != nil {
+					// Unable to proxy
+					logger.Critical(err.Error())
+				}
 			}
 
 			// Drop (x) from the queue
@@ -164,6 +176,7 @@ func NewPlayWriter(conn *ClientConn) *PlayWriter {
 }
 
 func (p *PlayWriter) Write(x *ChunkStream) error {
+	logger.Debug("%+v", x)
 	// **************
 	return p.conn.Write(x)
 	// **************

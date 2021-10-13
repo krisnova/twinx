@@ -109,24 +109,6 @@ func (cc *ClientConn) connectTX() (*ChunkStream, error) {
 	return cc.writeMsg(CommandConnect, cc.transID, event)
 }
 
-//  The command structure from server to client is as follows:
-//
-//    +--------------+----------+----------------------------------------+
-//    | Field Name   |   Type   |             Description                |
-//    +--------------+----------+----------------------------------------+
-// 0  | Command Name |  String  | _result or _error; indicates whether   |
-//    |              |          | the response is result or error.       |
-//    +--------------+----------+----------------------------------------+
-// 1  | Transaction  |  Number  | ID of the command that response belongs|
-//    | ID           |          | to.                                    |
-//    +--------------+----------+----------------------------------------+
-// 2  | Command      |  Object  | If there exists any command info this  |
-//    | Object       |          | is set, else this is set to null type. |
-//    +--------------+----------+----------------------------------------+
-// 3  | Stream       |  Number  | The return value is either a stream ID |
-//    | ID           |          | or an error information object.        |
-//    +--------------+----------+----------------------------------------+
-//
 func (cc *ClientConn) createStreamRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	if len(x.batchedValues) == 0 {
@@ -142,7 +124,7 @@ func (cc *ClientConn) createStreamRX(x *ChunkStream) error {
 	if event.Code == CommandNetStreamConnectSuccess {
 		cc.connected = true
 	} else {
-		logger.Always("%+v", event)
+		return fmt.Errorf("createStream failure: %s", event.Code)
 	}
 	return nil
 }
@@ -168,7 +150,7 @@ func (cc *ClientConn) createStreamTX() (*ChunkStream, error) {
 	cc.curcmdName = CommandCreateStream
 	_, err := cc.writeMsg(CommandCreateStream, cc.transID, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to send createStream message: %v", err)
 	}
 	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.Connected=true", thisFunctionName()), tx))
 	//cc.connected = true
@@ -228,10 +210,27 @@ func (cc *ClientConn) receiveVideoTX() (*ChunkStream, error) {
 	return nil, defaultUnimplemented()
 }
 
+//  The command structure from server to client is as follows:
+//
+//    +--------------+----------+----------------------------------------+
+//    | Field Name   |   Type   |             Description                |
+//    +--------------+----------+----------------------------------------+
+// 0  | Command Name |  String  | _result or _error; indicates whether   |
+//    |              |          | the response is result or error.       |
+//    +--------------+----------+----------------------------------------+
+// 1  | Transaction  |  Number  | ID of the command that response belongs|
+//    | ID           |          | to.                                    |
+//    +--------------+----------+----------------------------------------+
+// 2  | Command      |  Object  | If there exists any command info this  |
+//    | Object       |          | is set, else this is set to null type. |
+//    +--------------+----------+----------------------------------------+
+// 3  | Stream       |  Number  | The return value is either a stream ID |
+//    | ID           |          | or an error information object.        |
+//    +--------------+----------+----------------------------------------+
+//
 func (cc *ClientConn) publishRX(x *ChunkStream) error {
-	//logger.Debug(rtmpMessage(thisFunctionName(), rx))
-
-	logger.Debug(rtmpMessage(thisFunctionName(), ack))
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	cc.transID = int(x.batchedValues[1].(float64))
 	return nil
 }
 
@@ -267,6 +266,15 @@ func (cc *ClientConn) publishRX(x *ChunkStream) error {
 //    +--------------+----------+----------------------------------------+
 //
 func (cc *ClientConn) publishTX() (*ChunkStream, error) {
+
+	// SetChunkSize
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetChunkSize"), tx))
+	txPacket := cc.conn.newChunkStreamSetChunkSize(DefaultRTMPChunkSizeBytesLarge)
+	err := cc.conn.Write(txPacket)
+	if err != nil {
+		return nil, err
+	}
+
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandPublish
