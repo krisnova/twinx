@@ -294,25 +294,12 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 }
 
 func (cc *ClientConn) handleUserControl(x *ChunkStream) error {
-
-	// TODO Left off here! We are dropping ping requests from the server
-	// the length of the x.Data is 6 🎉
-
-	amfType := amf.AMF0
-	if x.TypeID == CommandMessageAMF3ID {
-		// Arithmetic to match AMF3 encoding
-		amfType = amf.AMF3
-		x.Data = x.Data[1:]
+	logger.Debug(rtmpMessage("handleUserControl", rx))
+	if x.Length == UserMessagePingRequest {
+		logger.Debug(rtmpMessage("handleUserControl.PingResponse", tx))
+		tx := newChunkStream(UserControlMessageID, 6, UserMessagePingResponse)
+		return cc.Write(tx)
 	}
-	r := bytes.NewReader(x.Data)
-
-	vs, err := cc.LogDecodeBatch(r, amf.Version(amfType))
-	if err != nil && err != io.EOF {
-		return err
-	}
-
-	// set batchedValues
-	x.batchedValues = vs
 
 	return nil
 }

@@ -167,13 +167,18 @@ const (
 
 	DataMessageOnMetaData = "onMetaData"
 
+	// 7.1.7.  User Control Message Events
+
 	StreamBegin      uint32 = 0
 	StreamEOF        uint32 = 1
 	StreamDry        uint32 = 2
 	SetBufferLen     uint32 = 3
 	StreamIsRecorded uint32 = 4
-	PingRequest      uint32 = 6
-	PingResponse     uint32 = 7
+
+	// 7.1.7.  User Control Message Events
+
+	UserMessagePingRequest  uint32 = 6
+	UserMessagePingResponse uint32 = 7
 
 	DefaultProtocol          string = "tcp"
 	DefaultLocalHost         string = "localhost"
