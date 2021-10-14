@@ -94,6 +94,10 @@ func (s *Server) AddClient(f *ClientConn) error {
 
 	// New clients will always be publishers.
 	go func() {
+		// Set Default OBS for testing
+		//logger.Warning("DEBUG sending VirtualOBSMetaData")
+		//f.virtualMetaData = VirtualOBSOutputClientMetadata()
+
 		err := f.Publish()
 		if err != nil {
 			logger.Critical(err.Error())

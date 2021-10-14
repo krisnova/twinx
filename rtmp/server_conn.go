@@ -210,12 +210,15 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 	}
 
 	// We assume field [1] is our MetaData object
-	metaData, err := MetaDataMapToInstance(x.batchedValues[1])
+	metaData, err := MetaDataMapToInstance(x.batchedValues[2])
 	if err != nil {
-		return fmt.Errorf("unale to map metadata: %v", err)
+		return fmt.Errorf("unbale to map metadata: %v", err)
 	}
 
 	s.metaData = metaData
+
+	// Write to the stream
+	s.stream.Write(x)
 
 	return nil
 }

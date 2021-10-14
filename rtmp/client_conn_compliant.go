@@ -278,7 +278,7 @@ func (cc *ClientConn) publishTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandPublish
-	return cc.writeMsg(CommandPublish, 0, nil, cc.urladdr.Key(), PublishCommandLive)
+	return cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.App(), PublishCommandLive)
 }
 
 func (cc *ClientConn) seekRX(x *ChunkStream) error {

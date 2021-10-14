@@ -114,6 +114,8 @@ func NewSafeBoundedBuffer(name string, upperBufferLimit int) *SafeBoundedBuffer 
 // Write is designed to drop any packets that cannot be managed instead
 // of returning an error.
 func (mx *SafeBoundedBuffer) Write(x *ChunkStream) {
+	//fmt.Println("write to buffer: ", mx.name)
+
 	mx.writeMutex.Lock()
 	defer mx.writeMutex.Unlock()
 	if len(mx.packetBuffer) >= mx.upperBufferLimit {
@@ -140,6 +142,7 @@ func (mx *SafeBoundedBuffer) Stream() error {
 
 			// Process (x) for every configured output
 			for _, w := range mx.writers {
+				//fmt.Println("write to socket: ", mx.name)
 				err := w.Write(x)
 				if err != nil {
 					// Unable to proxy
@@ -163,21 +166,4 @@ func (mx *SafeBoundedBuffer) AddWriter(key string, w ChunkStreamWriter) {
 type ChunkStreamWriter interface {
 	// Write (by design) does not block
 	Write(x *ChunkStream) error
-}
-
-type PlayWriter struct {
-	conn *ClientConn
-}
-
-func NewPlayWriter(conn *ClientConn) *PlayWriter {
-	return &PlayWriter{
-		conn: conn,
-	}
-}
-
-func (p *PlayWriter) Write(x *ChunkStream) error {
-	logger.Debug("%+v", x)
-	// **************
-	return p.conn.Write(x)
-	// **************
 }

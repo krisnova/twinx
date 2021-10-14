@@ -70,3 +70,36 @@ func (c *Client) Publish() error {
 func (c *Client) Client() *ClientConn {
 	return c.conn
 }
+
+// VirtualOBSOutputClientMetadata
+//
+// A virtual metadata object that resembles common OBS configuration.
+//
+// (map[2.1:false 3.1:false 4.0:false 4.1:false 5.1:false 7.1:false
+// audiochannels:2 audiocodecid:10 audiodatarate:160 audiosamplerate:48000
+// audiosamplesize:16 duration:0 encoder:obs-output module (libobs version 27.0.1-3)
+// fileSize:0 framerate:30 height:720 stereo:true videocodecid:7 videodatarate:2500 width:1280])
+func VirtualOBSOutputClientMetadata() *MetaData {
+	return &MetaData{
+		V21:             false,
+		V31:             false,
+		V40:             false,
+		V41:             false,
+		V51:             false,
+		V71:             false,
+		AudioChannels:   2,
+		AudioCodecID:    10,
+		AudioDataRate:   160,
+		AudioSampleRate: 48000,
+		AudioSampleSize: 16,
+		Duration:        0,
+		Encoder:         "obs-output module (libobs version 27.0.1-3)",
+		FileSize:        0,
+		FrameRate:       30,
+		Height:          720,
+		Stereo:          true,
+		VideoCodecID:    7,
+		VideoDataRate:   2500,
+		Width:           1280,
+	}
+}

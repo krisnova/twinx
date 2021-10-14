@@ -506,20 +506,20 @@ type MetaData struct {
 	V41             bool   `amf:"4.1" json:"4.1"`
 	V51             bool   `amf:"5.1" json:"5.1"`
 	V71             bool   `amf:"7.1" json:"7.1"`
-	AudioChannels   int64  `amf:"audiochannels" json:"audiochannels"`
-	AudioCodecID    int64  `amf:"audiocodecid" json:"audiocodecid"`
-	AudioRate       int64  `amf:"audiorate" json:"audiorate"`
-	AudioSampleRate int64  `amf:"audiosamplerate" json:"audiosamplerate"`
-	AudioSampleSize int64  `amf:"audiosamplesize" json:"audiosamplesize"`
-	Duration        int64  `amf:"duration" json:"duration"`
+	AudioChannels   int    `amf:"audiochannels" json:"audiochannels"`
+	AudioCodecID    int    `amf:"audiocodecid" json:"audiocodecid"`
+	AudioDataRate   int    `amf:"audiodatarate" json:"audiodatarate"`
+	AudioSampleRate int    `amf:"audiosamplerate" json:"audiosamplerate"`
+	AudioSampleSize int    `amf:"audiosamplesize" json:"audiosamplesize"`
+	Duration        int    `amf:"duration" json:"duration"`
 	Encoder         string `amf:"encoder" json:"encoder"`
-	FileSize        int64  `amf:"filesize" json:"filesize"`
-	FrameRate       int64  `amf:"framerate" json:"framerate"`
-	Height          int64  `amf:"height" json:"height"`
+	FileSize        int    `amf:"filesize" json:"filesize"`
+	FrameRate       int    `amf:"framerate" json:"framerate"`
+	Height          int    `amf:"height" json:"height"`
 	Stereo          bool   `amf:"stereo" json:"stereo"`
-	VideoCodecID    int64  `amf:"videocodecid" json:"videocodecid"`
-	VideoRate       int64  `amf:"videorate" json:"videorate"`
-	Width           int64  `amf:"width" json:"width"`
+	VideoCodecID    int    `amf:"videocodecid" json:"videocodecid"`
+	VideoDataRate   int    `amf:"videodatarate" json:"videodatarate"`
+	Width           int    `amf:"width" json:"width"`
 }
 
 func MetaDataMapToInstance(i interface{}) (*MetaData, error) {

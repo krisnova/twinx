@@ -61,6 +61,10 @@ type ClientConn struct {
 	streamid   uint32
 	stream     *SafeBoundedBuffer
 
+	// virtualMetaData can be used to set the metadata for a client connection.
+	// This will be sent during Publish()
+	virtualMetaData *MetaData
+
 	encoder *amf.Encoder
 	decoder *amf.Decoder
 	bytesw  *bytes.Buffer
@@ -113,6 +117,11 @@ func (cc *ClientConn) Publish() error {
 	}
 
 	_, err = cc.publishTX()
+	if err != nil {
+		return err
+	}
+
+	err = cc.sendMetaData()
 	if err != nil {
 		return err
 	}
@@ -194,8 +203,7 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 		cc.conn.ack(ackSize)
 	case UserControlMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		ackSize := binary.BigEndian.Uint32(x.Data)
-		cc.conn.ack(ackSize)
+		return cc.handleUserControl(x)
 	case CommandMessageAMF0ID, CommandMessageAMF3ID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		xReader := bytes.NewReader(x.Data)
@@ -204,16 +212,6 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 			return fmt.Errorf("decoding bytes from play(%s) client: %v", cc.urladdr.SafeURL(), err)
 		}
 		x.batchedValues = values
-
-		// TODO Left off here!
-		//
-		//
-		// Here is where we need to break things down and fix our client publish
-		// protocol
-		//
-		//
-		// TODO Left off here!
-
 		for k, v := range values {
 			switch v.(type) {
 			case string:
@@ -295,6 +293,30 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 	return nil
 }
 
+func (cc *ClientConn) handleUserControl(x *ChunkStream) error {
+
+	// TODO Left off here! We are dropping ping requests from the server
+	// the length of the x.Data is 6 🎉
+
+	amfType := amf.AMF0
+	if x.TypeID == CommandMessageAMF3ID {
+		// Arithmetic to match AMF3 encoding
+		amfType = amf.AMF3
+		x.Data = x.Data[1:]
+	}
+	r := bytes.NewReader(x.Data)
+
+	vs, err := cc.LogDecodeBatch(r, amf.Version(amfType))
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	// set batchedValues
+	x.batchedValues = vs
+
+	return nil
+}
+
 func (cc *ClientConn) initialTX() error {
 	var err error
 	err = cc.handshake()
@@ -310,6 +332,40 @@ func (cc *ClientConn) initialTX() error {
 		return err
 	}
 	return nil
+}
+
+func (cc *ClientConn) sendMetaData() error {
+	if cc.virtualMetaData == nil {
+		return nil
+	}
+	logger.Debug(rtmpMessage("sendMetaData", tx))
+	md := make(amf.Object)
+	// //2021-10-13T10:48:38-07:00 [Debug     ]    [2] (map[2.1:false 3.1:false 4.0:false 4.1:false 5.1:false 7.1:false
+	// audiochannels:2 audiocodecid:10 audiodatarate:160 audiosamplerate:48000 audiosamplesize:16 duration:0
+	// encoder:obs-output module (libobs version 27.0.1-3) fileSize:0 framerate:30 height:720 stereo:true
+	// videocodecid:7 videodatarate:2500 width:1280])
+	md["2.1"] = cc.virtualMetaData.V21
+	md["3.1"] = cc.virtualMetaData.V31
+	md["4.0"] = cc.virtualMetaData.V40
+	md["4.1"] = cc.virtualMetaData.V41
+	md["5.1"] = cc.virtualMetaData.V51
+	md["7.1"] = cc.virtualMetaData.V71
+	md["audiochannels"] = cc.virtualMetaData.AudioChannels
+	md["audiocodecid"] = cc.virtualMetaData.AudioCodecID
+	md["audiodatarate"] = cc.virtualMetaData.AudioDataRate
+	md["audiosamplerate"] = cc.virtualMetaData.AudioSampleRate
+	md["audiosamplesize"] = cc.virtualMetaData.AudioSampleSize
+	md["duration"] = cc.virtualMetaData.Duration
+	md["encoder"] = cc.virtualMetaData.Encoder
+	md["filesize"] = cc.virtualMetaData.FileSize
+	md["framerate"] = cc.virtualMetaData.FrameRate
+	md["height"] = cc.virtualMetaData.Height
+	md["stero"] = cc.virtualMetaData.Stereo
+	md["videocodecid"] = cc.virtualMetaData.VideoCodecID
+	md["videodatarate"] = cc.virtualMetaData.VideoDataRate
+	md["width"] = cc.virtualMetaData.Width
+	_, err := cc.writeMsg(DataMessageAMF0ID, "@setDataFrame", "onMetaData", md)
+	return err
 }
 
 // ==========================================================================================
