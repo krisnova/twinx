@@ -301,3 +301,31 @@ func (cc *ClientConn) pauseTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
+
+func (cc *ClientConn) oosFCPublishRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	return defaultUnimplemented()
+}
+
+//2021-10-15T10:45:52-07:00 [Debug     ]    [0] (FCPublish)
+//2021-10-15T10:45:52-07:00 [Debug     ]    [1] (3)
+//2021-10-15T10:45:52-07:00 [Debug     ]    [2] (<nil>)
+//2021-10-15T10:45:52-07:00 [Debug     ]    [3] (live_733531528_k9ZMBZXSUfOuGCrquQbgeXmLa5Y5ve)
+func (cc *ClientConn) oosFCPublishTX() (*ChunkStream, error) {
+	cc.transID++
+	return cc.writeMsg(CommandFCPublish, cc.transID, nil, cc.urladdr.Key())
+}
+
+func (cc *ClientConn) oosReleaseStreamRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	return defaultUnimplemented()
+}
+
+//2021-10-15T10:45:52-07:00 [Debug     ]    [0] (releaseStream)
+//2021-10-15T10:45:52-07:00 [Debug     ]    [1] (2)
+//2021-10-15T10:45:52-07:00 [Debug     ]    [2] (<nil>)
+//2021-10-15T10:45:52-07:00 [Debug     ]    [3] (live_733531528_k9ZMBZXSUfOuGCrquQbgeXmLa5Y5ve)
+func (cc *ClientConn) oosReleaseStreamTX() (*ChunkStream, error) {
+	cc.transID++
+	return cc.writeMsg(CommandReleaseStream, cc.transID, nil, cc.urladdr.Key())
+}

@@ -260,6 +260,10 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 			return err
 		}
 		logger.Info(rtmpMessage("Play Stream", stream))
+	case CommandFCPublish:
+		return s.oosFCPublishRX(x)
+	case CommandReleaseStream:
+		return s.oosReleaseStreamRX(x)
 	default:
 		return fmt.Errorf("unsupported commandName: %s", commandName)
 	}

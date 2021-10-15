@@ -318,6 +318,14 @@ func (cc *ClientConn) initialTX() error {
 	if err != nil {
 		return err
 	}
+	_, err = cc.oosFCPublishTX()
+	if err != nil {
+		return err
+	}
+	_, err = cc.oosReleaseStreamTX()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -105,6 +105,28 @@ type CompliantMember interface {
 	// 7.2.2.8 pause
 	pauseRX(x *ChunkStream) error
 	pauseTX() (*ChunkStream, error)
+
+	// --------------------------------------------------------------------
+	//
+	// [OOS] Out of Spec
+	// Below this marker, there are several (observed) methods that are not
+	// found in the official RTMP spec.
+	//
+	// --------------------------------------------------------------------
+
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [0] (FCPublish)
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [1] (3)
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [2] (<nil>)
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [3] (live_733531528_k9ZMBZXSUfOuGCrquQbgeXmLa5Y5ve)
+	oosFCPublishRX(x *ChunkStream) error
+	oosFCPublishTX() (*ChunkStream, error)
+
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [0] (releaseStream)
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [1] (2)
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [2] (<nil>)
+	//2021-10-15T10:41:44-07:00 [Debug     ]    [3] (live_733531528_k9ZMBZXSUfOuGCrquQbgeXmLa5Y5ve)
+	oosReleaseStreamRX(x *ChunkStream) error
+	oosReleaseStreamTX() (*ChunkStream, error)
 }
 
 type ChunkStreamRouter interface {

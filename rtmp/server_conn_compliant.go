@@ -519,3 +519,23 @@ func (s *ServerConn) pauseTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	return nil, defaultUnimplemented()
 }
+
+func (s *ServerConn) oosFCPublishRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	return defaultUnimplemented()
+}
+
+func (s *ServerConn) oosFCPublishTX() (*ChunkStream, error) {
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
+	return nil, defaultUnimplemented()
+}
+
+func (s *ServerConn) oosReleaseStreamRX(x *ChunkStream) error {
+	logger.Debug(rtmpMessage(thisFunctionName(), rx))
+	return defaultUnimplemented()
+}
+
+func (s *ServerConn) oosReleaseStreamTX() (*ChunkStream, error) {
+	logger.Debug(rtmpMessage(thisFunctionName(), tx))
+	return nil, defaultUnimplemented()
+}

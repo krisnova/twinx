@@ -124,14 +124,17 @@ const (
 	// command messages to the peer.
 
 	CommandConnect         string = "connect"
-	CommandReleaseStream   string = "releaseStream"
 	CommandCreateStream    string = "createStream"
 	CommandPlay            string = "play"
 	CommandPublish         string = "publish"
 	CommandDeleteStream    string = "deleteStream"
 	CommandGetStreamLength string = "getStreamLength"
-	CommandFCPublish       string = "FCPublish"
-	CommandFCUnpublish     string = "FCUnpublish"
+
+	// These commands are used, but not found in the spec
+
+	CommandReleaseStream string = "releaseStream"
+	CommandFCPublish     string = "FCPublish"
+	CommandFCUnpublish   string = "FCUnpublish"
 
 	// 7.1.1. Command Message (20, 17)
 	//
