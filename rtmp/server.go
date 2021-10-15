@@ -136,11 +136,6 @@ func (s *Server) Serve(listener net.Listener) error {
 		concrete = l
 	}
 	s.listener = concrete
-	urlAddr, err := NewURLAddr(s.listener.Addr().String())
-	if err != nil {
-		return fmt.Errorf("urlAddr: %v", err)
-	}
-	s.listener.addr = urlAddr
 	logger.Info(rtmpMessage("server.Serve", serve))
 	for {
 		clientConn, err := s.listener.Accept()
@@ -172,6 +167,7 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	connSrv.server = s
 
 	// Set up multiplexing
+	fmt.Println(s.listener.URLAddr().Key())
 	stream, err := s.muxdem.GetStream(s.listener.URLAddr().Key())
 	if err != nil {
 		return err

@@ -107,14 +107,19 @@ func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 	return &chunk, nil
 }
 
+var clientLen int = 0
+
 func (s *ServerConn) RoutePackets() error {
 	for {
 		// Sync the proxies before routing the next packet
-		for name, fwdClient := range s.server.forwardClients {
-			// This will lock
-			//
-			// TODO we should figure out a way to make this faster
-			s.stream.AddWriter(name, fwdClient)
+		if len(s.server.forwardClients) != clientLen {
+			for name, fwdClient := range s.server.forwardClients {
+				// This will lock
+				//
+				// TODO we should figure out a way to make this faster
+				s.stream.AddWriter(name, fwdClient)
+			}
+			clientLen = len(s.server.forwardClients)
 		}
 
 		x, err := s.NextChunk()

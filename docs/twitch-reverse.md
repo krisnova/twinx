@@ -68,3 +68,37 @@ Note: You must connect with a client such as OBS to get nginx to publish to twit
 
 
 
+---
+
+From OBS to nginx server 
+
+
+```
+2021/10/14 12:45:00 [info] 5667#5667: *1 client connected '127.0.0.1'
+2021/10/14 12:45:00 [info] 5667#5667: *1 connect: app='twinx' args='' flashver='FMLE/3.0 (compatible; FMSc/1.0)' swf_url='rtmp://localhost:1935/twinx' tc_url='rtmp://localhost:1935/twinx' page_url='' acodecs=0 vcodecs=0 object_encoding=0, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 12:45:00 [info] 5667#5667: *1 createStream, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 12:45:00 [info] 5667#5667: *1 publish: name='live_733531528_k9ZMBZXSUfOuGCrquQbgeXmLa5Y5ve1234' args='' type=live silent=0, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 12:45:08 [info] 5667#5667: *1 deleteStream, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 12:45:08 [info] 5667#5667: *1 disconnect, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 12:45:08 [info] 5667#5667: *1 deleteStream, client: 127.0.0.1, server: 0.0.0.0:1935
+```
+
+From Twinx client to nginx server 
+
+```
+2021/10/14 12:46:40 [info] 5724#5724: *2 client connected '127.0.0.1'
+2021/10/14 12:46:40 [info] 5724#5724: *2 connect: app='twinx' args='' flashver='FMS/3,0,1,123' swf_url='' tc_url='rtmp://localhost:1935/twinx/twinx_XVlBzgbaiCMRAjWwhTHc' page_url='' acodecs=0 vcodecs=0 object_encoding=0, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 12:46:40 [info] 5724#5724: *2 createStream, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 12:46:40 [info] 5724#5724: *2 publish: name='twinx' args='' type=live silent=0, client: 127.0.0.1, server: 0.0.0.0:1935
+```
+
+From Improved Twinx client to nginx server 
+
+```
+2021/10/14 23:10:51 [info] 2352#2352: *1 client connected '127.0.0.1'
+2021/10/14 23:10:51 [info] 2352#2352: *1 connect: app='twinx' args='' flashver='FMS/3,0,1,123' swf_url='rtmp://localhost:1935/twinx' tc_url='rtmp://localhost:1935/twinx' page_url='' acodecs=0 vcodecs=0 object_encoding=0, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 23:10:51 [info] 2352#2352: *1 createStream, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 23:10:51 [info] 2352#2352: *1 publish: name='twinx_XVlBzgbaiCMRAjWwhTHc' args='' type=live silent=0, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 23:10:52 [info] 2352#2352: *1 disconnect, client: 127.0.0.1, server: 0.0.0.0:1935
+2021/10/14 23:10:52 [info] 2352#2352: *1 deleteStream, client: 127.0.0.1, server: 0.0.0.0:1935
+```

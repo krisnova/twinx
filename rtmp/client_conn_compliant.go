@@ -104,7 +104,8 @@ func (cc *ClientConn) connectTX() (*ChunkStream, error) {
 	event[ConnInfoKeyApp] = cc.urladdr.App()
 	event[ConnInfoKeyType] = "nonprivate"
 	event[ConnInfoKeyFlashVer] = DefaultServerFMSVersion
-	event[ConnInfoKeyTcURL] = cc.urladdr.StreamURL()
+	event[ConnInfoKeyTcURL] = cc.urladdr.SafeURL()
+	event[ConnInfoKeySWFURL] = cc.urladdr.SafeURL()
 	cc.curcmdName = CommandConnect
 	return cc.writeMsg(CommandConnect, cc.transID, event)
 }
@@ -278,7 +279,7 @@ func (cc *ClientConn) publishTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandPublish
-	return cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.App(), PublishCommandLive)
+	return cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive)
 }
 
 func (cc *ClientConn) seekRX(x *ChunkStream) error {

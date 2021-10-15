@@ -93,7 +93,7 @@ const (
 	DefaultPeerBandwidthSizeBytes         uint32 = 2500000
 	DefaultMaximumPoolSizeBytes           int    = 1024 * 1024 * 512
 	DefaultConnBufferSizeBytes            int    = 1024 * 1024 * 512
-	DefaultServerFMSVersion               string = "FMS/3,0,1,123"
+	DefaultServerFMSVersion               string = "FMLE/3.0 (compatible; FMSc/1.0)"
 
 	ClientMethodPlay    ClientMethod = "play"
 	ClientMethodPublish ClientMethod = "publish"
@@ -613,6 +613,7 @@ const (
 	ConnInfoKeyType        string = "type"
 	ConnInfoKeyTcURL       string = "tcUrl"
 	ConnInfoKeyFlashVer    string = "flashVer"
+	ConnInfoKeySWFURL      string = "swfUrl"
 	ConnInfoObjectEncoding string = "objectEncoding"
 )
 

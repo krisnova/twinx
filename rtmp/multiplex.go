@@ -159,6 +159,7 @@ func (mx *SafeBoundedBuffer) Stream() error {
 
 func (mx *SafeBoundedBuffer) AddWriter(key string, w ChunkStreamWriter) {
 	mx.writeMutex.Lock()
+	logger.Debug(rtmpMessage(fmt.Sprintf("AddWriter [%s]", mx.name), stream))
 	mx.writers[key] = w
 	defer mx.writeMutex.Unlock()
 }
