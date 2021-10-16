@@ -113,11 +113,10 @@ func (s *ServerConn) RoutePackets() error {
 	for {
 		// Sync the proxies before routing the next packet
 		if len(s.server.forwardClients) != clientLen {
-			for name, fwdClient := range s.server.forwardClients {
+			for _, fwdClient := range s.server.forwardClients {
 				// This will lock
-				//
-				// TODO we should figure out a way to make this faster
-				s.stream.AddWriter(name, fwdClient)
+				// Add the writer for the associated server, but the client of the client
+				s.stream.AddWriter(s.server.listener.URLAddr().Key(), fwdClient)
 			}
 			clientLen = len(s.server.forwardClients)
 		}

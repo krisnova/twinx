@@ -41,6 +41,7 @@ package main
 import (
 	"errors"
 	"os"
+	"time"
 
 	"github.com/kris-nova/twinx/rtmp"
 
@@ -158,6 +159,9 @@ func main() {
 }
 
 func RunServer(raw string) error {
+	// Print metrics
+	go rtmp.PrintMetrics(time.Second * 5)
+
 	rtmpServer := rtmp.NewServer()
 	rtmpListener, err := rtmp.Listen(raw)
 	if err != nil {
@@ -167,6 +171,9 @@ func RunServer(raw string) error {
 }
 
 func RunClientPlay(raw string) error {
+	// Print metrics
+	go rtmp.PrintMetrics(time.Second * 5)
+
 	rtmpClient := rtmp.NewClient()
 	err := rtmpClient.Dial(raw)
 	if err != nil {
@@ -176,6 +183,9 @@ func RunClientPlay(raw string) error {
 }
 
 func RunClientPublish(raw string) error {
+	// Print metrics
+	go rtmp.PrintMetrics(time.Second * 5)
+
 	rtmpClient := rtmp.NewClient()
 	err := rtmpClient.Dial(raw)
 	if err != nil {
@@ -185,6 +195,8 @@ func RunClientPublish(raw string) error {
 }
 
 func RunProxy(server, forward string) error {
+	// Print metrics
+	go rtmp.PrintMetrics(time.Second * 5)
 
 	// Start a server that will consume publish bytes
 	rtmpServer := rtmp.NewServer()

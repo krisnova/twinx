@@ -104,6 +104,11 @@ func (s *Server) AddClient(f *ClientConn) error {
 		}
 	}()
 
+	// Metrics Point
+	M().Lock()
+	P(f.urladdr.SafeURL()).ProxyKeyHash = f.urladdr.SafeKey()
+	M().Unlock()
+
 	logger.Info(rtmpMessage(fmt.Sprintf("server.AddClient(%s)", f.urladdr.SafeURL()), ack))
 	s.forwardClients[f.urladdr.SafeURL()] = f
 
@@ -137,6 +142,13 @@ func (s *Server) Serve(listener net.Listener) error {
 	}
 	s.listener = concrete
 	logger.Info(rtmpMessage("server.Serve", serve))
+
+	// Metrics Point
+	M().Lock()
+	M().ServerAddrRX = concrete.URLAddr().SafeURL()
+	M().ServerKeyHash = concrete.URLAddr().SafeKey()
+	M().Unlock()
+
 	for {
 		clientConn, err := s.listener.Accept()
 		if err != nil {
@@ -167,7 +179,6 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	connSrv.server = s
 
 	// Set up multiplexing
-	fmt.Println(s.listener.URLAddr().Key())
 	stream, err := s.muxdem.GetStream(s.listener.URLAddr().Key())
 	if err != nil {
 		return err

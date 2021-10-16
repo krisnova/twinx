@@ -66,19 +66,21 @@ func NewMuxDemService() *SafeMuxDemuxService {
 }
 
 func (s *SafeMuxDemuxService) GetStream(key string) (*SafeBoundedBuffer, error) {
-	var stream *SafeBoundedBuffer
+	var strm *SafeBoundedBuffer
 	v, ok := s.mux.Load(key)
 	if !ok {
 		// New buffer
 		//
 		// A note on buffer size. A total buffer memory footprint can be measured:
 		// (Chunk Meta + Current Chunk Size) * Queue Size = Total memory in bytes
-		stream = NewSafeBoundedBuffer(key, DefaultMaximumBufferSizeChunkStream)
+		logger.Debug(rtmpMessage("New Stream Buffer", stream))
+		fmt.Println(key)
+		strm = NewSafeBoundedBuffer(key, DefaultMaximumBufferSizeChunkStream)
 		s.mux.Store(key, stream)
-		return stream, nil
+		return strm, nil
 	}
-	if stream, ok := v.(*SafeBoundedBuffer); ok {
-		return stream, nil
+	if strm, ok := v.(*SafeBoundedBuffer); ok {
+		return strm, nil
 	}
 	return nil, errors.New("unknown buffer type")
 }
@@ -95,7 +97,8 @@ type SafeBoundedBuffer struct {
 	// packetBuffer is a FIFO queue
 	packetBuffer []*ChunkStream
 
-	// TODO add read/write functions
+	droppedPackets int
+	writtenPackets int
 }
 
 func NewSafeBoundedBuffer(name string, upperBufferLimit int) *SafeBoundedBuffer {
@@ -120,6 +123,7 @@ func (mx *SafeBoundedBuffer) Write(x *ChunkStream) {
 	defer mx.writeMutex.Unlock()
 	if len(mx.packetBuffer) >= mx.upperBufferLimit {
 		// Drop the packet.
+		mx.droppedPackets++
 		logger.Debug("Dropping Audio/Video packet... Buffer overflow...")
 		return
 	}
@@ -142,7 +146,6 @@ func (mx *SafeBoundedBuffer) Stream() error {
 
 			// Process (x) for every configured output
 			for _, w := range mx.writers {
-				//fmt.Println("write to socket: ", mx.name)
 				err := w.Write(x)
 				if err != nil {
 					// Unable to proxy

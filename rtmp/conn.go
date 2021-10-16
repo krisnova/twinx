@@ -131,6 +131,10 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	}
 
 	// We should now have a complete chunk.
+	M().Lock()
+	defer M().Unlock()
+	M().ServerTotalPacketsRX++
+	M().ServerTotalBytesRX = M().ServerTotalBytesRX + int(c.Length)
 
 	return nil
 }

@@ -280,11 +280,9 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AudioMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		cc.stream.Write(x)
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case VideoMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		cc.stream.Write(x)
+		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	default:
@@ -375,9 +373,11 @@ func (cc *ClientConn) LogDecodeBatch(r io.Reader, ver amf.Version) (ret []interf
 }
 
 func (cc *ClientConn) Write(c *ChunkStream) error {
-	// **************
-	//logger.Debug("%+v", c)
-	// **************
+	M().Lock()
+	P(cc.urladdr.SafeURL()).ProxyTotalPacketsTX++
+	P(cc.urladdr.SafeURL()).ProxyTotalBytesTX = P(cc.urladdr.SafeURL()).ProxyTotalBytesTX + int(c.Length)
+	M().Unlock()
+
 	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
 		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
 		var err error

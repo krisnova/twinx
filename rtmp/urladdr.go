@@ -39,12 +39,14 @@
 package rtmp
 
 import (
+	"crypto/md5"
 	"fmt"
 	"math/rand"
 	"net"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // URLAddr is a flexible RTMP address member that resembles url.URL.
@@ -217,6 +219,7 @@ func (a *URLAddr) StreamURL() string {
 
 // generateKey will generate a random stream key
 func generateKey() string {
+	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, DefaultGenerateKeyLength)
 	for i := range b {
 		b[i] = StreamKeyRandomBytePool[rand.Intn(len(StreamKeyRandomBytePool))]
@@ -261,4 +264,10 @@ func (a *URLAddr) NewConn() (*Conn, error) {
 	}
 	conn := NewConn(netConn)
 	return conn, nil
+}
+
+func (a *URLAddr) SafeKey() string {
+	h := md5.New()
+	x := h.Sum([]byte(a.key))
+	return fmt.Sprintf("****[%s]*****", string(x))
 }
