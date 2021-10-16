@@ -250,7 +250,7 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		// Write packets to the stream
 		logger.Info(rtmpMessage("Publish Stream", stream))
 
-		// Start caching packets
+		// Stream ->
 		go s.stream.Stream()
 	case CommandPlay:
 		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandPlay), rx))
@@ -258,13 +258,27 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		if err != nil {
 			return err
 		}
+
+		// <- Stream
+		s.stream.AddWriter(s.server.listener.URLAddr().Key(), s.conn)
 		logger.Info(rtmpMessage("Play Stream", stream))
 	case CommandFCPublish:
 		return s.oosFCPublishRX(x)
 	case CommandReleaseStream:
 		return s.oosReleaseStreamRX(x)
+	case CommandGetStreamLength:
+		return s.oosGetStreamLengthRX(x)
 	default:
 		return fmt.Errorf("unsupported commandName: %s", commandName)
+	}
+	return nil
+}
+
+func (s *ServerConn) oosGetStreamLengthRX(x *ChunkStream) error {
+	txPacket := s.conn.newChunkStreamSetChunkSize(DefaultRTMPChunkSizeBytesLarge)
+	err := s.conn.Write(txPacket)
+	if err != nil {
+		return err
 	}
 	return nil
 }
