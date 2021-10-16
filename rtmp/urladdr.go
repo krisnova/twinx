@@ -39,7 +39,7 @@
 package rtmp
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"math/rand"
 	"net"
@@ -266,8 +266,8 @@ func (a *URLAddr) NewConn() (*Conn, error) {
 	return conn, nil
 }
 
+// SafeKey is a sha256 of the stream key
 func (a *URLAddr) SafeKey() string {
-	h := md5.New()
-	x := h.Sum([]byte(a.key))
-	return fmt.Sprintf("****[%s]*****", string(x))
+	x := sha256.Sum256([]byte(a.key))
+	return fmt.Sprintf("%x", x)
 }

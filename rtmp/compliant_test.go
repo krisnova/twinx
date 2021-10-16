@@ -47,8 +47,8 @@ import (
 )
 
 const (
-	TestClientAddr string = "localhost:1936"
-	TestServerAddr string = "localhost:1936"
+	TestClientAddr string = "localhost:1936/twinx/12345"
+	TestServerAddr string = "localhost:1936/twinx/12345"
 )
 
 func TestMain(m *testing.M) {
@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestClientPlay(t *testing.T) {
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 125)
 	client := NewClient()
 	err := client.Dial(TestClientAddr)
 	if err != nil {
@@ -79,12 +79,12 @@ func TestClientPlay(t *testing.T) {
 		}
 	}()
 	defer client.conn.Close()
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 125)
 
 }
 
 func TestClientPublish(t *testing.T) {
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 125)
 
 	client := NewClient()
 	err := client.Dial(TestClientAddr)
@@ -95,16 +95,16 @@ func TestClientPublish(t *testing.T) {
 	go func() {
 		err := client.Publish()
 		if err != nil {
-			t.Errorf("play error: %v", err)
+			t.Errorf("publish error: %v", err)
 		}
 	}()
+	time.Sleep(time.Millisecond * 125)
 	defer client.conn.Close()
-	time.Sleep(time.Millisecond * 100)
 
 }
 
 func TestClientPlayClientPublish(t *testing.T) {
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 125)
 
 	client := NewClient()
 	err := client.Dial(TestClientAddr)
@@ -133,6 +133,6 @@ func TestClientPlayClientPublish(t *testing.T) {
 		}
 	}()
 	defer client.conn.Close()
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 125)
 
 }

@@ -74,15 +74,14 @@ func (s *SafeMuxDemuxService) GetStream(key string) (*SafeBoundedBuffer, error) 
 		// A note on buffer size. A total buffer memory footprint can be measured:
 		// (Chunk Meta + Current Chunk Size) * Queue Size = Total memory in bytes
 		logger.Debug(rtmpMessage("New Stream Buffer", stream))
-		fmt.Println(key)
 		strm = NewSafeBoundedBuffer(key, DefaultMaximumBufferSizeChunkStream)
-		s.mux.Store(key, stream)
+		s.mux.Store(key, strm)
 		return strm, nil
 	}
 	if strm, ok := v.(*SafeBoundedBuffer); ok {
 		return strm, nil
 	}
-	return nil, errors.New("unknown buffer type")
+	return nil, errors.New("stream cache error: unable to cast stream type unknown")
 }
 
 type SafeBoundedBuffer struct {

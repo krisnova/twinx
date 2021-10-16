@@ -172,7 +172,7 @@ func RunServer(raw string) error {
 
 func RunClientPlay(raw string) error {
 	// Print metrics
-	go rtmp.PrintMetrics(time.Second * 5)
+	//go rtmp.PrintMetrics(time.Second * 5)
 
 	rtmpClient := rtmp.NewClient()
 	err := rtmpClient.Dial(raw)
@@ -184,7 +184,7 @@ func RunClientPlay(raw string) error {
 
 func RunClientPublish(raw string) error {
 	// Print metrics
-	go rtmp.PrintMetrics(time.Second * 5)
+	//go rtmp.PrintMetrics(time.Second * 5)
 
 	rtmpClient := rtmp.NewClient()
 	err := rtmpClient.Dial(raw)

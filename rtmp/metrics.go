@@ -129,15 +129,16 @@ func (metrics *Metrics) begin() {
 
 func (metrics *Metrics) String() string {
 	var s string
-	s += fmt.Sprintf("*************************************************************\n")
-	s += fmt.Sprintf(" Server Listen Addr [%s]\n", metrics.ServerAddrRX)
+	s += fmt.Sprintf("✨ Server Listen Addr [%s]\n", metrics.ServerAddrRX)
+	s += fmt.Sprintf("       Stream :  [%s]\n", metrics.ServerKeyHash)
 	s += fmt.Sprintf("     Bytes RX :  [%d]\n", metrics.ServerTotalBytesRX)
 	s += fmt.Sprintf("   Packets RX :  [%d]\n", metrics.ServerTotalPacketsRX)
 	s += fmt.Sprintf(" Packets /sec :  [%f]\n", metrics.PacketsPerSecond)
 	for _, proxy := range metrics.Proxies {
-		s += fmt.Sprintf("  → Proxy Forward Addr [%s]\n", proxy.ProxyAddrTX)
-		s += fmt.Sprintf("      Bytes  TX :  [%d]\n", proxy.ProxyTotalBytesTX)
-		s += fmt.Sprintf("     Packets TX :  [%d]\n", proxy.ProxyTotalPacketsTX)
+		s += fmt.Sprintf("    → Proxy Forward Addr [%s]\n", proxy.ProxyAddrTX)
+		s += fmt.Sprintf("           Stream :  [%s]\n", proxy.ProxyKeyHash)
+		s += fmt.Sprintf("        Bytes  TX :  [%d]\n", proxy.ProxyTotalBytesTX)
+		s += fmt.Sprintf("       Packets TX :  [%d]\n", proxy.ProxyTotalPacketsTX)
 	}
 	return s
 }
