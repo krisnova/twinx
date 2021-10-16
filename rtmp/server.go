@@ -104,11 +104,6 @@ func (s *Server) AddClient(f *ClientConn) error {
 		}
 	}()
 
-	// Metrics Point
-	M().Lock()
-	P(f.urladdr.SafeURL()).ProxyKeyHash = f.urladdr.SafeKey()
-	M().Unlock()
-
 	logger.Info(rtmpMessage(fmt.Sprintf("server.AddClient(%s)", f.urladdr.SafeURL()), ack))
 	s.forwardClients[f.urladdr.SafeURL()] = f
 

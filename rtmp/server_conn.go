@@ -116,6 +116,11 @@ func (s *ServerConn) RoutePackets() error {
 			for _, fwdClient := range s.server.forwardClients {
 				// This will lock
 				// Add the writer for the associated server, but the client of the client
+				// Metrics Point
+				M().Lock()
+				P(s.server.listener.URLAddr().Key()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
+				P(s.server.listener.URLAddr().Key()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
+				M().Unlock()
 				s.stream.AddWriter(s.server.listener.URLAddr().Key(), fwdClient)
 			}
 			clientLen = len(s.server.forwardClients)
@@ -158,7 +163,8 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 	case SetPeerBandwidthMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case UserControlMessageID:
-		logger.Critical("unsupported messageID: %s", typeIDString(x))
+		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		return s.handleUserControl(x)
 	case CommandMessageAMF0ID, CommandMessageAMF3ID:
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		// Handle the command message
@@ -185,6 +191,10 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 
 	}
+	return nil
+}
+
+func (s *ServerConn) handleUserControl(x *ChunkStream) error {
 	return nil
 }
 
@@ -260,6 +270,10 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		}
 
 		// <- Stream
+		M().Lock()
+		P(s.server.listener.URLAddr().Key()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
+		P(s.server.listener.URLAddr().Key()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
+		M().Unlock()
 		s.stream.AddWriter(s.server.listener.URLAddr().Key(), s.conn)
 		logger.Info(rtmpMessage("Play Stream", stream))
 	case CommandFCPublish:
@@ -274,12 +288,14 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 	return nil
 }
 
+//  Generate 'getStreamLength' call and send it to the server. If the server
+//  knows the duration of the selected stream, it will reply with the duration
+//  in seconds.
+//
+// For Twinx we do not need to respond.
 func (s *ServerConn) oosGetStreamLengthRX(x *ChunkStream) error {
-	txPacket := s.conn.newChunkStreamSetChunkSize(DefaultRTMPChunkSizeBytesLarge)
-	err := s.conn.Write(txPacket)
-	if err != nil {
-		return err
-	}
+	logger.Info(rtmpMessage(thisFunctionName(), ack))
+
 	return nil
 }
 
