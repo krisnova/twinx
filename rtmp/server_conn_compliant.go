@@ -185,8 +185,13 @@ func (s *ServerConn) connectTX() (*ChunkStream, error) {
 	}
 
 	// Compliant connect response [response]
+	// TODO Use any existing meta fields
 	resp := make(amf.Object)
-	resp[ConnRespFMSVer] = DefaultServerFMSVersion
+	if s.connectInfo == nil {
+		resp[ConnRespFMSVer] = DefaultServerFMSVersion
+	} else {
+		resp[ConnRespFMSVer] = s.connectInfo.FlashVer
+	}
 	resp[ConnRespCapabilities] = 31
 
 	// Compliant connect response [event]
@@ -522,20 +527,20 @@ func (s *ServerConn) pauseTX() (*ChunkStream, error) {
 
 func (s *ServerConn) oosFCPublishRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	return defaultUnimplemented()
+	return nil
 }
 
 func (s *ServerConn) oosFCPublishTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
-	return nil, defaultUnimplemented()
+	return nil, nil
 }
 
 func (s *ServerConn) oosReleaseStreamRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
-	return defaultUnimplemented()
+	return nil
 }
 
 func (s *ServerConn) oosReleaseStreamTX() (*ChunkStream, error) {
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
-	return nil, defaultUnimplemented()
+	return nil, nil
 }

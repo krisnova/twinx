@@ -274,7 +274,7 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		P(s.server.listener.URLAddr().Key()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
 		P(s.server.listener.URLAddr().Key()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
 		M().Unlock()
-		s.stream.AddWriter(s.server.listener.URLAddr().Key(), s.conn)
+		s.stream.AddWriter(s.server.listener.URLAddr().Key(), s)
 		logger.Info(rtmpMessage("Play Stream", stream))
 	case CommandFCPublish:
 		return s.oosFCPublishRX(x)
@@ -343,6 +343,10 @@ func (s *ServerConn) Write(x *ChunkStream) error {
 		}
 		x.Length = uint32(len(x.Data))
 	}
+	M().Lock()
+	P(s.server.listener.URLAddr().Key()).ProxyTotalBytesTX = P(s.server.listener.URLAddr().Key()).ProxyTotalBytesTX + int(x.Length)
+	P(s.server.listener.URLAddr().Key()).ProxyTotalPacketsTX++
+	M().Unlock()
 	return s.conn.Write(x)
 }
 

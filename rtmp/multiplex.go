@@ -151,10 +151,10 @@ func (mx *SafeBoundedBuffer) Stream() error {
 					logger.Critical(err.Error())
 				}
 			}
-			M().Lock()
-			P(mx.name).ProxyTotalBytesTX = P(mx.name).ProxyTotalBytesTX + int(x.Length)
-			P(mx.name).ProxyTotalPacketsTX++
-			M().Unlock()
+			//M().Lock()
+			//P(mx.name).ProxyTotalBytesTX = P(mx.name).ProxyTotalBytesTX + int(x.Length)
+			//P(mx.name).ProxyTotalPacketsTX++
+			//M().Unlock()
 
 			// Drop (x) from the queue
 			mx.packetBuffer = mx.packetBuffer[1:]
