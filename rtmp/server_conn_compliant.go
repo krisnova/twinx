@@ -187,11 +187,12 @@ func (s *ServerConn) connectTX() (*ChunkStream, error) {
 	// Compliant connect response [response]
 	// TODO Use any existing meta fields
 	resp := make(amf.Object)
-	if s.connectInfo == nil {
-		resp[ConnRespFMSVer] = DefaultServerFMSVersion
-	} else {
-		resp[ConnRespFMSVer] = s.connectInfo.FlashVer
-	}
+	//if s.connectInfo == nil {
+	//	resp[ConnRespFMSVer] = DefaultServerFMSVersion
+	//} else {
+	//	resp[ConnRespFMSVer] = s.connectInfo.FlashVer
+	//}
+	resp[ConnRespFMSVer] = DefaultServerFMSVersion
 	resp[ConnRespCapabilities] = 31
 
 	// Compliant connect response [event]
@@ -341,50 +342,56 @@ func (s *ServerConn) playRX(x *ChunkStream) error {
 }
 
 func (s *ServerConn) playTX() (*ChunkStream, error) {
-	s.conn.setRecorded()
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetRecorded"), tx))
-
-	s.conn.streamBegin()
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "StreamBegin"), tx))
+	//err := s.conn.setRecorded()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetRecorded"), tx))
+	//
+	//err = s.conn.streamBegin()
+	//if err != nil {
+	//	return nil, err
+	//}
+	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "StreamBegin"), tx))
 
 	// NetStream.Play.Reset
 	event := make(amf.Object)
-	event[ConnEventLevel] = ConnEventStatus
-	event[ConnEventCode] = CommandNetStreamPlayReset
-	event[ConnEventDescription] = "Playing and resetting stream."
-	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
-		return nil, err
-	}
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPlayReset), tx))
+	//event[ConnEventLevel] = ConnEventStatus
+	//event[ConnEventCode] = CommandNetStreamPlayReset
+	//event[ConnEventDescription] = "Playing and resetting stream."
+	//if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
+	//	return nil, err
+	//}
+	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPlayReset), tx))
 
 	// NetStream.Play.Start
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPlayStart
-	event[ConnEventDescription] = "Started playing stream."
+	event[ConnEventDescription] = "Start live"
 	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
 		return nil, err
 	}
 	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPlayStart), tx))
 
 	// NetStream.Data.Start
-	event[ConnEventLevel] = ConnEventStatus
-	event[ConnEventCode] = CommandNetStreamDataStart
-	event[ConnEventDescription] = "Started playing stream."
-	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
-		return nil, err
-	}
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamDataStart), tx))
+	//event[ConnEventLevel] = ConnEventStatus
+	//event[ConnEventCode] = CommandNetStreamDataStart
+	//event[ConnEventDescription] = "Started playing stream."
+	//if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
+	//	return nil, err
+	//}
+	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamDataStart), tx))
 
 	// 	NetStream.Publish.Notify
-	event[ConnEventLevel] = ConnEventStatus
-	event[ConnEventCode] = CommandNetStreamPublishNotify
-	event[ConnEventDescription] = "Started playing notify."
-	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
-		return nil, err
-	}
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPublishNotify), tx))
+	//event[ConnEventLevel] = ConnEventStatus
+	//event[ConnEventCode] = CommandNetStreamPublishNotify
+	//event[ConnEventDescription] = "Started playing notify."
+	//if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
+	//	return nil, err
+	//}
+	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPublishNotify), tx))
 
-	return nil, s.conn.Flush()
+	return nil, nil
 }
 
 func (s *ServerConn) play2RX(x *ChunkStream) error {

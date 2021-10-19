@@ -44,6 +44,8 @@ import (
 	"errors"
 	"net"
 	"time"
+
+	"github.com/kris-nova/logger"
 )
 
 // Conn
@@ -124,17 +126,20 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	// This is also required for our tests.
 	if c.TypeID == SetChunkSizeMessageID {
 		chunkSize := binary.BigEndian.Uint32(c.Data)
-		//logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
+		logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
 		conn.remoteChunkSize = chunkSize
+		//conn.chunkSize = chunkSize
 	} else if c.TypeID == WindowAcknowledgementSizeMessageID {
 		conn.remoteWindowAckSize = binary.BigEndian.Uint32(c.Data)
 	}
 
 	// We should now have a complete chunk.
 	M().Lock()
-	defer M().Unlock()
 	M().ServerTotalPacketsRX++
 	M().ServerTotalBytesRX = M().ServerTotalBytesRX + int(c.Length)
+	M().Unlock()
+
+	go conn.ack(c.Length)
 
 	return nil
 }
@@ -202,7 +207,7 @@ func (conn *Conn) newChunkStreamAck(size uint32) *ChunkStream {
 	return newChunkStream(AcknowledgementMessageID, 4, size)
 }
 
-func (conn *Conn) ack(size uint32) {
+func (conn *Conn) ack(size uint32) error {
 	conn.received += uint32(size)
 	conn.ackReceived += uint32(size)
 	if conn.received >= 0xf0000000 {
@@ -210,23 +215,27 @@ func (conn *Conn) ack(size uint32) {
 	}
 	if conn.ackReceived >= conn.remoteWindowAckSize {
 		cs := conn.newChunkStreamAck(conn.ackReceived)
-		cs.writeChunk(conn.rw, int(conn.chunkSize))
+		err := cs.writeChunk(conn.rw, int(conn.chunkSize))
 		conn.ackReceived = 0
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
-func (conn *Conn) setRecorded() {
+func (conn *Conn) setRecorded() error {
 	ret := conn.userControlMsg(StreamIsRecorded, 4)
 	for i := 0; i < 4; i++ {
 		ret.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)
 	}
-	conn.Write(&ret)
+	return conn.Write(&ret)
 }
 
-func (conn *Conn) streamBegin() {
+func (conn *Conn) streamBegin() error {
 	ret := conn.userControlMsg(StreamBegin, 4)
 	for i := 0; i < 4; i++ {
 		ret.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)
 	}
-	conn.Write(&ret)
+	return conn.Write(&ret)
 }
