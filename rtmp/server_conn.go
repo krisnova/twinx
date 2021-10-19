@@ -191,13 +191,11 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		if s.publishInfo != nil {
 			s.stream.Write(x)
-			s.conn.Flush()
 		}
 	case VideoMessageID:
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		if s.publishInfo != nil {
 			s.stream.Write(x)
-			s.conn.Flush()
 		}
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
