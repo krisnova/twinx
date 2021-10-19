@@ -58,39 +58,58 @@ type Server struct {
 	muxdem   *SafeMuxDemuxService
 	listener *Listener
 
-	// conns should be moved to a hashmap and can be made to close conns
-	conns []*ServerConn
+	// *** Clients ***
+	//
+	// We have 3 types of clients for the server. All clients
+	// need to be one of these or the other. (proxy, play, publish)
+	//
+	//   [ Play] <--- (1234) --- [ Server ]
+	// [ Publish ] -- (1234) --> [ Server ]
+	// [ Publish ] -- (1234) --> [ Server ] -- (5678) --> [ Proxy Publish ]
 
-	// forwardClients are publish clients that we will push down to each ServerConn to forward packets to
-	forwardClients map[string]*ClientConn
+	// playClients are clients connected to the server, that have been registered
+	// as play clients
+	playClients map[string]*ServerConn
+
+	// publishClients are clients connected to the server, that have been registered
+	// as publish clients
+	publishClients map[string]*ServerConn
+
+	// proxyPublishClients are clients connected to the server that will be used
+	// to proxy the RTMP as a new publish client on a remote backend.
+	//
+	// These are known as "push" clients in the Nginx module.
+	proxyPublishClients map[string]*ClientConn
 }
 
 func NewServer() *Server {
 	return &Server{
-		forwardClients: make(map[string]*ClientConn),
-		muxdem:         NewMuxDemService(),
+		proxyPublishClients: make(map[string]*ClientConn),
+		playClients:         make(map[string]*ServerConn),
+		publishClients:      make(map[string]*ServerConn),
+		muxdem:              NewMuxDemService(),
 	}
 }
 
-// Forward will configure forward addresses for the RTMP server.
+// Proxy will configure forward addresses for the RTMP server.
 //
-// Forward can be called before or after Serve()
+// Proxy can be called before or after Serve()
 // and the backend server will be smart enough to sync clients.
-func (s *Server) Forward(raw string) error {
+func (s *Server) Proxy(raw string) error {
 	forwardClient := NewClient()
 	err := forwardClient.Dial(raw)
 	if err != nil {
 		return err
 	}
-	return s.AddClient(forwardClient.conn)
+	return s.ProxyClient(forwardClient.conn)
 }
 
-// AddClient will add clients to this server.
+// ProxyClient will add clients to this server.
 //
 // Client forwarding is handled at the server level.
 // We trust each subsequent stream to update to the configured
 // clients as they are added.
-func (s *Server) AddClient(f *ClientConn) error {
+func (s *Server) ProxyClient(f *ClientConn) error {
 
 	// New clients will always be publishers.
 	go func() {
@@ -105,9 +124,16 @@ func (s *Server) AddClient(f *ClientConn) error {
 	}()
 
 	logger.Info(rtmpMessage(fmt.Sprintf("server.AddClient(%s)", f.urladdr.SafeURL()), ack))
-	s.forwardClients[f.urladdr.SafeURL()] = f
-
+	s.proxyPublishClients[f.urladdr.SafeURL()] = f
 	return nil
+}
+
+func (s *Server) PublishClient(f *ServerConn) {
+	s.publishClients[s.listener.URLAddr().SafeURL()] = f
+}
+
+func (s *Server) PlayClient(f *ServerConn) {
+	s.playClients[s.listener.URLAddr().SafeURL()] = f
 }
 
 func (s *Server) ListenAndServe(raw string) error {
@@ -138,6 +164,9 @@ func (s *Server) Serve(listener net.Listener) error {
 	s.listener = concrete
 	logger.Info(rtmpMessage("server.Serve", serve))
 
+	// At this point we should have a full RTMP listener, with a
+	// complete Key.
+
 	// Metrics Point
 	M().Lock()
 	M().ServerAddrRX = concrete.URLAddr().SafeURL()
@@ -166,27 +195,48 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	conn := NewConn(netConn)
 
 	// Server Connection
-	connSrv := NewServerConn(conn)
-	s.conns = append(s.conns, connSrv)
-	connSrv.conn = conn
+	// This is a bit weird naming, but each of these connections
+	// are the accepted client to the server.
+	client := NewServerConn(conn)
+	client.conn = conn
 
 	// Point all clients back to the main server
-	connSrv.server = s
+	client.server = s
 
-	// Set up multiplexing
+	// Set up multiplexing. Streams are tracked by their Key()
 	stream, err := s.muxdem.GetStream(s.listener.URLAddr().Key())
 	if err != nil {
 		return err
 	}
 
 	// Map the stream to the conn
-	connSrv.stream = stream
+	client.stream = stream
 
 	// Handshakes
-	err = connSrv.handshake()
+	err = client.handshake()
 	if err != nil {
 		return nil
 	}
 
-	return connSrv.RoutePackets()
+	go func() {
+		err = client.RoutePackets()
+		if err != nil {
+			logger.Critical(err.Error())
+			client.Close()
+			// Unset client
+			s.publishClients[s.listener.URLAddr().SafeURL()] = nil
+			s.playClients[s.listener.URLAddr().SafeURL()] = nil
+		}
+	}()
+	for {
+		if client.clientType == PlayClient {
+			s.PlayClient(client)
+			return nil
+		}
+		if client.clientType == PublishClient {
+			s.PublishClient(client)
+			return nil
+		}
+	}
+
 }

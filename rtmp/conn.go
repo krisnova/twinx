@@ -59,6 +59,7 @@ import (
 // Both ClientConn and ServerConn are extensions of base Conn
 type Conn struct {
 	net.Conn
+	URLAddr
 	chunkSize           uint32
 	remoteChunkSize     uint32
 	windowAckSize       uint32

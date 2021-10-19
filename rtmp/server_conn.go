@@ -50,7 +50,17 @@ import (
 	"github.com/kris-nova/logger"
 )
 
+type ServerClientType int
+
+const (
+	PlayClient    ServerClientType = 1
+	PublishClient ServerClientType = 2
+)
+
 type ServerConn struct {
+
+	// All server clients are either proxy, publish, or play clients
+	clientType ServerClientType
 
 	// conn is the base conn for all RTMP members (both clients, and servers)
 	conn *Conn
@@ -109,11 +119,12 @@ func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 
 var clientLen int = 0
 
+// RoutePackets will hang and route packets for this connection
 func (s *ServerConn) RoutePackets() error {
 	for {
 		// Sync the proxies before routing the next packet
-		if len(s.server.forwardClients) != clientLen {
-			for _, fwdClient := range s.server.forwardClients {
+		if len(s.server.proxyPublishClients) != clientLen {
+			for _, fwdClient := range s.server.proxyPublishClients {
 				// This will lock
 				// Add the writer for the associated server, but the client of the client
 				// Metrics Point
@@ -123,7 +134,7 @@ func (s *ServerConn) RoutePackets() error {
 				M().Unlock()
 				s.stream.AddWriter(s.server.listener.URLAddr().Key(), fwdClient)
 			}
-			clientLen = len(s.server.forwardClients)
+			clientLen = len(s.server.proxyPublishClients)
 		}
 
 		x, err := s.NextChunk()
@@ -231,8 +242,13 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 
 	s.metaData = metaData
 
-	// Write to the stream
-	s.stream.Write(x)
+	// send out on all associated play clients
+	for _, pc := range s.server.playClients {
+		err := pc.Write(x)
+		if err != nil {
+			logger.Critical(err.Error())
+		}
+	}
 
 	return nil
 }
@@ -258,6 +274,7 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 			return err
 		}
 		// Write packets to the stream
+		s.clientType = PublishClient
 		logger.Info(rtmpMessage("Publish Stream", stream))
 
 		// Stream ->
@@ -268,6 +285,8 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		if err != nil {
 			return err
 		}
+
+		s.clientType = PlayClient
 
 		// <- Stream
 		M().Lock()

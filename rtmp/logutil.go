@@ -85,6 +85,16 @@ const (
 )
 
 // Send an RTMP protocol message with an operator
+func rtmpServerMessage(msg string, op messageOperator) string {
+	return fmt.Sprintf("[rtmp.server] %s (%s)", op, msg)
+}
+
+// Send an RTMP protocol message with an operator
+func rtmpClientMessage(msg string, op messageOperator) string {
+	return fmt.Sprintf("[rtmp.client] %s (%s)", op, msg)
+}
+
+// Send an RTMP protocol message with an operator
 func rtmpMessage(msg string, op messageOperator) string {
 	return fmt.Sprintf("[rtmp] %s (%s)", op, msg)
 }

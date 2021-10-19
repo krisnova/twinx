@@ -205,7 +205,7 @@ func RunProxy(server, forward string) error {
 		return err
 	}
 
-	go rtmpServer.Forward(forward)
+	go rtmpServer.Proxy(forward)
 
 	// Start the server before we proxy
 	rtmpServer.Serve(rtmpListener)

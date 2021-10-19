@@ -1,214 +1,69 @@
 # RTMP Dump (nginx -> VLC)
 
 ```
-[nova@emma ~]$ rtmpdump -V -v -r "rtmp://localhost:1935/twinx/1234" -o - | "vlc" -
-VLC media player 3.0.16 Vetinari (revision 3.0.13-8-g41878ff4f2)
-RTMPDump v2.4
-(c) 2010 Andrej Stepanchuk, Howard Chu, The Flvstreamer Team; license: GPL
-DEBUG: Parsing...
-DEBUG: Parsed protocol: 0
-DEBUG: Parsed host    : localhost
-DEBUG: Parsed app     : twinx
-DEBUG: Protocol : RTMP
-DEBUG: Hostname : localhost
-DEBUG: Port     : 1935
-DEBUG: Playpath : 1234
-DEBUG: tcUrl    : rtmp://localhost:1935/twinx
-DEBUG: app      : twinx
-DEBUG: live     : yes
-DEBUG: timeout  : 30 sec
-DEBUG: Setting buffer time to: 36000000ms
-Connecting ...
-
-DEBUG: RTMP_Connect1, ... connected, handshaking
-DEBUG: HandShake: Type Answer   : 03
-DEBUG: HandShake: Server Uptime : 1433139062
-DEBUG: HandShake: FMS Version   : 0.0.0.0
-DEBUG: HandShake: Handshaking finished....
-DEBUG: RTMP_Connect1, handshaked
-DEBUG: Invoking connect
-INFO: Connected...
-
-DEBUG: HandleServerBW: server BW = 5000000
-DEBUG: HandleClientBW: client BW = 5000000 2
-DEBUG: HandleChangeChunkSize, received: chunk size change to 4000
-DEBUG: RTMP_ClientPacket, received: invoke 190 bytes
+DEBUG: HandleCtrl, received ctrl. type: 0, len: 6
+DEBUG: HandleCtrl, Stream Begin 1
+DEBUG: RTMP_ClientPacket, received: notify 387 bytes
 DEBUG: (object begin)
 DEBUG: (object begin)
-DEBUG: Property: <Name:             fmsVer, STRING:     FMS/3,0,1,123>
-DEBUG: Property: <Name:       capabilities, NUMBER:     31.00>
-DEBUG: (object end)
-DEBUG: (object begin)
-DEBUG: Property: <Name:              level, STRING:     status>
-DEBUG: Property: <Name:               code, STRING:     NetConnection.Connect.Success>
-DEBUG: Property: <Name:        description, STRING:     Connection succeeded.>
-DEBUG: Property: <Name:     objectEncoding, NUMBER:     0.00>
-DEBUG: (object end)
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <_result>
-DEBUG: HandleInvoke, received result for method call <connect>
-DEBUG: sending ctrl. type: 0x0003
-
-DEBUG: Invoking createStream
-DEBUG: FCSubscribe: 1234
-DEBUG: Invoking FCSubscribe
-DEBUG: RTMP_ClientPacket, received: invoke 29 bytes
-DEBUG: (object begin)
-DEBUG: Property: NULL
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <_result>
-DEBUG: HandleInvoke, received result for method call <createStream>
-DEBUG: SendPlay, seekTime=0, stopTime=0, sending play: 1234
-DEBUG: Invoking play
-DEBUG: sending ctrl. type: 0x0003
-DEBUG: RTMP_ClientPacket, received: invoke 96 bytes
-DEBUG: (object begin)
-DEBUG: Property: NULL
-DEBUG: (object begin)
-DEBUG: Property: <Name:              level, STRING:     status>
-DEBUG: Property: <Name:               code, STRING:     NetStream.Play.Start>
-DEBUG: Property: <Name:        description, STRING:     Start live>
+DEBUG: Property: <Name:             Server, STRING:     NGINX RTMP (github.com/arut/nginx-rtmp-module)>
+DEBUG: Property: <Name:              width, NUMBER:     1280.00>
+DEBUG: Property: <Name:             height, NUMBER:     720.00>
+DEBUG: Property: <Name:       displayWidth, NUMBER:     1280.00>
+DEBUG: Property: <Name:      displayHeight, NUMBER:     720.00>
+DEBUG: Property: <Name:           duration, NUMBER:     0.00>
+DEBUG: Property: <Name:          framerate, NUMBER:     30.00>
+DEBUG: Property: <Name:                fps, NUMBER:     30.00>
+DEBUG: Property: <Name:      videodatarate, NUMBER:     2500.00>
+DEBUG: Property: <Name:       videocodecid, NUMBER:     7.00>
+DEBUG: Property: <Name:      audiodatarate, NUMBER:     160.00>
+DEBUG: Property: <Name:       audiocodecid, NUMBER:     10.00>
+DEBUG: Property: <Name:            profile, STRING:     >
+DEBUG: Property: <Name:              level, STRING:     >
 DEBUG: (object end)
 DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <onStatus>
-DEBUG: HandleInvoke, onStatus: NetStream.Play.Start
-Starting Live Stream
-DEBUG: RTMP_ClientPacket, received: notify 24 bytes
-DEBUG: (object begin)
-DEBUG: (object end)
+INFO: Metadata:
+INFO:   Server                NGINX RTMP (github.com/arut/nginx-rtmp-module)
+INFO:   width                 1280.00
+INFO:   height                720.00
+INFO:   displayWidth          1280.00
+INFO:   displayHeight         720.00
+INFO:   duration              0.00
+INFO:   framerate             30.00
+INFO:   fps                   30.00
+INFO:   videodatarate         2500.00
+INFO:   videocodecid          7.00
+INFO:   audiodatarate         160.00
+INFO:   audiocodecid          10.00
+481.393 kB / 1.53 sec[00007f63280063d0] gl gl: Initialized libplacebo v3.120.3 (API v120)
+[00007f63280063d0] glconv_vaapi_x11 gl error: vaInitialize: unknown libva error
+libva error: vaGetDriverNameByIndex() failed with unknown libva error, driver_name = (null)
+[00007f63280063d0] glconv_vaapi_drm gl error: vaInitialize: unknown libva error
+libva error: vaGetDriverNameByIndex() failed with unknown libva error, driver_name = (null)
+[00007f63280063d0] glconv_vaapi_drm gl error: vaInitialize: unknown libva error
+546.725 kB / 1.73 sec[00007f63280063d0] gl gl: Initialized libplacebo v3.120.3 (API v120)
+[00007f635006f510] avcodec decoder: Using NVIDIA VDPAU Driver Shared Library  470.74  Mon Sep 13 22:58:37 UTC 2021 for hardware decoding
+612.199 kB / 1.94 sec[live_flv @ 0x7f6350076480] Packet mismatch -1651214103 10434 459148
+1669.267 kB / 5.17 sec                                                                      
+DEBUG: HandleCtrl, received ctrl. type: 1, len: 6
+DEBUG: HandleCtrl, Stream EOF 1
 ^CCaught signal: 2, cleaning up, just a second...
 DEBUG: RTMPSockBuf_Fill, recv returned -1. GetSockError(): 4 (Interrupted system call)
 DEBUG: Invoking deleteStream
-ERROR: RTMP_ReadPacket, failed to read RTMP packet header
--0.001 kB / 0.00 sec
+[00007f635c000c80] main input error: ES_OUT_SET_(GROUP_)PCR  is called too late (pts_delay increased to 1000 ms)ERROR: RTMP_ReadPacket, failed to read RTMP packet header               
+                                                                                            
+1669.689 kB / 5.18 sec
 DEBUG: RTMP_Read returned: 0
 Download may be incomplete (downloaded about 0.00%), try resuming
 DEBUG: Closing connection.
 
+[00007f63507dc2b0] main decoder error: Timestamp conversion failed for 5162001: no reference clock                                                                                      
+[00007f63507dc2b0] main decoder error: Could not convert timestamp 0 for faad
 QObject::~QObject: Timers cannot be stopped from another thread
 ```
 
 # RTMP Dump (Twinx -> VLC)
 
 ```
-[nova@emma ~]$ rtmpdump -V -v -r "rtmp://localhost:1935/twinx/1234" -o - | "vlc" -
-VLC media player 3.0.16 Vetinari (revision 3.0.13-8-g41878ff4f2)
-RTMPDump v2.4
-(c) 2010 Andrej Stepanchuk, Howard Chu, The Flvstreamer Team; license: GPL
-DEBUG: Parsing...
-DEBUG: Parsed protocol: 0
-DEBUG: Parsed host    : localhost
-DEBUG: Parsed app     : twinx
-DEBUG: Protocol : RTMP
-DEBUG: Hostname : localhost
-DEBUG: Port     : 1935
-DEBUG: Playpath : 1234
-DEBUG: tcUrl    : rtmp://localhost:1935/twinx
-DEBUG: app      : twinx
-DEBUG: live     : yes
-DEBUG: timeout  : 30 sec
-DEBUG: Setting buffer time to: 36000000ms
-Connecting ...
-
-DEBUG: RTMP_Connect1, ... connected, handshaking
-DEBUG: HandShake: Type Answer   : 03
-DEBUG: HandShake: Server Uptime : 0
-DEBUG: HandShake: FMS Version   : 0.0.0.0
-DEBUG: HandShake: Handshaking finished....
-DEBUG: RTMP_Connect1, handshaked
-DEBUG: Invoking connect
-INFO: Connected...
-
-DEBUG: RTMP_ClientPacket, received: bytes read report
-DEBUG: HandleClientBW: client BW = 2500000 2
-DEBUG: HandleChangeChunkSize, received: chunk size change to 8192
-DEBUG: RTMP_ClientPacket, received: invoke 191 bytes
-DEBUG: (object begin)
-DEBUG: (object begin)
-DEBUG: Property: <Name:             fmsVer, STRING:     LNX 10,0,32,18>
-DEBUG: Property: <Name:       capabilities, NUMBER:     31.00>
-DEBUG: (object end)
-DEBUG: (object begin)
-DEBUG: Property: <Name:              level, STRING:     status>
-DEBUG: Property: <Name:               code, STRING:     NetConnection.Connect.Success>
-DEBUG: Property: <Name:        description, STRING:     Connection succeeded.>
-DEBUG: Property: <Name:     objectEncoding, NUMBER:     0.00>
-DEBUG: (object end)
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <_result>
-DEBUG: HandleInvoke, received result for method call <connect>
-DEBUG: sending ctrl. type: 0x0003
-
-DEBUG: Invoking createStream
-DEBUG: FCSubscribe: 1234
-DEBUG: Invoking FCSubscribe
-DEBUG: RTMP_ClientPacket, received: invoke 29 bytes
-DEBUG: (object begin)
-DEBUG: Property: NULL
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <_result>
-DEBUG: HandleInvoke, received result for method call <createStream>
-DEBUG: SendPlay, seekTime=0, stopTime=0, sending play: 1234
-DEBUG: Invoking play
-DEBUG: sending ctrl. type: 0x0003
-DEBUG: HandleCtrl, received ctrl. type: 4, len: 6
-DEBUG: HandleCtrl, Stream IsRecorded 1
-DEBUG: HandleCtrl, received ctrl. type: 0, len: 6
-DEBUG: HandleCtrl, Stream Begin 1
-DEBUG: RTMP_ClientPacket, received: invoke 115 bytes
-DEBUG: (object begin)
-DEBUG: Property: NULL
-DEBUG: (object begin)
-DEBUG: Property: <Name:               code, STRING:     NetStream.Play.Reset>
-DEBUG: Property: <Name:        description, STRING:     Playing and resetting stream.>
-DEBUG: Property: <Name:              level, STRING:     status>
-DEBUG: (object end)
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <onStatus>
-DEBUG: HandleInvoke, onStatus: NetStream.Play.Reset
-DEBUG: RTMP_ClientPacket, received: invoke 109 bytes
-DEBUG: (object begin)
-DEBUG: Property: NULL
-DEBUG: (object begin)
-DEBUG: Property: <Name:        description, STRING:     Started playing stream.>
-DEBUG: Property: <Name:              level, STRING:     status>
-DEBUG: Property: <Name:               code, STRING:     NetStream.Play.Start>
-DEBUG: (object end)
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <onStatus>
-DEBUG: HandleInvoke, onStatus: NetStream.Play.Start
-Starting Live Stream
-DEBUG: RTMP_ClientPacket, received: invoke 109 bytes
-DEBUG: (object begin)
-DEBUG: Property: NULL
-DEBUG: (object begin)
-DEBUG: Property: <Name:        description, STRING:     Started playing stream.>
-DEBUG: Property: <Name:              level, STRING:     status>
-DEBUG: Property: <Name:               code, STRING:     NetStream.Data.Start>
-DEBUG: (object end)
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <onStatus>
-DEBUG: HandleInvoke, onStatus: NetStream.Data.Start
-DEBUG: RTMP_ClientPacket, received: invoke 113 bytes
-DEBUG: (object begin)
-DEBUG: Property: NULL
-DEBUG: (object begin)
-DEBUG: Property: <Name:              level, STRING:     status>
-DEBUG: Property: <Name:               code, STRING:     NetStream.Publish.Notify>
-DEBUG: Property: <Name:        description, STRING:     Started playing notify.>
-DEBUG: (object end)
-DEBUG: (object end)
-DEBUG: HandleInvoke, server invoking <onStatus>
-DEBUG: HandleInvoke, onStatus: NetStream.Publish.Notify
-^CCaught signal: 2, cleaning up, just a second...
-DEBUG: RTMPSockBuf_Fill, recv returned -1. GetSockError(): 4 (Interrupted system call)
-DEBUG: Invoking deleteStream
-ERROR: RTMP_ReadPacket, failed to read RTMP packet header
--0.001 kB / 0.00 sec
-DEBUG: RTMP_Read returned: 0
-Download may be incomplete (downloaded about 0.00%), try resuming
-DEBUG: Closing connection.
-
-QObject::~QObject: Timers cannot be stopped from another thread
 
 ```

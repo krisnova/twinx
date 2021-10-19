@@ -294,7 +294,7 @@ func (a *ActiveStreamerServer) ProxyRTMP(ctx context.Context, r *activestreamer.
 		}, fmt.Errorf("unable to start rtmp relay, local server notrunning")
 	}
 
-	err = a.Server.Forward(addr.StreamURL())
+	err = a.Server.Proxy(addr.StreamURL())
 	if err != nil {
 		return &activestreamer.Ack{
 			Success: false,
