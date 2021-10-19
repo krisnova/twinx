@@ -223,9 +223,6 @@ func (s *Server) handleConn(netConn net.Conn) error {
 		if err != nil {
 			logger.Critical(err.Error())
 			client.Close()
-			// Unset client
-			s.publishClients[s.listener.URLAddr().SafeURL()] = nil
-			s.playClients[s.listener.URLAddr().SafeURL()] = nil
 		}
 	}()
 	for {

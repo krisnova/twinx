@@ -83,7 +83,8 @@ type ServerConn struct {
 	// client
 	publishInfo *PublishInfo
 
-	metaData *MetaData
+	metaData      *MetaData
+	metaDataChunk *ChunkStream
 
 	// Every stream conn has an RTMP url
 	// Every stream conn has a stream
@@ -190,11 +191,13 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		if s.publishInfo != nil {
 			s.stream.Write(x)
+			s.conn.Flush()
 		}
 	case VideoMessageID:
 		//logger.Debug(rtmpMessage(typeIDString(x), rx))
 		if s.publishInfo != nil {
 			s.stream.Write(x)
+			s.conn.Flush()
 		}
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
@@ -241,9 +244,11 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 	}
 
 	s.metaData = metaData
+	s.metaDataChunk = x
 
 	// send out on all associated play clients
 	for _, pc := range s.server.playClients {
+		logger.Debug(rtmpMessage("publisher->play.MetaData", stream))
 		err := pc.Write(x)
 		if err != nil {
 			logger.Critical(err.Error())
@@ -277,15 +282,26 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		s.clientType = PublishClient
 		logger.Info(rtmpMessage("Publish Stream", stream))
 
+		for _, playClient := range s.server.playClients {
+			// Play stream begin
+			logger.Debug(rtmpMessage("publisher->play.StreamBegin", stream))
+			err := playClient.conn.streamBegin()
+			if err != nil {
+				logger.Critical(err.Error())
+			}
+		}
+
 		// Stream ->
 		go s.stream.Stream()
 	case CommandPlay:
-		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandPlay), rx))
+
+		//logger.De bug(rtmpMessage(fmt.Sprintf("command.%s", CommandPlay), rx))
 		err := s.playRX(x)
 		if err != nil {
 			return err
 		}
 
+		// Play Client
 		s.clientType = PlayClient
 
 		// <- Stream
@@ -293,6 +309,38 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		P(s.server.listener.URLAddr().Key()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
 		P(s.server.listener.URLAddr().Key()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
 		M().Unlock()
+
+		if len(s.server.publishClients) > 1 {
+			return fmt.Errorf("too many publisher clients")
+		}
+		for _, pubClient := range s.server.publishClients {
+
+			// Play stream begin
+			logger.Debug(rtmpMessage("publisher->play.StreamBegin", stream))
+			err := s.conn.streamBegin()
+			if err != nil {
+				logger.Critical(err.Error())
+			}
+
+			// Play meta data
+			logger.Debug(rtmpMessage("publisher->play.MetaData", stream))
+			if pubClient.metaDataChunk == nil {
+				logger.Warning("nil metadata for publisher->play")
+				continue
+			}
+			xx := pubClient.metaDataChunk
+			xx.StreamID = pubClient.connectPacket.StreamID
+			err = s.conn.Write(xx)
+			if err != nil {
+				logger.Critical(err.Error())
+			}
+			err = s.conn.Flush()
+			if err != nil {
+				logger.Critical(err.Error())
+			}
+
+		}
+
 		s.stream.AddWriter(s.server.listener.URLAddr().Key(), s)
 		logger.Info(rtmpMessage("Play Stream", stream))
 	case CommandFCPublish:
