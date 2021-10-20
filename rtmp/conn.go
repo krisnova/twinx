@@ -233,10 +233,10 @@ func (conn *Conn) setRecorded() error {
 	return conn.Write(&ret)
 }
 
-func (conn *Conn) streamBegin() error {
-	ret := conn.userControlMsg(StreamBegin, 4)
+func (conn *Conn) streamBegin() *ChunkStream {
+	x := conn.userControlMsg(StreamBegin, 4)
 	for i := 0; i < 4; i++ {
-		ret.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)
+		x.Data[2+i] = byte(1 >> uint32((3-i)*8) & 0xff)
 	}
-	return conn.Write(&ret)
+	return &x
 }

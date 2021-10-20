@@ -363,22 +363,10 @@ func (s *ServerConn) playTX() (*ChunkStream, error) {
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPlayStart
 	event[ConnEventDescription] = "Start live"
-	logger.Debug("streamID=%v", s.connectPacket.StreamID)
-	logger.Debug("CSID=%v", s.connectPacket.CSID)
 	if err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event); err != nil {
 		return nil, err
 	}
 	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), CommandNetStreamPlayStart), tx))
-
-	err = s.conn.streamBegin()
-	if err != nil {
-		return nil, err
-	}
-	err = s.conn.Flush()
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "streamBegin"), tx))
 
 	// NetStream.Data.Start
 	//event[ConnEventLevel] = ConnEventStatus
@@ -504,28 +492,11 @@ func (s *ServerConn) publishRX(x *ChunkStream) error {
 
 func (s *ServerConn) publishTX() (*ChunkStream, error) {
 
-	// send streamBegin on all associated play clients
-	for _, pc := range s.server.playClients {
-		if pc == nil {
-			return nil, fmt.Errorf("nil playClient in publisher list")
-		}
-		err := pc.conn.streamBegin()
-		if err != nil {
-			logger.Critical(err.Error())
-		}
-	}
-
-	err := s.conn.streamBegin()
-	if err != nil {
-		return nil, err
-	}
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "StreamBegin"), tx))
-
 	event := make(amf.Object)
 	event[ConnEventLevel] = ConnEventStatus
 	event[ConnEventCode] = CommandNetStreamPublishStart
 	event[ConnEventDescription] = "Start publishing."
-	err = s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event)
+	err := s.writeMsg(s.connectPacket.CSID, s.connectPacket.StreamID, CommandTypeOnStatus, 0, nil, event)
 	if err != nil {
 		return nil, err
 	}

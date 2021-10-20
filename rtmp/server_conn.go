@@ -107,6 +107,14 @@ func NewServerConn(conn *Conn) *ServerConn {
 	}
 }
 
+//func (s *ServerConn) getStreamBeginPacket() *ChunkStream {
+//	return &ChunkStream{}
+//}
+//
+//func (s *ServerConn) getMetaDataPacket() *ChunkStream {
+//	return &ChunkStream{}
+//}
+
 // NextChunk will read the next packet of data from the client,
 // and will attempt to respond to the packet based on it's content and
 // the appropriate response per the RTMP spec.
@@ -178,8 +186,6 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		return s.handleUserControl(x)
 	case CommandMessageAMF0ID, CommandMessageAMF3ID:
-		//logger.Debug(rtmpMessage(typeIDString(x), rx))
-		// Handle the command message
 		// Note: There are sub-command messages logged in the next method
 		return s.handleCommand(x)
 	case DataMessageAMF0ID, DataMessageAMF3ID:
@@ -188,14 +194,14 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AudioMessageID:
-		//logger.Debug(rtmpMessage(typeIDString(x), rx))
-		if s.publishInfo != nil {
-			s.stream.Write(x)
+		err := Multiplex(s.server.listener.URLAddr().Key()).Write(x)
+		if err != nil {
+			return err
 		}
 	case VideoMessageID:
-		//logger.Debug(rtmpMessage(typeIDString(x), rx))
-		if s.publishInfo != nil {
-			s.stream.Write(x)
+		err := Multiplex(s.server.listener.URLAddr().Key()).Write(x)
+		if err != nil {
+			return err
 		}
 	case AggregateMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
@@ -244,13 +250,9 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 	s.metaData = metaData
 	s.metaDataChunk = x
 
-	// send out on all associated play clients
-	for _, pc := range s.server.playClients {
-		logger.Debug(rtmpMessage("publisher->play.MetaData", stream))
-		err := pc.Write(x)
-		if err != nil {
-			logger.Critical(err.Error())
-		}
+	err = Multiplex(s.server.listener.URLAddr().Key()).Write(x)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -271,29 +273,20 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandCreateStream), rx))
 		return s.createStreamRX(x)
 	case CommandPublish:
-		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandPublish), rx))
+
+		// Respond to a publish
 		err := s.publishRX(x)
 		if err != nil {
 			return err
 		}
-		// Write packets to the stream
+
+		// Publish client
 		s.clientType = PublishClient
+
 		logger.Info(rtmpMessage("Publish Stream", stream))
-
-		for _, playClient := range s.server.playClients {
-			// Play stream begin
-			logger.Debug(rtmpMessage("publisher->play.StreamBegin", stream))
-			err := playClient.conn.streamBegin()
-			if err != nil {
-				logger.Critical(err.Error())
-			}
-		}
-
-		// Stream ->
-		go s.stream.Stream()
 	case CommandPlay:
 
-		//logger.De bug(rtmpMessage(fmt.Sprintf("command.%s", CommandPlay), rx))
+		// Respond to a play
 		err := s.playRX(x)
 		if err != nil {
 			return err
@@ -302,44 +295,27 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		// Play Client
 		s.clientType = PlayClient
 
-		// <- Stream
+		// Metrics
 		M().Lock()
 		P(s.server.listener.URLAddr().Key()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
 		P(s.server.listener.URLAddr().Key()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
 		M().Unlock()
 
-		if len(s.server.publishClients) > 1 {
-			return fmt.Errorf("too many publisher clients")
-		}
-		for _, pubClient := range s.server.publishClients {
+		// Add the play client as a backend to Write() to
+		Multiplex(s.server.listener.URLAddr().Key()).AddConn(s.conn)
 
-			// Play stream begin
-			logger.Debug(rtmpMessage("publisher->play.StreamBegin", stream))
-			err := s.conn.streamBegin()
-			if err != nil {
-				logger.Critical(err.Error())
-			}
-
-			// Play meta data
-			logger.Debug(rtmpMessage("publisher->play.MetaData", stream))
-			if pubClient.metaDataChunk == nil {
-				logger.Warning("nil metadata for publisher->play")
-				continue
-			}
-			xx := pubClient.metaDataChunk
-			xx.StreamID = pubClient.connectPacket.StreamID
-			err = s.conn.Write(xx)
-			if err != nil {
-				logger.Critical(err.Error())
-			}
-			err = s.conn.Flush()
-			if err != nil {
-				logger.Critical(err.Error())
-			}
-
+		// Play clients get a streamBegin
+		err = Multiplex(s.server.listener.URLAddr().Key()).Write(s.conn.streamBegin())
+		if err != nil {
+			return err
 		}
 
-		s.stream.AddWriter(s.server.listener.URLAddr().Key(), s)
+		// Play clients get a metadata (if it exists)
+		err = Multiplex(s.server.listener.URLAddr().Key()).Write(s.metaDataChunk)
+		if err != nil {
+			return err
+		}
+
 		logger.Info(rtmpMessage("Play Stream", stream))
 	case CommandFCPublish:
 		return s.oosFCPublishRX(x)
@@ -359,8 +335,7 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 //
 // For Twinx we do not need to respond.
 func (s *ServerConn) oosGetStreamLengthRX(x *ChunkStream) error {
-	logger.Info(rtmpMessage(thisFunctionName(), ack))
-
+	//logger.Info(rtmpMessage(thisFunctionName(), ack))
 	return nil
 }
 
