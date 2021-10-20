@@ -26,13 +26,17 @@
 
 package rtmp
 
-import "sync"
+import (
+	"fmt"
+	"sync"
+)
 
 type Stream struct {
 	URLAddr
-	key   string
-	conns map[string]*Conn
-	mtx   sync.Mutex
+	key      string
+	conns    map[string]*Conn
+	mtx      sync.Mutex
+	metaData *ChunkStream
 }
 
 var mx = map[string]*Stream{}
@@ -51,28 +55,36 @@ func NewStream(key string) *Stream {
 		key:   key,
 		conns: make(map[string]*Conn),
 	}
-	//go s.stream()
 	return s
 }
 
-//func (s *Stream) stream() {
-//
-//}
+func (s *Stream) AddMetaData(x *ChunkStream) {
+	s.metaData = x
+}
 
 func (s *Stream) AddConn(c *Conn) error {
 	s.conns[c.SafeURL()] = c
-	return nil
+	// All new conns need metadata right away
+	return s.Write(s.metaData)
 }
 
 func (s *Stream) Write(x *ChunkStream) error {
+	if s.metaData == nil {
+		return fmt.Errorf("unable to write to buffer, nil metadata")
+	}
+
 	if x == nil {
 		return nil
 	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 	for _, c := range s.conns {
+		if c == nil {
+			continue
+		}
 		err := c.Write(x)
 		if err != nil {
+			s.conns[c.SafeURL()] = nil
 			return err
 		}
 		err = c.Flush()

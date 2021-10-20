@@ -228,7 +228,6 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 		x.Data = x.Data[1:]
 	}
 	r := bytes.NewReader(x.Data)
-
 	vs, err := s.LogDecodeBatch(r, amf.Version(amfType))
 	if err != nil && err != io.EOF {
 		return err
@@ -241,15 +240,15 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 		return fmt.Errorf("unsupported metadata packet size: 3")
 	}
 
-	// We assume field [1] is our MetaData object
+	// We assume field [2] is our MetaData object
 	metaData, err := MetaDataMapToInstance(x.batchedValues[2])
 	if err != nil {
 		return fmt.Errorf("unbale to map metadata: %v", err)
 	}
-
 	s.metaData = metaData
-	s.metaDataChunk = x
 
+	// Multiplex (and cache) the metadata for later
+	Multiplex(s.server.listener.URLAddr().Key()).AddMetaData(x)
 	err = Multiplex(s.server.listener.URLAddr().Key()).Write(x)
 	if err != nil {
 		return err
@@ -310,7 +309,6 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 			return err
 		}
 
-		// Play clients get a metadata (if it exists)
 		err = Multiplex(s.server.listener.URLAddr().Key()).Write(s.metaDataChunk)
 		if err != nil {
 			return err
