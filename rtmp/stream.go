@@ -44,6 +44,10 @@ type Stream struct {
 
 var mx = map[string]*Stream{}
 
+// Multiplex onto key
+//
+// All bytes written to this key (the base key)
+// will be multiplexed onto any configured proxy clients.
 func Multiplex(key string) *Stream {
 	s, ok := mx[key]
 	if ok {
@@ -86,13 +90,16 @@ func (s *Stream) RemoveConn(c *Conn) {
 }
 
 func (s *Stream) AddConn(c *Conn) error {
-	if c.URLAddr.key == "" {
+	if c.Key() == "" {
 		return fmt.Errorf("empty conn key, unable to multiplex")
 	}
-	if c.URLAddr.SafeKey() == "" {
+	if c.SafeKey() == "" {
 		return fmt.Errorf("unable to find safe key to hash metrics")
 	}
+	p := P(c.SafeURL())
+	p.ProxyKeyHash = c.SafeKey()
 	s.conns[c.SafeURL()] = c
+
 	// All new conns need metadata right away
 
 	// Implement connectTX()
@@ -131,9 +138,9 @@ func (s *Stream) Write(x *ChunkStream) error {
 			continue
 		}
 		M().Lock()
-		P(c.SafeURL()).ProxyKeyHash = c.SafeKey()
-		P(c.SafeURL()).ProxyTotalBytesTX = P(c.SafeURL()).ProxyTotalBytesTX + int(x.Length)
-		P(c.SafeURL()).ProxyTotalPacketsTX++
+		p := P(c.SafeURL())
+		p.ProxyTotalBytesTX = p.ProxyTotalBytesTX + int(x.Length)
+		p.ProxyTotalPacketsTX++
 		M().Unlock()
 		err := c.Write(x)
 		if err != nil {

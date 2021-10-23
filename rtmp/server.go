@@ -122,7 +122,12 @@ func (s *Server) ProxyClient(f *ClientConn) error {
 	}()
 
 	logger.Info(rtmpMessage(fmt.Sprintf("server.AddClient(%s)", f.urladdr.SafeURL()), ack))
-	s.proxyPublishClients[f.urladdr.SafeURL()] = f
+	mx := Multiplex(s.listener.URLAddr().Key())
+	mx.SetChunkSize(f.conn.chunkSize)
+	err := mx.AddConn(f.conn)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

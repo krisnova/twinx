@@ -90,6 +90,7 @@ func (cc *ClientConn) Dial(address string) error {
 	}
 	cc.conn = conn
 	cc.urladdr = urlAddr
+	cc.conn.URLAddr = *urlAddr
 	return nil
 }
 
@@ -372,10 +373,6 @@ func (cc *ClientConn) LogDecodeBatch(r io.Reader, ver amf.Version) (ret []interf
 }
 
 func (cc *ClientConn) Write(c *ChunkStream) error {
-	M().Lock()
-	P(cc.urladdr.SafeURL()).ProxyTotalPacketsTX++
-	P(cc.urladdr.SafeURL()).ProxyTotalBytesTX = P(cc.urladdr.SafeURL()).ProxyTotalBytesTX + int(c.Length)
-	M().Unlock()
 
 	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
 		c.TypeID == av.TAG_SCRIPTDATAAMF3 {

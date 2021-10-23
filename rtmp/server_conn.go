@@ -362,10 +362,6 @@ func (s *ServerConn) Write(x *ChunkStream) error {
 		}
 		x.Length = uint32(len(x.Data))
 	}
-	M().Lock()
-	P(s.server.listener.URLAddr().Key()).ProxyTotalBytesTX = P(s.server.listener.URLAddr().Key()).ProxyTotalBytesTX + int(x.Length)
-	P(s.server.listener.URLAddr().Key()).ProxyTotalPacketsTX++
-	M().Unlock()
 	return s.conn.Write(x)
 }
 
