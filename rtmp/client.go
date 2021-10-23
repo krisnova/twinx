@@ -27,8 +27,7 @@
 package rtmp
 
 type Client struct {
-	conn    *ClientConn
-	service *SafeMuxDemuxService
+	conn *ClientConn
 }
 
 func NewClient() *Client {
@@ -42,12 +41,6 @@ func (c *Client) Dial(address string) error {
 		return err
 	}
 	c.conn = clientConn
-	c.service = NewMuxDemService()
-	stream, err := c.service.GetStream(c.conn.urladdr.Key())
-	if err != nil {
-		return err
-	}
-	c.conn.stream = stream
 	return nil
 }
 

@@ -86,10 +86,6 @@ type ServerConn struct {
 	metaData      *MetaData
 	metaDataChunk *ChunkStream
 
-	// Every stream conn has an RTMP url
-	// Every stream conn has a stream
-	stream *SafeBoundedBuffer
-
 	decoder *amf.Decoder
 	encoder *amf.Encoder
 	bytesw  *bytes.Buffer
@@ -131,20 +127,6 @@ var clientLen int = 0
 // RoutePackets will hang and route packets for this connection
 func (s *ServerConn) RoutePackets() error {
 	for {
-		// Sync the proxies before routing the next packet
-		if len(s.server.proxyPublishClients) != clientLen {
-			for _, fwdClient := range s.server.proxyPublishClients {
-				// This will lock
-				// Add the writer for the associated server, but the client of the client
-				// Metrics Point
-				M().Lock()
-				P(s.server.listener.URLAddr().Key()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
-				P(s.server.listener.URLAddr().Key()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
-				M().Unlock()
-				s.stream.AddWriter(s.server.listener.URLAddr().Key(), fwdClient)
-			}
-			clientLen = len(s.server.proxyPublishClients)
-		}
 
 		x, err := s.NextChunk()
 		if err != nil {
@@ -173,7 +155,7 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 	case AbortMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AcknowledgementMessageID:
-		logger.Critical("server unsupported messageID: %s", typeIDString(x))
+		// Acks are acks we can ignore them
 	case WindowAcknowledgementSizeMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)

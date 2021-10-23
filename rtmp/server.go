@@ -55,7 +55,6 @@ const (
 )
 
 type Server struct {
-	muxdem   *SafeMuxDemuxService
 	listener *Listener
 
 	// *** Clients ***
@@ -87,7 +86,6 @@ func NewServer() *Server {
 		proxyPublishClients: make(map[string]*ClientConn),
 		playClients:         make(map[string]*ServerConn),
 		publishClients:      make(map[string]*ServerConn),
-		muxdem:              NewMuxDemService(),
 	}
 }
 
@@ -203,16 +201,8 @@ func (s *Server) handleConn(netConn net.Conn) error {
 	// Point all clients back to the main server
 	client.server = s
 
-	// Set up multiplexing. Streams are tracked by their Key()
-	stream, err := s.muxdem.GetStream(s.listener.URLAddr().Key())
-	if err != nil {
-		return err
-	}
-
-	// Map the stream to the conn
-	client.stream = stream
-
 	// Handshakes
+	var err error
 	err = client.handshake()
 	if err != nil {
 		return nil

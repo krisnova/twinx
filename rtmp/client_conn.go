@@ -59,7 +59,6 @@ type ClientConn struct {
 	transID    int
 	curcmdName string
 	streamid   uint32
-	stream     *SafeBoundedBuffer
 
 	// virtualMetaData can be used to set the metadata for a client connection.
 	// This will be sent during Publish()
