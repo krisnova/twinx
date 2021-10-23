@@ -278,11 +278,12 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 
 		// Metrics
 		M().Lock()
-		P(s.server.listener.URLAddr().Key()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
-		P(s.server.listener.URLAddr().Key()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
+		P(s.server.listener.URLAddr().SafeURL()).ProxyAddrTX = s.server.listener.URLAddr().SafeURL()
+		P(s.server.listener.URLAddr().SafeURL()).ProxyKeyHash = s.server.listener.URLAddr().SafeKey()
 		M().Unlock()
 
 		// Add the play client as a backend to Write() to
+
 		Multiplex(s.server.listener.URLAddr().Key()).AddConn(s.conn)
 
 		// Play clients get a streamBegin

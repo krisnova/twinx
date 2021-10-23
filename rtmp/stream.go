@@ -63,6 +63,12 @@ func (s *Stream) AddMetaData(x *ChunkStream) {
 }
 
 func (s *Stream) AddConn(c *Conn) error {
+	if c.URLAddr.key == "" {
+		return fmt.Errorf("empty conn key, unable to multiplex")
+	}
+	if c.URLAddr.SafeKey() == "" {
+		return fmt.Errorf("unable to find safe key to hash metrics")
+	}
 	s.conns[c.SafeURL()] = c
 	// All new conns need metadata right away
 	return s.Write(s.metaData)
@@ -78,10 +84,16 @@ func (s *Stream) Write(x *ChunkStream) error {
 	}
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
+
 	for _, c := range s.conns {
 		if c == nil {
 			continue
 		}
+		M().Lock()
+		P(c.SafeURL()).ProxyKeyHash = c.SafeKey()
+		P(c.SafeURL()).ProxyTotalBytesTX = P(c.SafeURL()).ProxyTotalBytesTX + int(x.Length)
+		P(c.SafeURL()).ProxyTotalPacketsTX++
+		M().Unlock()
 		err := c.Write(x)
 		if err != nil {
 			s.conns[c.SafeURL()] = nil

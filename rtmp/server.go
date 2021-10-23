@@ -177,7 +177,7 @@ func (s *Server) Serve(listener net.Listener) error {
 			return fmt.Errorf("client conn accept: %v", err)
 		}
 		go func() {
-			err := s.handleConn(clientConn)
+			err := s.handleConn(clientConn, concrete.URLAddr())
 			if err != nil {
 				logger.Critical("dropped client: %v", err)
 			}
@@ -186,11 +186,12 @@ func (s *Server) Serve(listener net.Listener) error {
 	return nil
 }
 
-func (s *Server) handleConn(netConn net.Conn) error {
+func (s *Server) handleConn(netConn net.Conn, urladdr *URLAddr) error {
 	logger.Info(rtmpMessage(fmt.Sprintf("server.Accept client %s", netConn.RemoteAddr()), new))
 
 	// Base connection
 	conn := NewConn(netConn)
+	conn.URLAddr = *urladdr
 
 	// Server Connection
 	// This is a bit weird naming, but each of these connections
