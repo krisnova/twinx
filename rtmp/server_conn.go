@@ -173,7 +173,7 @@ func (s *ServerConn) Route(x *ChunkStream) error {
 		// Note: There are sub-command messages logged in the next method
 		return s.handleCommand(x)
 	case DataMessageAMF0ID, DataMessageAMF3ID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
+		logger.Debug(rtmpMessage("DataMessage", rx))
 		return s.handleDataMessage(x)
 	case SharedObjectMessageAMF0ID, SharedObjectMessageAMF3ID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
@@ -230,6 +230,7 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 		return fmt.Errorf("unbale to map metadata: %v", err)
 	}
 	s.metaData = metaData
+	logger.Debug(rtmpMessage("MetaData", rx))
 
 	// Multiplex (and cache) the metadata for later
 	Multiplex(s.server.listener.URLAddr().Key()).AddMetaData(x)

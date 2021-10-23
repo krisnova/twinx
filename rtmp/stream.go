@@ -81,8 +81,8 @@ func (s *Stream) AddConn(c *Conn) error {
 }
 
 func (s *Stream) Write(x *ChunkStream) error {
-	if s.metaData == nil {
-		return fmt.Errorf("unable to write to buffer, nil metadata")
+	if x == nil {
+		return nil
 	}
 
 	if x == nil {
