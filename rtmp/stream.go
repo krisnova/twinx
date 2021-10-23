@@ -29,14 +29,17 @@ package rtmp
 import (
 	"fmt"
 	"sync"
+
+	"github.com/kris-nova/logger"
 )
 
 type Stream struct {
 	URLAddr
-	key      string
-	conns    map[string]*Conn
-	mtx      sync.Mutex
-	metaData *ChunkStream
+	key       string
+	chunkSize uint32
+	conns     map[string]*Conn
+	mtx       sync.Mutex
+	metaData  *ChunkStream
 }
 
 var mx = map[string]*Stream{}
@@ -55,11 +58,25 @@ func NewStream(key string) *Stream {
 		key:   key,
 		conns: make(map[string]*Conn),
 	}
+	// Hacky cache
+	mx[key] = s
 	return s
+}
+
+func (s *Stream) SetChunkSize(chunkSize uint32) {
+	logger.Debug(rtmpMessage(fmt.Sprintf("SetChunkSize: %d", chunkSize), ack))
+	s.chunkSize = chunkSize
 }
 
 func (s *Stream) AddMetaData(x *ChunkStream) {
 	s.metaData = x
+}
+
+func (s *Stream) GetMetaData() *ChunkStream {
+	if s.metaData == nil {
+		panic("nil metadata for play client")
+	}
+	return s.metaData
 }
 
 func (s *Stream) RemoveConn(c *Conn) {
@@ -77,12 +94,30 @@ func (s *Stream) AddConn(c *Conn) error {
 	}
 	s.conns[c.SafeURL()] = c
 	// All new conns need metadata right away
+
+	// Implement connectTX()
+
+	// write the chunk size of the client to the server
+	if s.chunkSize == 0 {
+		return fmt.Errorf("invalid chunk size: %d", s.chunkSize)
+	}
+	logger.Debug(rtmpMessage(fmt.Sprintf("SetChunkSize: %d", s.chunkSize), tx))
+	err := s.Write(c.newChunkStreamSetChunkSize(s.chunkSize))
+	if err != nil {
+		return err
+	}
+
+	err = s.Write(c.streamBegin())
+	if err != nil {
+		return err
+	}
+
 	return s.Write(s.metaData)
 }
 
 func (s *Stream) Write(x *ChunkStream) error {
 	if x == nil {
-		return nil
+		fmt.Errorf("nil packet in multiplex writter")
 	}
 
 	if x == nil {

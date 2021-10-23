@@ -162,7 +162,11 @@ func (s *ServerConn) connectTX() (*ChunkStream, error) {
 
 	// WindowAcknowledgement
 	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "WindowAcknowledgement"), tx))
-	txPacket = s.conn.newChunkStreamWindowAcknowledgementMessage(DefaultWindowAcknowledgementSizeBytes)
+	windowAckSize := s.conn.windowAckSize
+	if windowAckSize == 0 {
+		windowAckSize = DefaultWindowAcknowledgementSizeBytes
+	}
+	txPacket = s.conn.newChunkStreamWindowAcknowledgementMessage(windowAckSize)
 	err = s.conn.Write(txPacket)
 	if err != nil {
 		return nil, err
@@ -178,7 +182,11 @@ func (s *ServerConn) connectTX() (*ChunkStream, error) {
 
 	// SetChunkSize
 	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetChunkSize"), tx))
-	txPacket = s.conn.newChunkStreamSetChunkSize(DefaultRTMPChunkSizeBytesLarge)
+	chunkSize := s.conn.chunkSize
+	if chunkSize == 0 {
+		chunkSize = DefaultRTMPChunkSizeBytes
+	}
+	txPacket = s.conn.newChunkStreamSetChunkSize(chunkSize)
 	err = s.conn.Write(txPacket)
 	if err != nil {
 		return nil, err

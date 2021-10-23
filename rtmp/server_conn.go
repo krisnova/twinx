@@ -83,8 +83,7 @@ type ServerConn struct {
 	// client
 	publishInfo *PublishInfo
 
-	metaData      *MetaData
-	metaDataChunk *ChunkStream
+	metaData *MetaData
 
 	decoder *amf.Decoder
 	encoder *amf.Encoder
@@ -265,6 +264,8 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		// Publish client
 		s.clientType = PublishClient
 
+		// We have a new publish client, so let's create a new stream
+		Multiplex(s.server.listener.URLAddr().Key()).SetChunkSize(s.conn.chunkSize)
 		logger.Info(rtmpMessage("Publish Stream", stream))
 	case CommandPlay:
 
@@ -284,14 +285,7 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		M().Unlock()
 
 		// Add the play client as a backend to Write() to
-		Multiplex(s.server.listener.URLAddr().Key()).AddConn(s.conn)
-
-		// Play clients get a streamBegin
-		err = Multiplex(s.server.listener.URLAddr().Key()).Write(s.conn.streamBegin())
-		if err != nil {
-			return err
-		}
-		err = Multiplex(s.server.listener.URLAddr().Key()).Write(s.metaDataChunk)
+		err = Multiplex(s.server.listener.URLAddr().Key()).AddConn(s.conn)
 		if err != nil {
 			return err
 		}
