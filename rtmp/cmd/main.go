@@ -40,6 +40,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"time"
 
@@ -98,10 +99,12 @@ func main() {
 				Flags:   globalFlags,
 				Action: func(c *cli.Context) error {
 					args := c.Args()
+					var raw string
 					if args.Len() != 1 {
-						return errors.New("usage: twinx-rtmp server <bind-addr>")
+						raw = fmt.Sprintf("rtmp://%s:%s/twinx/1234", rtmp.DefaultLocalHost, rtmp.DefaultLocalPort)
+					} else {
+						raw = args.First()
 					}
-					raw := args.First()
 					return RunServer(raw)
 				},
 			},
