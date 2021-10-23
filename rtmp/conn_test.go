@@ -87,7 +87,7 @@ func TestConnCrossReading(t *testing.T) {
 	at.Equal(len(c.Data), 307)
 
 	err = conn.Read(&c)
-	at.Equal(TestableEOFError, err)
+	at.Equal(WellKnownClosedClientError, err)
 }
 
 func TestSetChunksizeForWrite(t *testing.T) {
@@ -197,7 +197,7 @@ func TestSetChunksize(t *testing.T) {
 	at.Equal(len(c.Data), 307)
 
 	err = conn.Read(&c)
-	at.Equal(TestableEOFError, err)
+	at.Equal(WellKnownClosedClientError, err)
 }
 
 func TestConnWrite(t *testing.T) {

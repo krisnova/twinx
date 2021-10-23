@@ -132,9 +132,11 @@ const (
 
 	// These commands are used, but not found in the spec
 
-	CommandReleaseStream string = "releaseStream"
-	CommandFCPublish     string = "FCPublish"
-	CommandFCUnpublish   string = "FCUnpublish"
+	CommandReleaseStream  string = "releaseStream"
+	CommandFCPublish      string = "FCPublish"
+	CommandFCUnpublish    string = "FCUnpublish"
+	CommandFCSubscribe    string = "FCSubscribe"
+	CommandFCUnsubscribed string = "FCUnsubscribe"
 
 	// 7.1.1. Command Message (20, 17)
 	//
@@ -459,7 +461,7 @@ func (chunkStream *ChunkStream) readChunk(r *ReadWriter, chunkSize uint32, pool 
 			if chunkStream.exited {
 				b, err := r.Peek(4)
 				if err != nil {
-					return TestableEOFError
+					return WellKnownClosedClientError
 				}
 				tmpts := binary.BigEndian.Uint32(b)
 				if tmpts == chunkStream.Timestamp {

@@ -44,8 +44,6 @@ import (
 	"errors"
 	"net"
 	"time"
-
-	"github.com/kris-nova/logger"
 )
 
 // Conn
@@ -86,9 +84,7 @@ func NewConn(c net.Conn) *Conn {
 }
 
 var (
-	// Note: this can likely be caused by missing /app/key in the URL
-
-	TestableEOFError = errors.New("reading bytes from client: EOF.")
+	WellKnownClosedClientError = errors.New("closed 🛑 client: EOF")
 )
 
 func (conn *Conn) Read(c *ChunkStream) error {
@@ -99,7 +95,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	for {
 		h, err := conn.rw.ReadUintBE(1)
 		if err != nil {
-			return TestableEOFError
+			return WellKnownClosedClientError
 		}
 		format := h >> 6
 		csid := h & 0x3f
@@ -112,7 +108,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 		cs.CSID = csid
 		err = cs.readChunk(conn.rw, conn.remoteChunkSize, conn.pool)
 		if err != nil {
-			return TestableEOFError
+			return WellKnownClosedClientError
 		}
 
 		conn.chunks[csid] = cs
@@ -127,7 +123,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	// This is also required for our tests.
 	if c.TypeID == SetChunkSizeMessageID {
 		chunkSize := binary.BigEndian.Uint32(c.Data)
-		logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
+		//logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
 		conn.remoteChunkSize = chunkSize
 		//conn.chunkSize = chunkSize
 	} else if c.TypeID == WindowAcknowledgementSizeMessageID {

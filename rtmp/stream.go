@@ -62,6 +62,12 @@ func (s *Stream) AddMetaData(x *ChunkStream) {
 	s.metaData = x
 }
 
+func (s *Stream) RemoveConn(c *Conn) {
+	// Setting to nil is safe, we check for nil and bypass
+	// later in the Write()
+	s.conns[c.SafeURL()] = nil
+}
+
 func (s *Stream) AddConn(c *Conn) error {
 	if c.URLAddr.key == "" {
 		return fmt.Errorf("empty conn key, unable to multiplex")

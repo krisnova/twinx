@@ -161,7 +161,7 @@ func (cc *ClientConn) RoutePackets() error {
 	for {
 		x, err = cc.NextChunk()
 		if err != nil {
-			if err != TestableEOFError {
+			if err != WellKnownClosedClientError {
 				return err
 			}
 			continue
@@ -365,9 +365,9 @@ func (cc *ClientConn) sendMetaData() error {
 
 func (cc *ClientConn) LogDecodeBatch(r io.Reader, ver amf.Version) (ret []interface{}, err error) {
 	vs, err := cc.decoder.DecodeBatch(r, ver)
-	for k, v := range vs {
-		logger.Debug("  [%+v] (%+v)", k, v)
-	}
+	//for k, v := range vs {
+	//	logger.Debug("  [%+v] (%+v)", k, v)
+	//}
 	return vs, err
 }
 

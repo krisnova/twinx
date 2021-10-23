@@ -117,7 +117,7 @@ func NewServerConn(conn *Conn) *ServerConn {
 func (s *ServerConn) NextChunk() (*ChunkStream, error) {
 	var chunk ChunkStream
 	if err := s.conn.Read(&chunk); err != nil {
-		return nil, fmt.Errorf("reading chunk from client: %v", err)
+		return nil, WellKnownClosedClientError
 	}
 	return &chunk, nil
 }
@@ -131,9 +131,11 @@ func (s *ServerConn) RoutePackets() error {
 		x, err := s.NextChunk()
 		if err != nil {
 			// Terminate the client!
-			if err != TestableEOFError {
+			if err != WellKnownClosedClientError {
 				return err
 			}
+			// The client just closed the connection, no need to alarm
+			return nil
 		}
 		err = s.Route(x)
 		if err != nil {
@@ -248,10 +250,8 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 	switch commandName {
 	case CommandConnect:
-		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandConnect), rx))
 		return s.connectRX(x)
 	case CommandCreateStream:
-		//logger.Debug(rtmpMessage(fmt.Sprintf("command.%s", CommandCreateStream), rx))
 		return s.createStreamRX(x)
 	case CommandPublish:
 
@@ -283,7 +283,6 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		M().Unlock()
 
 		// Add the play client as a backend to Write() to
-
 		Multiplex(s.server.listener.URLAddr().Key()).AddConn(s.conn)
 
 		// Play clients get a streamBegin
@@ -291,19 +290,23 @@ func (s *ServerConn) routeCommand(commandName string, x *ChunkStream) error {
 		if err != nil {
 			return err
 		}
-
 		err = Multiplex(s.server.listener.URLAddr().Key()).Write(s.metaDataChunk)
 		if err != nil {
 			return err
 		}
-
 		logger.Info(rtmpMessage("Play Stream", stream))
 	case CommandFCPublish:
 		return s.oosFCPublishRX(x)
+	case CommandFCSubscribe:
+		// Less is more
+	case CommandFCUnpublish:
+		// Less is more
 	case CommandReleaseStream:
 		return s.oosReleaseStreamRX(x)
 	case CommandGetStreamLength:
 		return s.oosGetStreamLengthRX(x)
+	case CommandDeleteStream:
+		Multiplex(s.server.listener.URLAddr().Key()).RemoveConn(s.conn)
 	default:
 		return fmt.Errorf("unsupported commandName: %s", commandName)
 	}
@@ -382,9 +385,9 @@ func (s *ServerConn) Read(packet *ChunkStream) (err error) {
 func (s *ServerConn) LogDecodeBatch(r io.Reader, ver amf.Version) ([]interface{}, error) {
 
 	vs, err := s.decoder.DecodeBatch(r, ver)
-	for k, v := range vs {
-		logger.Debug("  [%+v] (%+v)", k, v)
-	}
+	//for k, v := range vs {
+	//	logger.Debug("  [%+v] (%+v)", k, v)
+	//}
 	return vs, err
 }
 
