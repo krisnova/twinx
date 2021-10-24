@@ -146,23 +146,26 @@ func (s *ServerConn) RoutePackets() error {
 }
 
 func (s *ServerConn) Route(x *ChunkStream) error {
+	M().Lock()
+	M().ServerTotalPacketsRX++
+	M().ServerTotalBytesRX = M().ServerTotalBytesRX + int(x.Length)
+	M().Unlock()
 	switch x.TypeID {
 	case SetChunkSizeMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		chunkSize := binary.BigEndian.Uint32(x.Data)
-		s.conn.remoteChunkSize = chunkSize
+		s.conn.chunkSize = chunkSize
 		logger.Debug(rtmpMessage(typeIDString(x), ack))
 		s.conn.ack(x.Length)
 	case AbortMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AcknowledgementMessageID:
-		// Acks are acks we can ignore them
 	case WindowAcknowledgementSizeMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		ackSize := binary.BigEndian.Uint32(x.Data)
-		s.conn.remoteWindowAckSize = ackSize
+		s.conn.windowAckSize = ackSize
 		logger.Debug(rtmpMessage(typeIDString(x), ack))
-		s.conn.ack(x.Length)
+		s.conn.ack(ackSize)
 	case SetPeerBandwidthMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case UserControlMessageID:

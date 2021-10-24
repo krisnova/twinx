@@ -116,6 +116,7 @@ func (cc *ClientConn) Publish() error {
 		}
 	}
 
+	// Set our client initial chunk size here!
 	_, err = cc.publishTX()
 	if err != nil {
 		return err
@@ -178,29 +179,30 @@ func (cc *ClientConn) RoutePackets() error {
 func (cc *ClientConn) Route(x *ChunkStream) error {
 	switch x.TypeID {
 	case SetChunkSizeMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		chunkSize := binary.BigEndian.Uint32(x.Data)
-		cc.conn.chunkSize = chunkSize
-		cc.conn.ack(x.Length)
-		logger.Debug(rtmpMessage(typeIDString(x), ack))
+		size := binary.BigEndian.Uint32(x.Data)
+		logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s [%d]", thisFunctionName(), "SetChunkSize", size), rx))
+		cc.conn.chunkSize = size
+		return cc.conn.ack(size)
 	case AbortMessageID:
 		logger.Critical("unsupported messageID: %s", typeIDString(x))
 	case AcknowledgementMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		ackSize := binary.BigEndian.Uint32(x.Data)
-		cc.conn.windowAckSize = ackSize
-		logger.Debug(rtmpMessage(typeIDString(x), ack))
-		cc.conn.ack(ackSize)
+		panic("ackMessage")
 	case WindowAcknowledgementSizeMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		ackSize := binary.BigEndian.Uint32(x.Data)
-		cc.conn.windowAckSize = ackSize
-		logger.Debug(rtmpMessage(typeIDString(x), ack))
-		cc.conn.ack(ackSize)
+		size := binary.BigEndian.Uint32(x.Data)
+		logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s [%d]", thisFunctionName(), "WindowAckSize", size), rx))
+		cc.conn.windowAckSize = size
+		return cc.conn.ack(size)
 	case SetPeerBandwidthMessageID:
-		logger.Debug(rtmpMessage(typeIDString(x), rx))
-		ackSize := binary.BigEndian.Uint32(x.Data)
-		cc.conn.ack(ackSize)
+		// 5.4.5.  Set Peer Bandwidth (6)
+		//   The client or the server sends this message to limit the output
+		//   bandwidth of its peer.  The peer receiving this message limits its
+		//   output bandwidth by limiting the amount of sent but unacknowledged
+		//   data to the window size indicated in this message.  The peer
+		//   receiving this message SHOULD respond with a Window Acknowledgement
+		//   Size message if the window size is different from the last one sent
+		//   to the sender of this message.
+		size := binary.BigEndian.Uint32(x.Data)
+		return cc.conn.ack(size)
 	case UserControlMessageID:
 		logger.Debug(rtmpMessage(typeIDString(x), rx))
 		return cc.handleUserControl(x)

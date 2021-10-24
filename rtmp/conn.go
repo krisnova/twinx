@@ -58,27 +58,27 @@ import (
 type Conn struct {
 	net.Conn
 	URLAddr
-	chunkSize           uint32
-	remoteChunkSize     uint32
-	windowAckSize       uint32
-	remoteWindowAckSize uint32
-	received            uint32
-	ackReceived         uint32
-	rw                  *ReadWriter
-	pool                *Pool
-	chunks              map[uint32]ChunkStream
+	chunkSize uint32
+	//remoteChunkSize     uint32
+	windowAckSize uint32
+	//remoteWindowAckSize uint32
+	received    uint32
+	ackReceived uint32
+	rw          *ReadWriter
+	pool        *Pool
+	chunks      map[uint32]ChunkStream
 }
 
 func NewConn(c net.Conn) *Conn {
 	conn := &Conn{
-		Conn:                c,
-		chunkSize:           DefaultRTMPChunkSizeBytes,
-		remoteChunkSize:     DefaultRTMPChunkSizeBytes,
-		windowAckSize:       DefaultWindowAcknowledgementSizeBytes,
-		remoteWindowAckSize: DefaultWindowAcknowledgementSizeBytes,
-		pool:                NewPool(),
-		rw:                  NewReadWriter(c, DefaultConnBufferSizeBytes),
-		chunks:              make(map[uint32]ChunkStream),
+		Conn:      c,
+		chunkSize: DefaultRTMPChunkSizeBytes,
+		//remoteChunkSize:     DefaultRTMPChunkSizeBytes,
+		windowAckSize: DefaultWindowAcknowledgementSizeBytes,
+		//remoteWindowAckSize: DefaultWindowAcknowledgementSizeBytes,
+		pool:   NewPool(),
+		rw:     NewReadWriter(c, DefaultConnBufferSizeBytes),
+		chunks: make(map[uint32]ChunkStream),
 	}
 	return conn
 }
@@ -106,7 +106,7 @@ func (conn *Conn) Read(c *ChunkStream) error {
 		}
 		cs.tmpFormat = format
 		cs.CSID = csid
-		err = cs.readChunk(conn.rw, conn.remoteChunkSize, conn.pool)
+		err = cs.readChunk(conn.rw, conn.chunkSize, conn.pool)
 		if err != nil {
 			return WellKnownClosedClientError
 		}
@@ -123,20 +123,14 @@ func (conn *Conn) Read(c *ChunkStream) error {
 	// This is also required for our tests.
 	if c.TypeID == SetChunkSizeMessageID {
 		chunkSize := binary.BigEndian.Uint32(c.Data)
-		//logger.Debug("  ---> in Read() chunk size set: %d", chunkSize)
-		conn.remoteChunkSize = chunkSize
-		//conn.chunkSize = chunkSize
+		conn.chunkSize = chunkSize
 	} else if c.TypeID == WindowAcknowledgementSizeMessageID {
-		conn.remoteWindowAckSize = binary.BigEndian.Uint32(c.Data)
+		conn.windowAckSize = binary.BigEndian.Uint32(c.Data)
 	}
 
 	// We should now have a complete chunk.
-	M().Lock()
-	M().ServerTotalPacketsRX++
-	M().ServerTotalBytesRX = M().ServerTotalBytesRX + int(c.Length)
-	M().Unlock()
 
-	go conn.ack(c.Length)
+	//go conn.ack(c.Length)
 
 	return nil
 }
@@ -192,6 +186,15 @@ func (conn *Conn) newChunkStreamWindowAcknowledgementMessage(size uint32) *Chunk
 
 func (conn *Conn) newChunkStreamSetPeerBandwidth(size uint32) *ChunkStream {
 	x := newChunkStream(SetPeerBandwidthMessageID, 5, size)
+	// The Limit Type is one of the following values:
+	//
+	//   0 - Hard:  The peer SHOULD limit its output bandwidth to the
+	//      indicated window size.
+	//   1 - Soft:  The peer SHOULD limit its output bandwidth to the the
+	//      window indicated in this message or the limit already in effect,
+	//      whichever is smaller.
+	//   2 - Dynamic:  If the previous Limit Type was Hard, treat this message
+	//      as though it was marked Hard, otherwise ignore this message.
 	x.Data[4] = 2
 	return x
 }
@@ -210,7 +213,7 @@ func (conn *Conn) ack(size uint32) error {
 	if conn.received >= 0xf0000000 {
 		conn.received = 0
 	}
-	if conn.ackReceived >= conn.remoteWindowAckSize {
+	if conn.ackReceived >= conn.windowAckSize {
 		cs := conn.newChunkStreamAck(conn.ackReceived)
 		err := cs.writeChunk(conn.rw, int(conn.chunkSize))
 		conn.ackReceived = 0

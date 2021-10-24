@@ -269,17 +269,27 @@ func (cc *ClientConn) publishRX(x *ChunkStream) error {
 func (cc *ClientConn) publishTX() (*ChunkStream, error) {
 
 	// SetChunkSize
-	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s", thisFunctionName(), "SetChunkSize"), tx))
-	txPacket := cc.conn.newChunkStreamSetChunkSize(DefaultRTMPChunkSizeBytesLarge)
+	var chunkSize uint32
+	if cc.conn.chunkSize != 0 {
+		chunkSize = cc.conn.chunkSize
+	} else {
+		chunkSize = DefaultRTMPChunkSizeBytesLarge
+	}
+	logger.Debug(rtmpMessage(fmt.Sprintf("%s.%s [%d]", thisFunctionName(), "SetChunkSize", chunkSize), tx))
+	txPacket := cc.conn.newChunkStreamSetChunkSize(chunkSize)
 	err := cc.conn.Write(txPacket)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to set chunk size: %v", err)
 	}
 
 	logger.Debug(rtmpMessage(thisFunctionName(), tx))
 	cc.transID++
 	cc.curcmdName = CommandPublish
-	return cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive)
+	x, err := cc.writeMsg(CommandPublish, cc.transID, nil, cc.urladdr.Key(), PublishCommandLive)
+	if err != nil {
+		return nil, fmt.Errorf("publish command write: %v", err)
+	}
+	return x, nil
 }
 
 func (cc *ClientConn) seekRX(x *ChunkStream) error {

@@ -20,12 +20,11 @@ func TestConnReadNormal(t *testing.T) {
 	data = append(data, 0xc6)
 	data = append(data, data2...)
 	conn := &Conn{
-		pool:                NewPool(),
-		rw:                  NewReadWriter(bytes.NewBuffer(data), 1024),
-		remoteChunkSize:     128,
-		windowAckSize:       2500000,
-		remoteWindowAckSize: 2500000,
-		chunks:              make(map[uint32]ChunkStream),
+		pool:          NewPool(),
+		rw:            NewReadWriter(bytes.NewBuffer(data), 1024),
+		chunkSize:     128,
+		windowAckSize: 2500000,
+		chunks:        make(map[uint32]ChunkStream),
 	}
 	var c ChunkStream
 	err := conn.Read(&c)
@@ -66,12 +65,11 @@ func TestConnCrossReading(t *testing.T) {
 	videoData = append(videoData, data2...)
 
 	conn := &Conn{
-		pool:                NewPool(),
-		rw:                  NewReadWriter(bytes.NewBuffer(videoData), 1024),
-		remoteChunkSize:     128,
-		windowAckSize:       2500000,
-		remoteWindowAckSize: 2500000,
-		chunks:              make(map[uint32]ChunkStream),
+		pool:          NewPool(),
+		rw:            NewReadWriter(bytes.NewBuffer(videoData), 1024),
+		chunkSize:     128,
+		windowAckSize: 2500000,
+		chunks:        make(map[uint32]ChunkStream),
 	}
 	var c ChunkStream
 	//video 1
@@ -104,13 +102,11 @@ func TestSetChunksizeForWrite(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 	rw := NewReadWriter(buf, 1024)
 	conn := &Conn{
-		pool:                NewPool(),
-		rw:                  rw,
-		chunkSize:           128,
-		remoteChunkSize:     128,
-		windowAckSize:       2500000,
-		remoteWindowAckSize: 2500000,
-		chunks:              make(map[uint32]ChunkStream),
+		pool:          NewPool(),
+		rw:            rw,
+		chunkSize:     128,
+		windowAckSize: 2500000,
+		chunks:        make(map[uint32]ChunkStream),
 	}
 
 	audio := ChunkStream{
@@ -156,13 +152,11 @@ func TestSetChunksize(t *testing.T) {
 	data = append(data, data2...)
 	rw := NewReadWriter(bytes.NewBuffer(data), 1024)
 	conn := &Conn{
-		pool:                NewPool(),
-		rw:                  rw,
-		chunkSize:           128,
-		remoteChunkSize:     128,
-		windowAckSize:       2500000,
-		remoteWindowAckSize: 2500000,
-		chunks:              make(map[uint32]ChunkStream),
+		pool:          NewPool(),
+		rw:            rw,
+		chunkSize:     128,
+		windowAckSize: 2500000,
+		chunks:        make(map[uint32]ChunkStream),
 	}
 
 	var c ChunkStream
@@ -205,13 +199,11 @@ func TestConnWrite(t *testing.T) {
 	wr := bytes.NewBuffer(nil)
 	readWriter := NewReadWriter(wr, 128)
 	conn := &Conn{
-		pool:                NewPool(),
-		rw:                  readWriter,
-		chunkSize:           128,
-		remoteChunkSize:     128,
-		windowAckSize:       2500000,
-		remoteWindowAckSize: 2500000,
-		chunks:              make(map[uint32]ChunkStream),
+		pool:          NewPool(),
+		rw:            readWriter,
+		chunkSize:     128,
+		windowAckSize: 2500000,
+		chunks:        make(map[uint32]ChunkStream),
 	}
 
 	c1 := ChunkStream{

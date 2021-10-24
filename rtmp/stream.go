@@ -40,6 +40,7 @@ type Stream struct {
 	conns     map[string]*Conn
 	mtx       sync.Mutex
 	metaData  *ChunkStream
+	dropped   int
 }
 
 var mx = map[string]*Stream{}
@@ -133,6 +134,7 @@ func (s *Stream) Write(x *ChunkStream) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
+	packetWrite := false
 	for _, c := range s.conns {
 		if c == nil {
 			continue
@@ -142,15 +144,26 @@ func (s *Stream) Write(x *ChunkStream) error {
 		p.ProxyTotalBytesTX = p.ProxyTotalBytesTX + int(x.Length)
 		p.ProxyTotalPacketsTX++
 		M().Unlock()
+		logger.Debug("preWrite...")
 		err := c.Write(x)
 		if err != nil {
 			s.conns[c.SafeURL()] = nil
 			return err
 		}
+		logger.Debug("postWrite...")
+
+		// Left off here - need to understand what twitch
+		// wants us to send :)
+
 		err = c.Flush()
 		if err != nil {
 			return err
 		}
+		packetWrite = true
 	}
+	if !packetWrite {
+		s.dropped++
+	}
+
 	return nil
 }
