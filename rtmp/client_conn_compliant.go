@@ -154,7 +154,7 @@ func (cc *ClientConn) createStreamTX() (*ChunkStream, error) {
 		return nil, fmt.Errorf("unable to send createStream message: %v", err)
 	}
 	//logger.Debug(rtmpMessage(fmt.Sprintf("%s.Connected=true", thisFunctionName()), tx))
-	//cc.connected = true
+	cc.connected = true
 	return nil, nil
 }
 

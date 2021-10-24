@@ -325,7 +325,7 @@ func (cc *ClientConn) initialTX() error {
 		return err
 	}
 
-	return nil
+	return cc.Flush()
 }
 
 func (cc *ClientConn) sendMetaData() error {
@@ -382,7 +382,11 @@ func (cc *ClientConn) Write(c *ChunkStream) error {
 		}
 		c.Length = uint32(len(c.Data))
 	}
-	return cc.conn.Write(c)
+	err := cc.conn.Write(c)
+	if err != nil {
+		return err
+	}
+	return cc.conn.Flush()
 }
 
 func (cc *ClientConn) Flush() error {

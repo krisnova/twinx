@@ -121,6 +121,10 @@ func (s *Server) ProxyClient(f *ClientConn) error {
 		}
 	}()
 
+	for !f.connected {
+
+	}
+
 	logger.Info(rtmpMessage(fmt.Sprintf("server.AddClient(%s)", f.urladdr.SafeURL()), ack))
 	mx := Multiplex(s.listener.URLAddr().Key())
 	mx.SetChunkSize(f.conn.chunkSize)

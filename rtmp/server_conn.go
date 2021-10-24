@@ -126,7 +126,6 @@ var clientLen int = 0
 // RoutePackets will hang and route packets for this connection
 func (s *ServerConn) RoutePackets() error {
 	for {
-
 		x, err := s.NextChunk()
 		if err != nil {
 			// Terminate the client!
@@ -134,6 +133,7 @@ func (s *ServerConn) RoutePackets() error {
 				return err
 			}
 			// The client just closed the connection, no need to alarm
+			logger.Critical(err.Error())
 			return nil
 		}
 		err = s.Route(x)
