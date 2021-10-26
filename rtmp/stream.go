@@ -73,8 +73,21 @@ func (s *Stream) SetChunkSize(chunkSize uint32) {
 	s.chunkSize = chunkSize
 }
 
-func (s *Stream) AddMetaData(x *ChunkStream) {
+func (s *Stream) AddMetaData(x *ChunkStream) error {
 	s.metaData = x
+	err := s.Write(s.metaData)
+	if err != nil {
+		return err
+	}
+
+	logger.Debug(rtmpMessage("Multiplex: StreamBegin", tx))
+	for _, conn := range s.conns {
+		err := conn.Write(conn.streamBegin())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *Stream) GetMetaData() *ChunkStream {
@@ -103,8 +116,6 @@ func (s *Stream) AddConn(c *Conn) error {
 
 	// All new conns need metadata right away
 
-	// Implement connectTX()
-
 	// write the chunk size of the client to the server
 	if s.chunkSize == 0 {
 		return fmt.Errorf("invalid chunk size: %d", s.chunkSize)
@@ -114,15 +125,18 @@ func (s *Stream) AddConn(c *Conn) error {
 	if err != nil {
 		return err
 	}
-
-	err = s.Write(c.streamBegin())
-	if err != nil {
-		return err
-	}
-
-	return s.Write(s.metaData)
+	return nil
 }
 
+// [ Write ]
+//
+// The almighty Write() method.
+//
+// This method is effectively a single threaded
+// Write() method.
+//
+// If this blocks. All corresponding *Conn objects
+// will also block.
 func (s *Stream) Write(x *ChunkStream) error {
 	if x == nil {
 		fmt.Errorf("nil packet in multiplex writter")
@@ -135,6 +149,7 @@ func (s *Stream) Write(x *ChunkStream) error {
 	defer s.mtx.Unlock()
 
 	packetWrite := false
+
 	for _, c := range s.conns {
 		if c == nil {
 			continue
@@ -144,21 +159,19 @@ func (s *Stream) Write(x *ChunkStream) error {
 		p.ProxyTotalBytesTX = p.ProxyTotalBytesTX + int(x.Length)
 		p.ProxyTotalPacketsTX++
 		M().Unlock()
-		logger.Debug("preWrite...")
 		err := c.Write(x)
 		if err != nil {
 			s.conns[c.SafeURL()] = nil
 			return err
 		}
-		logger.Debug("postWrite...")
 
-		// Left off here - need to understand what twitch
-		// wants us to send :)
+		// If we are dropping packets
+		// it is going to be here.
 
-		err = c.Flush()
-		if err != nil {
-			return err
-		}
+		//err = c.Flush()
+		//if err != nil {
+		//	return err
+		//}
 		packetWrite = true
 	}
 	if !packetWrite {

@@ -140,7 +140,10 @@ func (s *ServerConn) RoutePackets() error {
 		if err != nil {
 			logger.Critical(err.Error())
 		}
-
+		err = s.Flush()
+		if err != nil {
+			logger.Critical(err.Error())
+		}
 	}
 	return nil
 }
@@ -235,7 +238,11 @@ func (s *ServerConn) handleDataMessage(x *ChunkStream) error {
 	logger.Debug(rtmpMessage("MetaData", rx))
 
 	// Multiplex (and cache) the metadata for later
-	Multiplex(s.server.listener.URLAddr().Key()).AddMetaData(x)
+
+	err = Multiplex(s.server.listener.URLAddr().Key()).AddMetaData(x)
+	if err != nil {
+		return err
+	}
 	err = Multiplex(s.server.listener.URLAddr().Key()).Write(x)
 	if err != nil {
 		return err
@@ -406,6 +413,5 @@ func (s *ServerConn) writeMsg(csid, streamID uint32, args ...interface{}) error 
 		Length:    uint32(len(msg)),
 		Data:      msg,
 	}
-	s.conn.Write(&packet)
-	return s.conn.Flush()
+	return s.conn.Write(&packet)
 }

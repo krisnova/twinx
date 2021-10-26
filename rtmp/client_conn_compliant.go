@@ -232,6 +232,9 @@ func (cc *ClientConn) receiveVideoTX() (*ChunkStream, error) {
 func (cc *ClientConn) publishRX(x *ChunkStream) error {
 	logger.Debug(rtmpMessage(thisFunctionName(), rx))
 	cc.transID = int(x.batchedValues[1].(float64))
+	if len(x.batchedValues) > 2 {
+		logger.Debug("%+v", x.batchedValues[3])
+	}
 	return nil
 }
 

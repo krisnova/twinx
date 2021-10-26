@@ -122,11 +122,6 @@ func (cc *ClientConn) Publish() error {
 		return err
 	}
 
-	err = cc.sendMetaData()
-	if err != nil {
-		return err
-	}
-
 	err = cc.RoutePackets()
 	if err != nil {
 		logger.Critical(err.Error())
@@ -172,6 +167,11 @@ func (cc *ClientConn) RoutePackets() error {
 		if err != nil {
 			return err
 		}
+		err = cc.Flush()
+		if err != nil {
+			logger.Critical(err.Error())
+		}
+		//fmt.Println("Boops....")
 	}
 	return nil
 }
@@ -260,7 +260,6 @@ func (cc *ClientConn) Route(x *ChunkStream) error {
 					}
 				}
 			case amf.Object:
-				// Todo unmarshal this into ConnEvent
 				entity := v.(amf.Object)
 				switch cc.curcmdName {
 				case CommandConnect:
@@ -327,7 +326,7 @@ func (cc *ClientConn) initialTX() error {
 		return err
 	}
 
-	return cc.Flush()
+	return nil
 }
 
 func (cc *ClientConn) sendMetaData() error {
@@ -375,7 +374,6 @@ func (cc *ClientConn) LogDecodeBatch(r io.Reader, ver amf.Version) (ret []interf
 }
 
 func (cc *ClientConn) Write(c *ChunkStream) error {
-
 	if c.TypeID == av.TAG_SCRIPTDATAAMF0 ||
 		c.TypeID == av.TAG_SCRIPTDATAAMF3 {
 		var err error
@@ -384,11 +382,7 @@ func (cc *ClientConn) Write(c *ChunkStream) error {
 		}
 		c.Length = uint32(len(c.Data))
 	}
-	err := cc.conn.Write(c)
-	if err != nil {
-		return err
-	}
-	return cc.conn.Flush()
+	return cc.conn.Write(c)
 }
 
 func (cc *ClientConn) Flush() error {
@@ -430,8 +424,5 @@ func (cc *ClientConn) writeMsg(args ...interface{}) (*ChunkStream, error) {
 		Length:    uint32(len(msg)),
 		Data:      msg,
 	}
-	cc.conn.Write(&c)
-	return &c, cc.conn.Flush()
+	return &c, cc.conn.Write(&c)
 }
-
-// ==========================================================================================
